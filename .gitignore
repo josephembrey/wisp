@@ -1,23 +1,21 @@
-node_modules
-
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Env
+.claude
+.devenv*
+.direnv/
 .env
 .env.*
 !.env.example
 !.env.test
-
-# Vite
+.mcp.json
+.pre-commit-config.yaml
+.svelte-kit
+*.log
+build/
+devenv.local.nix
+devenv.local.yaml
+node_modules/
+src-tauri/gen/schemas
+target/
+Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

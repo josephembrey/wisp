@@ -22,16 +22,16 @@ small settings panel where you pick your whisper model, hotkey, and output mode.
 
 **Why each one:**
 
-| Crate | Purpose |
-|-------|---------|
-| `whisper-rs` | Rust bindings to whisper.cpp — does the actual speech-to-text |
-| `cpal` | Cross-platform microphone capture. Gives us raw audio samples |
-| `rdev` | Listens for global keyboard events (key press AND release). Tauri's built-in global-shortcut plugin only fires on press, not release — we need release to know when to stop recording |
-| `arboard` | Cross-platform clipboard access (read/write) |
-| `enigo` | Simulates keyboard input — used to send Ctrl+V for "paste at cursor" mode |
-| `reqwest` | HTTP client to download whisper model files from HuggingFace |
-| `futures-util` | Needed to stream the download response body (for progress reporting) |
-| `parking_lot` | Faster mutex implementation — used for shared state between threads |
+| Crate          | Purpose                                                                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `whisper-rs`   | Rust bindings to whisper.cpp — does the actual speech-to-text                                                                                                                         |
+| `cpal`         | Cross-platform microphone capture. Gives us raw audio samples                                                                                                                         |
+| `rdev`         | Listens for global keyboard events (key press AND release). Tauri's built-in global-shortcut plugin only fires on press, not release — we need release to know when to stop recording |
+| `arboard`      | Cross-platform clipboard access (read/write)                                                                                                                                          |
+| `enigo`        | Simulates keyboard input — used to send Ctrl+V for "paste at cursor" mode                                                                                                             |
+| `reqwest`      | HTTP client to download whisper model files from HuggingFace                                                                                                                          |
+| `futures-util` | Needed to stream the download response body (for progress reporting)                                                                                                                  |
+| `parking_lot`  | Faster mutex implementation — used for shared state between threads                                                                                                                   |
 
 We also enable the `tray-icon` feature on the `tauri` crate, which unlocks the system tray API.
 
@@ -46,11 +46,13 @@ requires it too.
 **What:** Make the app launch to the system tray with no visible window.
 
 **Changes to `tauri.conf.json`:**
+
 - Set `visible: false` on the window — it starts hidden
 - Shrink the window to 480x600 (it's just a settings panel)
 - Add `withGlobalTauri: true` so the frontend can listen to events from Rust
 
 **Changes to `lib.rs`:**
+
 - Build a tray icon with a right-click menu: "Settings" and "Quit"
 - "Settings" shows the hidden window, "Quit" exits the app
 - When you close the settings window, it hides instead of quitting (override close event)
@@ -66,16 +68,19 @@ a background utility — you don't want a window sitting on your taskbar.
 to the frontend via Tauri commands.
 
 **New file `settings.rs`:**
+
 - `Settings` struct: `model` (string), `output_mode` (clipboard/paste), `hotkey` (string)
 - Load/save to a JSON file in the app data directory
 - Defaults: base model, clipboard mode, RightAlt hotkey
 
 **New file concept — `AppState`:**
+
 - Holds the current settings (behind a Mutex so multiple threads can access)
 - Holds the current status (idle/recording/processing)
 - Holds paths to the data and models directories
 
 **Tauri commands** (functions the frontend can call):
+
 - `get_settings` → returns current settings
 - `update_settings` → saves new settings to disk
 - `get_status` → returns current app status
@@ -92,11 +97,13 @@ main thread) may need to read settings simultaneously.
 **What:** Download whisper model files from HuggingFace, list available models, delete models.
 
 **Added to `whisper.rs`:**
+
 - Model files are GGML format, hosted at `huggingface.co/ggerganov/whisper.cpp`
 - Available: tiny (75MB), base (142MB), small (466MB), medium (1.5GB), large (3GB)
 - Stored in `{app_data_dir}/models/ggml-{name}.bin`
 
 **Tauri commands:**
+
 - `get_models` → lists all models with download status
 - `download_model` → streams the download, emits progress events to the frontend
 - `delete_model` → removes a model file
@@ -112,11 +119,13 @@ the download so the UI can show a progress bar.
 **What:** Record audio from the default microphone and prepare it for whisper.
 
 **New file `audio.rs`:**
+
 - `AudioRecorder` struct with `start()` and `stop()` methods
 - `start()` opens the default mic with `cpal` and buffers raw audio samples
 - `stop()` returns the buffered audio, converted to the format whisper expects
 
 **Audio processing (inside `stop()`):**
+
 1. Convert stereo to mono (average the channels)
 2. Resample to 16,000 Hz (whisper's expected sample rate)
    - Most mics record at 44,100 or 48,000 Hz
@@ -137,6 +146,7 @@ fancier resampler, but we don't).
 **What:** Load a model file and transcribe audio.
 
 **Added to `whisper.rs`:**
+
 - `WhisperEngine` struct with `load_model()` and `transcribe()` methods
 - `load_model()` loads the GGML file into memory (this takes a few seconds for larger models)
 - `transcribe()` runs inference on f32 audio samples and returns text
@@ -153,6 +163,7 @@ reuse it across multiple transcriptions. If the user changes their model selecti
 system.
 
 **New file `hotkey.rs`:**
+
 - Uses `rdev` to listen for ALL keyboard events globally
 - Filters for the configured hotkey key
 - Sends `Pressed` / `Released` events over a channel
@@ -177,6 +188,7 @@ their hotkey in settings, we update the mutex value and the listener picks it up
 **What:** Put the transcribed text where the user wants it.
 
 **New file `output.rs`:**
+
 - **Clipboard mode:** Write text to system clipboard using `arboard`
 - **Cursor mode:** Type text directly at the cursor using `enigo`'s `text()` method
 
@@ -192,6 +204,7 @@ window keeps focus, so the keystrokes go to the right place.
 **What:** Connect the hotkey → audio → whisper → output pipeline in `lib.rs`.
 
 **The event loop (runs on a dedicated thread):**
+
 ```
 receive hotkey event from channel
   → Pressed:  start audio recording, emit "recording" status
@@ -213,10 +226,12 @@ blocking here is fine.
 **What:** Build the Svelte UI for the settings panel.
 
 **New file `src/lib/tauri.ts`:**
+
 - TypeScript wrappers around `invoke()` calls and event listeners
 - Typed interfaces for Settings, ModelInfo, DownloadProgress
 
 **Rewrite `src/routes/+page.svelte`:**
+
 - Status indicator (idle / recording / processing) with color
 - Model picker: dropdown of available models, download/delete buttons, progress bar
 - Output mode: toggle between clipboard and paste-at-cursor
