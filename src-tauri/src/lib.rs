@@ -1,5 +1,6 @@
 mod commands;
 mod state;
+mod whisper;
 
 use state::{Settings, Status, WispState};
 use tauri::{
@@ -71,6 +72,9 @@ pub fn run() {
             commands::get_settings,
             commands::update_settings,
             commands::get_status,
+            commands::get_models,
+            commands::download_model,
+            commands::delete_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
