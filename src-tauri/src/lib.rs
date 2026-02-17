@@ -1,3 +1,7 @@
+mod commands;
+mod state;
+
+use state::{Settings, Status, WispState};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
@@ -8,7 +12,6 @@ use tauri::{
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // Logging in debug mode
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -16,6 +19,22 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Initialize app data directories
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("failed to get app data dir");
+            let models_dir = data_dir.join("models");
+
+            // Load settings and create app state
+            let settings = Settings::load(&data_dir);
+            app.manage(WispState {
+                settings: parking_lot::Mutex::new(settings),
+                status: parking_lot::Mutex::new(Status::Idle),
+                data_dir,
+                models_dir,
+            });
 
             // Build tray menu
             let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -42,13 +61,17 @@ pub fn run() {
 
             Ok(())
         })
-        // Hide window on close instead of quitting
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let _ = window.hide();
                 api.prevent_close();
             }
         })
+        .invoke_handler(tauri::generate_handler![
+            commands::get_settings,
+            commands::update_settings,
+            commands::get_status,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
