@@ -3,43 +3,47 @@
 		getSettings,
 		updateSettings,
 		getStatus,
-		getModels,
-		downloadModel,
-		deleteModel,
-		quit,
 		onStatusChanged,
-		onDownloadProgress,
 		onTranscription,
+		onError,
+		onSettingsChanged,
+		getGpuBackend,
+		resetApp,
 		type Settings,
-		type ModelInfo,
-		type Status,
-		type DownloadProgress
+		type Status
 	} from '$lib/tauri';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { getCurrentWindow } from '@tauri-apps/api/window';
+	import { LogicalSize } from '@tauri-apps/api/dpi';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
-	import { Progress } from '$lib/components/ui/progress/index.js';
-	import { Kbd } from '$lib/components/ui/kbd/index.js';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
-	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import { Slider } from '$lib/components/ui/slider/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
-	import { toggleMode, mode } from 'mode-watcher';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { toast } from 'svelte-sonner';
+	import Titlebar from '$lib/components/titlebar.svelte';
+	import SettingRow from '$lib/components/setting-row.svelte';
+	import ModelSection from '$lib/components/model-section.svelte';
+	import HotkeyCapture from '$lib/components/hotkey-capture.svelte';
 
 	let settings: Settings | null = $state(null);
 	let status: Status = $state('idle');
-	let models: ModelInfo[] = $state([]);
-	let downloading: string | null = $state(null);
-	let progress: DownloadProgress | null = $state(null);
 	let lastTranscription: string = $state('');
+	let contentHeight = $state(0);
+	let gpuBackend: string = $state('');
 
-	let capturing = $state(false);
-	let capturedKeys = new SvelteSet<string>();
-	let showQuitDialog = $state(false);
+	const WINDOW_WIDTH = 400;
 
-	let selectedModel = $derived(models.find((m) => m.name === settings?.model));
+	// Auto-resize window to fit content
+	$effect(() => {
+		if (contentHeight > 0) {
+			getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, contentHeight));
+		}
+	});
 
 	const languages = [
 		{ value: 'auto', label: 'Auto-detect' },
@@ -56,96 +60,28 @@
 		{ value: 'ar', label: 'Arabic' }
 	];
 
-	const statusColor: Record<Status, string> = {
-		idle: 'default',
-		recording: 'destructive',
-		processing: 'secondary'
-	};
-
-	const statusLabel: Record<Status, string> = {
-		idle: 'Idle',
-		recording: 'Recording',
-		processing: 'Processing'
-	};
-
-	function mapBrowserKey(code: string): string {
-		const map: Record<string, string> = {
-			AltLeft: 'Alt',
-			AltRight: 'RightAlt',
-			ControlLeft: 'ControlLeft',
-			ControlRight: 'ControlRight',
-			ShiftLeft: 'ShiftLeft',
-			ShiftRight: 'ShiftRight',
-			MetaLeft: 'MetaLeft',
-			MetaRight: 'MetaRight',
-			Space: 'Space',
-			CapsLock: 'CapsLock'
-		};
-		if (map[code]) return map[code];
-		if (code.startsWith('Key')) return code;
-		if (code.startsWith('Digit')) return 'Num' + code.slice(5);
-		if (code.startsWith('F') && !isNaN(Number(code.slice(1)))) return code;
-		return code;
-	}
-
-	function startCapture() {
-		capturing = true;
-		capturedKeys.clear();
-	}
-
-	function handleCaptureKeydown(e: KeyboardEvent) {
-		if (!capturing) return;
-		e.preventDefault();
-		if (e.code === 'Escape') {
-			capturing = false;
-			return;
-		}
-		capturedKeys.add(mapBrowserKey(e.code));
-	}
-
-	function handleCaptureKeyup(_e: KeyboardEvent) {
-		if (!capturing || capturedKeys.size === 0) return;
-		const combo = Array.from(capturedKeys).join('+');
-		capturing = false;
-		save({ hotkey: combo });
-	}
-
-	async function load() {
-		settings = await getSettings();
-		status = await getStatus();
-		models = await getModels();
-	}
-
 	async function save(updates: Partial<Settings>) {
 		if (!settings) return;
 		settings = { ...settings, ...updates };
-		await updateSettings(settings);
-	}
-
-	async function handleDownload(name: string) {
-		downloading = name;
-		progress = null;
 		try {
-			await downloadModel(name);
-			models = await getModels();
-		} finally {
-			downloading = null;
-			progress = null;
+			await updateSettings(settings);
+		} catch (e) {
+			toast.error(`Failed to save settings: ${e}`);
 		}
 	}
 
-	async function handleDelete(name: string) {
-		await deleteModel(name);
-		models = await getModels();
-	}
-
 	$effect(() => {
-		load();
+		getSettings().then((s) => (settings = s));
+		getStatus().then((s) => (status = s));
+		getGpuBackend().then((b) => (gpuBackend = b));
 
 		const unsubs = [
 			onStatusChanged((s) => (status = s)),
-			onDownloadProgress((p) => (progress = p)),
-			onTranscription((t) => (lastTranscription = t))
+			onTranscription((t) => (lastTranscription = t)),
+			onError((msg) => toast.error(msg)),
+			onSettingsChanged(() => {
+				getSettings().then((s) => (settings = s));
+			})
 		];
 
 		return () => {
@@ -154,296 +90,169 @@
 	});
 </script>
 
-<svelte:window onkeydown={handleCaptureKeydown} onkeyup={handleCaptureKeyup} />
+<div bind:clientHeight={contentHeight}>
+	<Titlebar {status} />
 
-<div class="flex h-screen flex-col">
-	<!-- Titlebar -->
-	<div
-		class="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3"
-		data-tauri-drag-region
-	>
-		<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
-			<span class="text-sm font-medium" data-tauri-drag-region>Wisp</span>
-			<Badge variant={statusColor[status] as 'default' | 'destructive' | 'secondary'}>
-				{statusLabel[status]}
-			</Badge>
-		</div>
-		<div class="flex items-center gap-1">
-			<button
-				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-				onclick={() => toggleMode()}
-				aria-label="Toggle theme"
-			>
-				{#if mode.current === 'dark'}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line
-							x1="12"
-							y1="21"
-							x2="12"
-							y2="23"
-						/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line
-							x1="18.36"
-							y1="18.36"
-							x2="19.78"
-							y2="19.78"
-						/><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line
-							x1="4.22"
-							y1="19.78"
-							x2="5.64"
-							y2="18.36"
-						/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg
-					>
-				{:else}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg
-					>
-				{/if}
-			</button>
-			<button
-				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-				onclick={() => getCurrentWindow().hide()}
-				aria-label="Hide to tray"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg
-				>
-			</button>
-			<button
-				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
-				onclick={() => (showQuitDialog = true)}
-				aria-label="Quit"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg
-				>
-			</button>
-		</div>
-	</div>
+	{#if settings}
+		<div class="flex flex-col gap-4 p-4">
+			<Tabs.Root value="main">
+				<Tabs.List class="w-full">
+					<Tabs.Trigger value="main">Main</Tabs.Trigger>
+					<Tabs.Trigger value="advanced">Advanced</Tabs.Trigger>
+				</Tabs.List>
 
-	<!-- Content -->
-	<ScrollArea class="flex-1 overflow-hidden">
-		<div class="flex flex-col gap-4 p-3">
-			{#if settings}
-				<!-- Model -->
-				<section class="flex flex-col gap-2">
-					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Model</h2>
-					<div class="flex items-center gap-2">
-						<Select.Root
-							type="single"
-							value={settings.model}
-							onValueChange={(v) => {
-								if (v) save({ model: v });
-							}}
-						>
-							<Select.Trigger class="flex-1">
-								{selectedModel?.name ?? settings.model}
-							</Select.Trigger>
-							<Select.Content>
-								{#each models as model (model.name)}
-									<Select.Item value={model.name}>
-										{model.name}
-										<span class="ml-auto text-xs text-muted-foreground">
-											{model.size_mb} MB
-											{#if model.downloaded}&check;{/if}
-										</span>
-									</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-
-						{#if selectedModel}
-							{#if !selectedModel.downloaded}
-								<Button
-									size="sm"
-									onclick={() => handleDownload(selectedModel.name)}
-									disabled={downloading !== null}
-								>
-									{downloading === selectedModel.name ? 'Downloading...' : 'Download'}
-								</Button>
-							{:else}
-								<Button
-									size="sm"
+				<Tabs.Content value="main" class="flex-none">
+					<div class="flex flex-col gap-4 pt-2">
+						<SettingRow label="Output">
+							<div class="flex items-center gap-3">
+								<ToggleGroup.Root
+									type="single"
+									value={settings.output_mode}
 									variant="outline"
-									onclick={() => handleDelete(selectedModel.name)}
-									class="h-8 w-8 p-0"
-									aria-label="Delete model"
+									onValueChange={(v) => {
+										if (v) save({ output_mode: v as 'clipboard' | 'paste' });
+									}}
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										><polyline points="3 6 5 6 21 6" /><path
-											d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-										/></svg
-									>
-								</Button>
-							{/if}
-						{/if}
-					</div>
-
-					{#if downloading && progress && progress.total > 0}
-						{@const pct = Math.round((progress.downloaded / progress.total) * 100)}
-						<div class="flex flex-col gap-1">
-							<Progress value={pct} />
-							<span class="text-xs text-muted-foreground">{pct}%</span>
-						</div>
-					{/if}
-				</section>
-
-				<Separator />
-
-				<!-- Output mode -->
-				<section class="flex flex-col gap-2">
-					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Output</h2>
-					<div class="flex items-center gap-3">
-						<ToggleGroup.Root
-							type="single"
-							value={settings.output_mode}
-							variant="outline"
-							onValueChange={(v) => {
-								if (v) save({ output_mode: v as 'clipboard' | 'paste' });
-							}}
-						>
-							<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
-							<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
-						</ToggleGroup.Root>
-						<span class="text-xs text-muted-foreground">
-							{settings.output_mode === 'clipboard'
-								? 'Copies text to clipboard'
-								: 'Types text at cursor'}
-						</span>
-					</div>
-				</section>
-
-				<Separator />
-
-				<!-- Language -->
-				<section class="flex flex-col gap-2">
-					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-						Language
-					</h2>
-					<div class="flex items-center gap-3">
-						<Select.Root
-							type="single"
-							value={settings.language}
-							onValueChange={(v) => {
-								if (v) save({ language: v });
-							}}
-						>
-							<Select.Trigger class="w-40">
-								{languages.find((l) => l.value === settings?.language)?.label ?? settings?.language}
-							</Select.Trigger>
-							<Select.Content>
-								{#each languages as lang (lang.value)}
-									<Select.Item value={lang.value}>{lang.label}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-						<span class="text-xs text-muted-foreground">
-							{settings.language === 'auto'
-								? 'Detects language automatically'
-								: 'Transcribes speech as ' +
-									(languages.find((l) => l.value === settings?.language)?.label ??
-										settings.language)}
-						</span>
-					</div>
-				</section>
-
-				<Separator />
-
-				<!-- Hotkey -->
-				<section class="flex flex-col gap-2">
-					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Hotkey</h2>
-					<div class="flex items-center gap-2">
-						{#if capturing}
-							<Kbd class="animate-pulse px-2 py-1 text-sm">
-								{capturedKeys.size > 0 ? Array.from(capturedKeys).join(' + ') : 'Press keys...'}
-							</Kbd>
-							<span class="text-xs text-muted-foreground">Release to save, Esc to cancel</span>
-						{:else}
-							<div class="flex flex-wrap items-center gap-1">
-								{#each settings.hotkey.split('+') as key, i}
-									{#if i > 0}
-										<span class="text-xs text-muted-foreground">+</span>
-									{/if}
-									<Kbd class="px-2 py-1 text-sm">{key}</Kbd>
-								{/each}
+									<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
+									<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
+								</ToggleGroup.Root>
+								<span class="text-xs text-muted-foreground">
+									{settings.output_mode === 'clipboard' ? 'Copies to clipboard' : 'Types at cursor'}
+								</span>
 							</div>
-							<span class="text-xs text-muted-foreground">Hold to record</span>
-							<Button size="sm" variant="outline" onclick={startCapture} class="ml-auto">
-								Change
-							</Button>
-						{/if}
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Hotkey">
+							<HotkeyCapture hotkey={settings.hotkey} onsave={(combo) => save({ hotkey: combo })} />
+						</SettingRow>
+
+						<Separator />
+
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+								Last Transcription
+							</span>
+							<Textarea
+								value={lastTranscription}
+								disabled
+								class="h-24 resize-none text-sm"
+								placeholder="No transcription yet"
+							/>
+						</div>
 					</div>
-				</section>
+				</Tabs.Content>
 
-				{#if lastTranscription}
-					<Separator />
-					<section class="flex flex-col gap-1">
-						<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-							Last Transcription
-						</h2>
-						<p class="text-sm">{lastTranscription}</p>
-					</section>
-				{/if}
-			{/if}
+				<Tabs.Content value="advanced" class="flex-none">
+					<div class="flex flex-col gap-4 pt-2">
+						<ModelSection {settings} onsave={save} />
+
+						<Separator />
+
+						<SettingRow label="Language">
+							<div class="flex items-center gap-3">
+								<Select.Root
+									type="single"
+									value={settings.language}
+									onValueChange={(v) => {
+										if (v) save({ language: v });
+									}}
+								>
+									<Select.Trigger class="w-36">
+										{languages.find((l) => l.value === settings?.language)?.label ??
+											settings?.language}
+									</Select.Trigger>
+									<Select.Content>
+										{#each languages as lang (lang.value)}
+											<Select.Item value={lang.value}>{lang.label}</Select.Item>
+										{/each}
+									</Select.Content>
+								</Select.Root>
+							</div>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="GPU">
+							<div class="flex items-center gap-3">
+								<Switch checked={settings.gpu} onCheckedChange={(v) => save({ gpu: v })} />
+								{#if settings.gpu && gpuBackend}
+									<Badge variant="outline">{gpuBackend}</Badge>
+								{:else}
+									<span class="text-xs text-muted-foreground">Using CPU only</span>
+								{/if}
+							</div>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Interrupt">
+							<div class="flex items-center gap-3">
+								<Switch
+									checked={settings.interrupt}
+									onCheckedChange={(v) => save({ interrupt: v })}
+								/>
+								<span class="text-xs text-muted-foreground">
+									{settings.interrupt
+										? 'Re-record during transcription'
+										: 'Wait for transcription to finish'}
+								</span>
+							</div>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Min Duration">
+							<div class="flex items-center gap-3">
+								<Slider
+									type="single"
+									value={settings.min_duration}
+									min={0}
+									max={2}
+									step={0.1}
+									class="flex-1"
+									onValueChange={(v: number) => save({ min_duration: v })}
+								/>
+								<span class="w-10 text-right text-xs text-muted-foreground tabular-nums">
+									{settings.min_duration.toFixed(1)}s
+								</span>
+							</div>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Output Mode Hotkey">
+							<HotkeyCapture
+								hotkey={settings.output_hotkey}
+								onsave={(combo) => save({ output_hotkey: combo })}
+							/>
+						</SettingRow>
+
+						<Separator />
+
+						<AlertDialog.Root>
+							<AlertDialog.Trigger
+								class="text-xs text-muted-foreground underline hover:text-foreground"
+							>
+								Reset app
+							</AlertDialog.Trigger>
+							<AlertDialog.Content>
+								<AlertDialog.Header>
+									<AlertDialog.Title>Reset Wisp?</AlertDialog.Title>
+									<AlertDialog.Description>
+										This will delete all settings and downloaded models, then restart the app.
+									</AlertDialog.Description>
+								</AlertDialog.Header>
+								<AlertDialog.Footer>
+									<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+									<AlertDialog.Action onclick={() => resetApp()}>Reset</AlertDialog.Action>
+								</AlertDialog.Footer>
+							</AlertDialog.Content>
+						</AlertDialog.Root>
+					</div>
+				</Tabs.Content>
+			</Tabs.Root>
 		</div>
-	</ScrollArea>
+	{/if}
 </div>
-
-<AlertDialog.Root bind:open={showQuitDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Quit Wisp?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will stop the hotkey listener and close the app. You won't be able to dictate until you
-				relaunch.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={() => quit()}>Quit</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
