@@ -28,6 +28,7 @@ export const getStatus = () => invoke<Status>('get_status');
 export const getModels = () => invoke<ModelInfo[]>('get_models');
 export const downloadModel = (name: string) => invoke('download_model', { name });
 export const deleteModel = (name: string) => invoke('delete_model', { name });
+export const quit = () => invoke('quit');
 
 export const onStatusChanged = (cb: (status: Status) => void): Promise<UnlistenFn> =>
 	listen<Status>('status-changed', (e) => cb(e.payload));

@@ -43,3 +43,8 @@ pub async fn download_model(
 pub fn delete_model(state: tauri::State<'_, WispState>, name: String) -> Result<(), String> {
     whisper::delete_model(&state.models_dir, &name)
 }
+
+#[tauri::command]
+pub fn quit(app: tauri::AppHandle) {
+    app.exit(0);
+}

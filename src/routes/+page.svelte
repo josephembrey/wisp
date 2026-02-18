@@ -6,6 +6,7 @@
 		getModels,
 		downloadModel,
 		deleteModel,
+		quit,
 		onStatusChanged,
 		onDownloadProgress,
 		onTranscription,
@@ -22,6 +23,7 @@
 	import { Kbd } from '$lib/components/ui/kbd/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { toggleMode, mode } from 'mode-watcher';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -35,6 +37,7 @@
 
 	let capturing = $state(false);
 	let capturedKeys = new SvelteSet<string>();
+	let showQuitDialog = $state(false);
 
 	let selectedModel = $derived(models.find((m) => m.name === settings?.model));
 
@@ -216,8 +219,8 @@
 			</button>
 			<button
 				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-				onclick={() => getCurrentWindow().minimize()}
-				aria-label="Minimize"
+				onclick={() => getCurrentWindow().hide()}
+				aria-label="Hide to tray"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -233,8 +236,8 @@
 			</button>
 			<button
 				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
-				onclick={() => getCurrentWindow().hide()}
-				aria-label="Close"
+				onclick={() => (showQuitDialog = true)}
+				aria-label="Quit"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -253,7 +256,7 @@
 	</div>
 
 	<!-- Content -->
-	<ScrollArea class="flex-1">
+	<ScrollArea class="flex-1 overflow-hidden">
 		<div class="flex flex-col gap-4 p-3">
 			{#if settings}
 				<!-- Model -->
@@ -333,17 +336,24 @@
 				<!-- Output mode -->
 				<section class="flex flex-col gap-2">
 					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Output</h2>
-					<ToggleGroup.Root
-						type="single"
-						value={settings.output_mode}
-						variant="outline"
-						onValueChange={(v) => {
-							if (v) save({ output_mode: v as 'clipboard' | 'paste' });
-						}}
-					>
-						<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
-						<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
-					</ToggleGroup.Root>
+					<div class="flex items-center gap-3">
+						<ToggleGroup.Root
+							type="single"
+							value={settings.output_mode}
+							variant="outline"
+							onValueChange={(v) => {
+								if (v) save({ output_mode: v as 'clipboard' | 'paste' });
+							}}
+						>
+							<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
+							<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
+						</ToggleGroup.Root>
+						<span class="text-xs text-muted-foreground">
+							{settings.output_mode === 'clipboard'
+								? 'Copies text to clipboard'
+								: 'Types text at cursor'}
+						</span>
+					</div>
 				</section>
 
 				<Separator />
@@ -353,22 +363,31 @@
 					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
 						Language
 					</h2>
-					<Select.Root
-						type="single"
-						value={settings.language}
-						onValueChange={(v) => {
-							if (v) save({ language: v });
-						}}
-					>
-						<Select.Trigger class="w-40">
-							{languages.find((l) => l.value === settings?.language)?.label ?? settings?.language}
-						</Select.Trigger>
-						<Select.Content>
-							{#each languages as lang (lang.value)}
-								<Select.Item value={lang.value}>{lang.label}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
+					<div class="flex items-center gap-3">
+						<Select.Root
+							type="single"
+							value={settings.language}
+							onValueChange={(v) => {
+								if (v) save({ language: v });
+							}}
+						>
+							<Select.Trigger class="w-40">
+								{languages.find((l) => l.value === settings?.language)?.label ?? settings?.language}
+							</Select.Trigger>
+							<Select.Content>
+								{#each languages as lang (lang.value)}
+									<Select.Item value={lang.value}>{lang.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<span class="text-xs text-muted-foreground">
+							{settings.language === 'auto'
+								? 'Detects language automatically'
+								: 'Transcribes speech as ' +
+									(languages.find((l) => l.value === settings?.language)?.label ??
+										settings.language)}
+						</span>
+					</div>
 				</section>
 
 				<Separator />
@@ -412,3 +431,19 @@
 		</div>
 	</ScrollArea>
 </div>
+
+<AlertDialog.Root bind:open={showQuitDialog}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Quit Wisp?</AlertDialog.Title>
+			<AlertDialog.Description>
+				This will stop the hotkey listener and close the app. You won't be able to dictate until you
+				relaunch.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action onclick={() => quit()}>Quit</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

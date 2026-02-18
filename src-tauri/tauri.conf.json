@@ -16,7 +16,7 @@
 				"label": "main",
 				"title": "Wisp Settings",
 				"width": 400,
-				"height": 480,
+				"height": 460,
 				"resizable": false,
 				"visible": false,
 				"decorations": false,
