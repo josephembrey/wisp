@@ -42,5 +42,8 @@ enigo = "0.6"
 reqwest = { version = "0.13", features = ["stream"] }
 futures-util = "0.3"
 
+# Regex (lightweight, no-std)
+regex-lite = "0.1"
+
 # Concurrency
 parking_lot = "0.12"

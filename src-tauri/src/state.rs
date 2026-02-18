@@ -9,6 +9,12 @@ pub struct Settings {
     pub model: String,
     pub output_mode: OutputMode,
     pub hotkey: String,
+    #[serde(default = "default_language")]
+    pub language: String,
+}
+
+fn default_language() -> String {
+    "en".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -24,6 +30,7 @@ impl Default for Settings {
             model: "base".to_string(),
             output_mode: OutputMode::Clipboard,
             hotkey: "RightAlt".to_string(),
+            language: "en".to_string(),
         }
     }
 }

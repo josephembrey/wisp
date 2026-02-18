@@ -9,7 +9,7 @@ use state::{Settings, Status, WispState};
 use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
 
@@ -71,6 +71,7 @@ pub fn run() {
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
+                .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -82,6 +83,19 @@ pub fn run() {
                         app.exit(0);
                     }
                     _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
                 })
                 .build(app)?;
 
@@ -117,6 +131,24 @@ fn run_event_loop(app: tauri::AppHandle, rx: std::sync::mpsc::Receiver<hotkey::H
     let mut engine: Option<whisper::WhisperEngine> = None;
     let mut loaded_model = String::new();
     let mut recorder: Option<audio::AudioRecorder> = None;
+
+    // Eagerly load the configured model at startup
+    {
+        let settings = state.settings.lock().clone();
+        let model_file = state
+            .models_dir
+            .join(format!("ggml-{}.bin", settings.model));
+        if model_file.exists() {
+            match whisper::WhisperEngine::new(&model_file) {
+                Ok(e) => {
+                    log::info!("eagerly loaded model: {}", settings.model);
+                    engine = Some(e);
+                    loaded_model = settings.model.clone();
+                }
+                Err(e) => log::warn!("failed to eagerly load model: {}", e),
+            }
+        }
+    }
 
     for event in rx {
         match event {
@@ -163,7 +195,7 @@ fn run_event_loop(app: tauri::AppHandle, rx: std::sync::mpsc::Receiver<hotkey::H
 
                 // Transcribe and output
                 if let Some(ref eng) = engine {
-                    match eng.transcribe(&audio) {
+                    match eng.transcribe(&audio, &settings.language) {
                         Ok(text) if !text.is_empty() => {
                             if let Err(e) = output::send(&text, &settings.output_mode) {
                                 log::error!("output error: {}", e);

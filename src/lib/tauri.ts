@@ -5,6 +5,7 @@ export interface Settings {
 	model: string;
 	output_mode: 'clipboard' | 'paste';
 	hotkey: string;
+	language: string;
 }
 
 export interface ModelInfo {

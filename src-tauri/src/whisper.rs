@@ -100,11 +100,16 @@ impl WhisperEngine {
         Ok(Self { ctx })
     }
 
-    pub fn transcribe(&self, audio: &[f32]) -> Result<String, String> {
+    pub fn transcribe(&self, audio: &[f32], language: &str) -> Result<String, String> {
         let mut state = self.ctx.create_state().map_err(|e| format!("{:?}", e))?;
 
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        params.set_language(Some("en"));
+        let lang = if language == "auto" {
+            None
+        } else {
+            Some(language)
+        };
+        params.set_language(lang);
         params.set_print_progress(false);
         params.set_print_realtime(false);
         params.set_print_special(false);
@@ -121,6 +126,10 @@ impl WhisperEngine {
             }
         }
 
-        Ok(text.trim().to_string())
+        // Strip whisper artifacts like [BLANK_AUDIO], [MUSIC], etc.
+        let filtered = regex_lite::Regex::new(r"\[.*?\]")
+            .unwrap()
+            .replace_all(text.trim(), "");
+        Ok(filtered.trim().to_string())
     }
 }

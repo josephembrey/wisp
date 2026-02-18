@@ -17,8 +17,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Kbd } from '$lib/components/ui/kbd/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
@@ -38,6 +37,21 @@
 	let capturedKeys = new SvelteSet<string>();
 
 	let selectedModel = $derived(models.find((m) => m.name === settings?.model));
+
+	const languages = [
+		{ value: 'auto', label: 'Auto-detect' },
+		{ value: 'en', label: 'English' },
+		{ value: 'es', label: 'Spanish' },
+		{ value: 'fr', label: 'French' },
+		{ value: 'de', label: 'German' },
+		{ value: 'it', label: 'Italian' },
+		{ value: 'pt', label: 'Portuguese' },
+		{ value: 'zh', label: 'Chinese' },
+		{ value: 'ja', label: 'Japanese' },
+		{ value: 'ko', label: 'Korean' },
+		{ value: 'ru', label: 'Russian' },
+		{ value: 'ar', label: 'Arabic' }
+	];
 
 	const statusColor: Record<Status, string> = {
 		idle: 'default',
@@ -240,7 +254,7 @@
 
 	<!-- Content -->
 	<ScrollArea class="flex-1">
-		<div class="flex flex-col gap-5 p-4">
+		<div class="flex flex-col gap-4 p-3">
 			{#if settings}
 				<!-- Model -->
 				<section class="flex flex-col gap-2">
@@ -281,10 +295,25 @@
 							{:else}
 								<Button
 									size="sm"
-									variant="destructive"
+									variant="outline"
 									onclick={() => handleDelete(selectedModel.name)}
+									class="h-8 w-8 p-0"
+									aria-label="Delete model"
 								>
-									Delete
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="14"
+										height="14"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><polyline points="3 6 5 6 21 6" /><path
+											d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+										/></svg
+									>
 								</Button>
 							{/if}
 						{/if}
@@ -304,21 +333,42 @@
 				<!-- Output mode -->
 				<section class="flex flex-col gap-2">
 					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Output</h2>
-					<div class="flex items-center justify-between">
-						<Label for="output-mode">
-							{settings.output_mode === 'clipboard' ? 'Copy to clipboard' : 'Type at cursor'}
-						</Label>
-						<Switch
-							id="output-mode"
-							checked={settings.output_mode === 'paste'}
-							onCheckedChange={(checked) => save({ output_mode: checked ? 'paste' : 'clipboard' })}
-						/>
-					</div>
-					<p class="text-xs text-muted-foreground">
-						{settings.output_mode === 'clipboard'
-							? 'Transcribed text is copied to your clipboard.'
-							: 'Transcribed text is typed directly at your cursor.'}
-					</p>
+					<ToggleGroup.Root
+						type="single"
+						value={settings.output_mode}
+						variant="outline"
+						onValueChange={(v) => {
+							if (v) save({ output_mode: v as 'clipboard' | 'paste' });
+						}}
+					>
+						<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
+						<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
+					</ToggleGroup.Root>
+				</section>
+
+				<Separator />
+
+				<!-- Language -->
+				<section class="flex flex-col gap-2">
+					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+						Language
+					</h2>
+					<Select.Root
+						type="single"
+						value={settings.language}
+						onValueChange={(v) => {
+							if (v) save({ language: v });
+						}}
+					>
+						<Select.Trigger class="w-40">
+							{languages.find((l) => l.value === settings?.language)?.label ?? settings?.language}
+						</Select.Trigger>
+						<Select.Content>
+							{#each languages as lang (lang.value)}
+								<Select.Item value={lang.value}>{lang.label}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
 				</section>
 
 				<Separator />
@@ -326,14 +376,21 @@
 				<!-- Hotkey -->
 				<section class="flex flex-col gap-2">
 					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Hotkey</h2>
-					<div class="flex items-center gap-3">
+					<div class="flex items-center gap-2">
 						{#if capturing}
-							<Kbd class="animate-pulse">
+							<Kbd class="animate-pulse px-2 py-1 text-sm">
 								{capturedKeys.size > 0 ? Array.from(capturedKeys).join(' + ') : 'Press keys...'}
 							</Kbd>
 							<span class="text-xs text-muted-foreground">Release to save, Esc to cancel</span>
 						{:else}
-							<Kbd>{settings.hotkey.replaceAll('+', ' + ')}</Kbd>
+							<div class="flex flex-wrap items-center gap-1">
+								{#each settings.hotkey.split('+') as key, i}
+									{#if i > 0}
+										<span class="text-xs text-muted-foreground">+</span>
+									{/if}
+									<Kbd class="px-2 py-1 text-sm">{key}</Kbd>
+								{/each}
+							</div>
 							<span class="text-xs text-muted-foreground">Hold to record</span>
 							<Button size="sm" variant="outline" onclick={startCapture} class="ml-auto">
 								Change
