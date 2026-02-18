@@ -1,6 +1,7 @@
 mod audio;
 mod commands;
 mod hotkey;
+mod output;
 mod state;
 mod whisper;
 
