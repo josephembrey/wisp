@@ -9,11 +9,10 @@
 		onSettingsChanged,
 		getGpuBackend,
 		resetApp,
+		resizeWindow as resizeWindowCmd,
 		type Settings,
 		type Status
 	} from '$lib/tauri';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
-	import { LogicalSize } from '@tauri-apps/api/dpi';
 	import { tick } from 'svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
@@ -39,33 +38,27 @@
 	let showSaved: boolean = $state(false);
 	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
 
-	const WINDOW_WIDTH = 400;
+	let lastHeight = 0;
 
 	// Auto-resize window to fit content
 	async function resizeWindow() {
 		await tick();
 		if (!contentEl) return;
-		const h = contentEl.scrollHeight;
-		if (h > 0) {
-			getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, h));
+		const h = Math.ceil(contentEl.getBoundingClientRect().height);
+		if (h > 0 && Math.abs(h - lastHeight) >= 2) {
+			lastHeight = h;
+			resizeWindowCmd(h);
 		}
 	}
 
 	$effect(() => {
 		if (!contentEl) return;
 
-		const mo = new MutationObserver(() => resizeWindow());
-		mo.observe(contentEl, { childList: true, subtree: true, attributes: true });
-
 		const ro = new ResizeObserver(() => resizeWindow());
 		ro.observe(contentEl);
-
 		resizeWindow();
 
-		return () => {
-			mo.disconnect();
-			ro.disconnect();
-		};
+		return () => ro.disconnect();
 	});
 
 	const languages = [
@@ -90,7 +83,7 @@
 			await updateSettings(settings);
 			clearTimeout(savedTimeout);
 			showSaved = true;
-			savedTimeout = setTimeout(() => (showSaved = false), 1500);
+			savedTimeout = setTimeout(() => (showSaved = false), 750);
 		} catch (e) {
 			toast.error(`Failed to save settings: ${e}`);
 		}
@@ -130,17 +123,22 @@
 				<Tabs.Content value="main" class="flex-none">
 					<div class="flex flex-col gap-4 pt-2">
 						<SettingRow label="Output">
-							<ToggleGroup.Root
-								type="single"
-								value={settings.output_mode}
-								variant="outline"
-								onValueChange={(v) => {
-									if (v) save({ output_mode: v as 'clipboard' | 'paste' });
-								}}
-							>
-								<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
-								<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
-							</ToggleGroup.Root>
+							<div class="flex items-center gap-3">
+								<ToggleGroup.Root
+									type="single"
+									value={settings.output_mode}
+									variant="outline"
+									onValueChange={(v) => {
+										if (v) save({ output_mode: v as 'clipboard' | 'paste' });
+									}}
+								>
+									<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
+									<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
+								</ToggleGroup.Root>
+								<span class="text-xs text-muted-foreground">
+									{settings.output_mode === 'clipboard' ? 'Copies to clipboard' : 'Types at cursor'}
+								</span>
+							</div>
 						</SettingRow>
 
 						<Separator />
@@ -152,9 +150,38 @@
 						<Separator />
 
 						<div class="flex flex-col gap-1">
-							<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-								Last Transcription
-							</span>
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+									Last Transcription
+								</span>
+								{#if lastTranscription}
+									<button
+										class="inline-flex h-5 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+										onclick={() => {
+											navigator.clipboard.writeText(lastTranscription);
+											clearTimeout(savedTimeout);
+											showSaved = true;
+											savedTimeout = setTimeout(() => (showSaved = false), 750);
+										}}
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											><rect width="14" height="14" x="8" y="8" rx="2" /><path
+												d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+											/></svg
+										>
+										Copy
+									</button>
+								{/if}
+							</div>
 							<Textarea
 								value={lastTranscription}
 								disabled

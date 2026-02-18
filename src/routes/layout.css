@@ -122,6 +122,6 @@
 		@apply border-border outline-ring/50;
 	}
 	body {
-		@apply overflow-y-auto bg-background text-foreground;
+		@apply overflow-hidden bg-background text-foreground;
 	}
 }
