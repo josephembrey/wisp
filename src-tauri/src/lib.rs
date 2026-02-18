@@ -31,6 +31,13 @@ unsafe impl Send for AppEvent {}
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // Another instance tried to launch — focus the existing window
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .setup(|app| {
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
@@ -159,6 +166,7 @@ pub fn run() {
             commands::download_model,
             commands::delete_model,
             commands::get_gpu_backend,
+            commands::resize_window,
             commands::reset_app,
             commands::quit,
         ])

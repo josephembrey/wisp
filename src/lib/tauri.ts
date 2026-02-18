@@ -34,6 +34,7 @@ export const getModels = () => invoke<ModelInfo[]>('get_models');
 export const downloadModel = (name: string) => invoke('download_model', { name });
 export const deleteModel = (name: string) => invoke('delete_model', { name });
 export const getGpuBackend = () => invoke<string>('get_gpu_backend');
+export const resizeWindow = (height: number) => invoke('resize_window', { height });
 export const resetApp = () => invoke('reset_app');
 export const quit = () => invoke('quit');
 
