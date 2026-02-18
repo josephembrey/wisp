@@ -3,11 +3,3 @@ start on login
 the input devices need more descriptive names
 better hotkey detection while the overlay is focused
 fix "fullscreen borderless" detection
-
-signing certificate for windows
-disabling/enabling the always on overlay doesnt change immediately (has to change state to processing/recording to take effect and show/hide the idle state)
-better hotkey detection while the overlay is focused
-fix "fullscreen borderless" detection
-signing certificate for windows
-sizes dont work
-copied/typed indicators dont work

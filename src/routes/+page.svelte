@@ -526,7 +526,7 @@
 							<ul class="space-y-1.5 text-xs text-muted-foreground">
 								<li class="flex items-start gap-2">
 									<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-									<span>Close this window — Wisp keeps running in the system tray</span>
+									<span>Minimize this window — Wisp keeps running in the system tray</span>
 								</li>
 								<li class="flex items-start gap-2">
 									<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>

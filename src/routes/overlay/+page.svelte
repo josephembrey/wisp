@@ -11,6 +11,7 @@
 	let status = $state<Status>('idle');
 	let flash = $state('');
 	let position = $state('top-center');
+	let size = $state('medium');
 	let flashTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	const justify = $derived(
@@ -21,8 +22,13 @@
 				: 'justify-center'
 	);
 
+	const scale = $derived(size === 'small' ? 'scale-75' : size === 'large' ? 'scale-150' : '');
+
 	onMount(() => {
-		getSettings().then((s) => (position = s.overlay_position));
+		getSettings().then((s) => {
+			position = s.overlay_position;
+			size = s.overlay_size;
+		});
 
 		const unsubs = [
 			onStatusChanged((s) => {
@@ -34,7 +40,10 @@
 				flashTimeout = setTimeout(() => (flash = ''), 1000);
 			}),
 			onSettingsChanged(() => {
-				getSettings().then((s) => (position = s.overlay_position));
+				getSettings().then((s) => {
+					position = s.overlay_position;
+					size = s.overlay_size;
+				});
 			})
 		];
 		return () => {
@@ -59,7 +68,7 @@
 {#if flash}
 	<div class="flex items-center {justify}" style="width: 100vw; height: 100vh;">
 		<div
-			class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm"
+			class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm {scale}"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -78,7 +87,7 @@
 {:else}
 	<div class="flex items-center {justify}" style="width: 100vw; height: 100vh;">
 		<div
-			class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm"
+			class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm {scale}"
 		>
 			{#if status === 'recording'}
 				<span class="relative flex h-2.5 w-2.5">
