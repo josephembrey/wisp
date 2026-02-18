@@ -14,6 +14,7 @@
 	} from '$lib/tauri';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { LogicalSize } from '@tauri-apps/api/dpi';
+	import { tick } from 'svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -33,16 +34,38 @@
 	let settings: Settings | null = $state(null);
 	let status: Status = $state('idle');
 	let lastTranscription: string = $state('');
-	let contentHeight = $state(0);
+	let contentEl: HTMLDivElement | undefined = $state();
 	let gpuBackend: string = $state('');
+	let showSaved: boolean = $state(false);
+	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	const WINDOW_WIDTH = 400;
 
 	// Auto-resize window to fit content
-	$effect(() => {
-		if (contentHeight > 0) {
-			getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, contentHeight));
+	async function resizeWindow() {
+		await tick();
+		if (!contentEl) return;
+		const h = contentEl.scrollHeight;
+		if (h > 0) {
+			getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, h));
 		}
+	}
+
+	$effect(() => {
+		if (!contentEl) return;
+
+		const mo = new MutationObserver(() => resizeWindow());
+		mo.observe(contentEl, { childList: true, subtree: true, attributes: true });
+
+		const ro = new ResizeObserver(() => resizeWindow());
+		ro.observe(contentEl);
+
+		resizeWindow();
+
+		return () => {
+			mo.disconnect();
+			ro.disconnect();
+		};
 	});
 
 	const languages = [
@@ -65,6 +88,9 @@
 		settings = { ...settings, ...updates };
 		try {
 			await updateSettings(settings);
+			clearTimeout(savedTimeout);
+			showSaved = true;
+			savedTimeout = setTimeout(() => (showSaved = false), 1500);
 		} catch (e) {
 			toast.error(`Failed to save settings: ${e}`);
 		}
@@ -90,8 +116,8 @@
 	});
 </script>
 
-<div bind:clientHeight={contentHeight}>
-	<Titlebar {status} />
+<div bind:this={contentEl}>
+	<Titlebar {status} {showSaved} />
 
 	{#if settings}
 		<div class="flex flex-col gap-4 p-4">
@@ -104,22 +130,17 @@
 				<Tabs.Content value="main" class="flex-none">
 					<div class="flex flex-col gap-4 pt-2">
 						<SettingRow label="Output">
-							<div class="flex items-center gap-3">
-								<ToggleGroup.Root
-									type="single"
-									value={settings.output_mode}
-									variant="outline"
-									onValueChange={(v) => {
-										if (v) save({ output_mode: v as 'clipboard' | 'paste' });
-									}}
-								>
-									<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
-									<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
-								</ToggleGroup.Root>
-								<span class="text-xs text-muted-foreground">
-									{settings.output_mode === 'clipboard' ? 'Copies to clipboard' : 'Types at cursor'}
-								</span>
-							</div>
+							<ToggleGroup.Root
+								type="single"
+								value={settings.output_mode}
+								variant="outline"
+								onValueChange={(v) => {
+									if (v) save({ output_mode: v as 'clipboard' | 'paste' });
+								}}
+							>
+								<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>
+								<ToggleGroup.Item value="paste">Type</ToggleGroup.Item>
+							</ToggleGroup.Root>
 						</SettingRow>
 
 						<Separator />

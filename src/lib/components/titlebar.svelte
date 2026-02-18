@@ -6,7 +6,7 @@
 	import { toggleMode, mode } from 'mode-watcher';
 	import { quit, type Status } from '$lib/tauri';
 
-	let { status }: { status: Status } = $props();
+	let { status, showSaved = false }: { status: Status; showSaved?: boolean } = $props();
 
 	const statusColor: Record<Status, string> = {
 		idle: 'default',
@@ -21,6 +21,9 @@
 		recording: 'Recording',
 		processing: 'Processing'
 	};
+
+	let badgeLabel = $derived(showSaved ? 'Saved' : statusLabel[status]);
+	let badgeVariant = $derived(showSaved ? 'outline' : statusColor[status]);
 </script>
 
 <div
@@ -29,8 +32,11 @@
 >
 	<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
 		<span class="text-sm font-medium" data-tauri-drag-region>Wisp</span>
-		<Badge variant={statusColor[status] as 'default' | 'destructive' | 'secondary'}>
-			{statusLabel[status]}
+		<Badge
+			variant={badgeVariant as 'default' | 'outline' | 'destructive' | 'secondary'}
+			class="transition-all duration-300"
+		>
+			{badgeLabel}
 		</Badge>
 	</div>
 	<div class="flex items-center gap-1">
