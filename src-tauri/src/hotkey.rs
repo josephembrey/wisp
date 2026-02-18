@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub enum HotkeyEvent {
     Pressed,
     Released,
+    OutputToggle,
 }
 
 pub fn parse_key(name: &str) -> Option<Key> {
@@ -74,6 +75,9 @@ pub fn parse_key(name: &str) -> Option<Key> {
 }
 
 pub fn parse_combo(combo: &str) -> Option<Vec<Key>> {
+    if combo.is_empty() {
+        return None;
+    }
     let keys: Vec<Key> = combo
         .split('+')
         .map(|s| s.trim())
@@ -86,26 +90,49 @@ pub fn parse_combo(combo: &str) -> Option<Vec<Key>> {
     }
 }
 
-pub fn start(hotkey: Arc<Mutex<Vec<Key>>>, tx: mpsc::Sender<HotkeyEvent>) {
+pub fn start(
+    hotkey: Arc<Mutex<Vec<Key>>>,
+    output_hotkey: Arc<Mutex<Vec<Key>>>,
+    tx: mpsc::Sender<HotkeyEvent>,
+) {
     std::thread::spawn(move || {
         log::info!("hotkey listener thread started");
         let mut pressed_keys: HashSet<Key> = HashSet::new();
-        let mut combo_active = false;
+        let mut main_active = false;
+        let mut output_active = false;
 
         if let Err(e) = rdev::listen(move |event: Event| {
-            let target_keys = hotkey.lock().clone();
+            let main_keys = hotkey.lock().clone();
+            let out_keys = output_hotkey.lock().clone();
             match event.event_type {
                 EventType::KeyPress(key) => {
                     pressed_keys.insert(key);
-                    if !combo_active && target_keys.iter().all(|k| pressed_keys.contains(k)) {
-                        combo_active = true;
+
+                    // Main hotkey: press-and-hold
+                    if !main_active
+                        && !main_keys.is_empty()
+                        && main_keys.iter().all(|k| pressed_keys.contains(k))
+                    {
+                        main_active = true;
                         let _ = tx.send(HotkeyEvent::Pressed);
+                    }
+
+                    // Output toggle: fire once on all-keys-down
+                    if !output_active
+                        && !out_keys.is_empty()
+                        && out_keys.iter().all(|k| pressed_keys.contains(k))
+                    {
+                        output_active = true;
+                        let _ = tx.send(HotkeyEvent::OutputToggle);
                     }
                 }
                 EventType::KeyRelease(key) => {
-                    if combo_active && target_keys.contains(&key) {
-                        combo_active = false;
+                    if main_active && main_keys.contains(&key) {
+                        main_active = false;
                         let _ = tx.send(HotkeyEvent::Released);
+                    }
+                    if output_active && out_keys.contains(&key) {
+                        output_active = false;
                     }
                     pressed_keys.remove(&key);
                 }

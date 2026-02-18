@@ -11,10 +11,26 @@ pub struct Settings {
     pub hotkey: String,
     #[serde(default = "default_language")]
     pub language: String,
+    #[serde(default = "default_gpu")]
+    pub gpu: bool,
+    #[serde(default)]
+    pub interrupt: bool,
+    #[serde(default)]
+    pub output_hotkey: String,
+    #[serde(default = "default_min_duration")]
+    pub min_duration: f64,
 }
 
 fn default_language() -> String {
     "en".to_string()
+}
+
+fn default_gpu() -> bool {
+    true
+}
+
+fn default_min_duration() -> f64 {
+    0.5
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -31,6 +47,10 @@ impl Default for Settings {
             output_mode: OutputMode::Clipboard,
             hotkey: "RightAlt".to_string(),
             language: "en".to_string(),
+            gpu: true,
+            interrupt: false,
+            output_hotkey: String::new(),
+            min_duration: 0.5,
         }
     }
 }
@@ -62,6 +82,7 @@ impl Settings {
 #[serde(rename_all = "lowercase")]
 pub enum Status {
     Idle,
+    Loading,
     Recording,
     Processing,
 }
@@ -72,4 +93,6 @@ pub struct WispState {
     pub data_dir: PathBuf,
     pub models_dir: PathBuf,
     pub hotkey: Arc<Mutex<Vec<rdev::Key>>>,
+    pub output_hotkey: Arc<Mutex<Vec<rdev::Key>>>,
+    pub first_run: bool,
 }
