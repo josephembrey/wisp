@@ -16,13 +16,13 @@
 	} from '$lib/tauri';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Kbd } from '$lib/components/ui/kbd/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { toggleMode, mode } from 'mode-watcher';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -34,9 +34,10 @@
 	let progress: DownloadProgress | null = $state(null);
 	let lastTranscription: string = $state('');
 
-	// Hotkey capture state
 	let capturing = $state(false);
 	let capturedKeys = new SvelteSet<string>();
+
+	let selectedModel = $derived(models.find((m) => m.name === settings?.model));
 
 	const statusColor: Record<Status, string> = {
 		idle: 'default',
@@ -139,14 +140,17 @@
 <svelte:window onkeydown={handleCaptureKeydown} onkeyup={handleCaptureKeyup} />
 
 <div class="flex h-screen flex-col">
-	<!-- Custom titlebar -->
+	<!-- Titlebar -->
 	<div
 		class="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3"
 		data-tauri-drag-region
 	>
-		<span class="pointer-events-none text-sm font-medium select-none" data-tauri-drag-region>
-			Wisp
-		</span>
+		<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
+			<span class="text-sm font-medium" data-tauri-drag-region>Wisp</span>
+			<Badge variant={statusColor[status] as 'default' | 'destructive' | 'secondary'}>
+				{statusLabel[status]}
+			</Badge>
+		</div>
 		<div class="flex items-center gap-1">
 			<button
 				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -234,24 +238,14 @@
 		</div>
 	</div>
 
-	<!-- Scrollable content -->
-	<div class="flex-1 overflow-y-auto">
-		<div class="mx-auto flex max-w-md flex-col gap-6 p-6">
-			<div class="flex items-center justify-between">
-				<h1 class="text-2xl font-semibold">Wisp</h1>
-				<Badge variant={statusColor[status] as 'default' | 'destructive' | 'secondary'}>
-					{statusLabel[status]}
-				</Badge>
-			</div>
-
-			<Separator />
-
+	<!-- Content -->
+	<ScrollArea class="flex-1">
+		<div class="flex flex-col gap-5 p-4">
 			{#if settings}
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Model</Card.Title>
-					</Card.Header>
-					<Card.Content class="flex flex-col gap-3">
+				<!-- Model -->
+				<section class="flex flex-col gap-2">
+					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Model</h2>
+					<div class="flex items-center gap-2">
 						<Select.Root
 							type="single"
 							value={settings.model}
@@ -259,8 +253,8 @@
 								if (v) save({ model: v });
 							}}
 						>
-							<Select.Trigger class="w-full">
-								{models.find((m) => m.name === settings?.model)?.name ?? settings.model}
+							<Select.Trigger class="flex-1">
+								{selectedModel?.name ?? settings.model}
 							</Select.Trigger>
 							<Select.Content>
 								{#each models as model (model.name)}
@@ -268,105 +262,96 @@
 										{model.name}
 										<span class="ml-auto text-xs text-muted-foreground">
 											{model.size_mb} MB
-											{#if model.downloaded}
-												&check;
-											{/if}
+											{#if model.downloaded}&check;{/if}
 										</span>
 									</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
 
-						{@const selectedModel = models.find((m) => m.name === settings?.model)}
 						{#if selectedModel}
-							<div class="flex gap-2">
-								{#if !selectedModel.downloaded}
-									<Button
-										size="sm"
-										onclick={() => handleDownload(selectedModel.name)}
-										disabled={downloading !== null}
-									>
-										{downloading === selectedModel.name ? 'Downloading...' : 'Download'}
-									</Button>
-								{:else}
-									<Button
-										size="sm"
-										variant="destructive"
-										onclick={() => handleDelete(selectedModel.name)}
-									>
-										Delete
-									</Button>
-								{/if}
-							</div>
-						{/if}
-
-						{#if downloading && progress && progress.total > 0}
-							{@const pct = Math.round((progress.downloaded / progress.total) * 100)}
-							<div class="flex flex-col gap-1.5">
-								<Progress value={pct} />
-								<span class="text-xs text-muted-foreground">{pct}%</span>
-							</div>
-						{/if}
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Output</Card.Title>
-					</Card.Header>
-					<Card.Content>
-						<div class="flex items-center justify-between">
-							<Label for="output-mode">
-								{settings.output_mode === 'clipboard' ? 'Copy to clipboard' : 'Type at cursor'}
-							</Label>
-							<Switch
-								id="output-mode"
-								checked={settings.output_mode === 'paste'}
-								onCheckedChange={(checked) =>
-									save({ output_mode: checked ? 'paste' : 'clipboard' })}
-							/>
-						</div>
-						<p class="mt-1.5 text-xs text-muted-foreground">
-							{settings.output_mode === 'clipboard'
-								? 'Transcribed text is copied to your clipboard.'
-								: 'Transcribed text is typed directly at your cursor.'}
-						</p>
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Hotkey</Card.Title>
-					</Card.Header>
-					<Card.Content class="flex flex-col gap-3">
-						<div class="flex items-center gap-3">
-							{#if capturing}
-								<Kbd class="animate-pulse">
-									{capturedKeys.size > 0 ? Array.from(capturedKeys).join(' + ') : 'Press keys...'}
-								</Kbd>
-								<span class="text-sm text-muted-foreground">Release to save, Esc to cancel</span>
+							{#if !selectedModel.downloaded}
+								<Button
+									size="sm"
+									onclick={() => handleDownload(selectedModel.name)}
+									disabled={downloading !== null}
+								>
+									{downloading === selectedModel.name ? 'Downloading...' : 'Download'}
+								</Button>
 							{:else}
-								<Kbd>{settings.hotkey.replaceAll('+', ' + ')}</Kbd>
-								<span class="text-sm text-muted-foreground">Hold to record</span>
+								<Button
+									size="sm"
+									variant="destructive"
+									onclick={() => handleDelete(selectedModel.name)}
+								>
+									Delete
+								</Button>
 							{/if}
+						{/if}
+					</div>
+
+					{#if downloading && progress && progress.total > 0}
+						{@const pct = Math.round((progress.downloaded / progress.total) * 100)}
+						<div class="flex flex-col gap-1">
+							<Progress value={pct} />
+							<span class="text-xs text-muted-foreground">{pct}%</span>
 						</div>
-						<Button size="sm" variant="outline" onclick={startCapture} disabled={capturing}>
-							Change hotkey
-						</Button>
-					</Card.Content>
-				</Card.Root>
+					{/if}
+				</section>
+
+				<Separator />
+
+				<!-- Output mode -->
+				<section class="flex flex-col gap-2">
+					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Output</h2>
+					<div class="flex items-center justify-between">
+						<Label for="output-mode">
+							{settings.output_mode === 'clipboard' ? 'Copy to clipboard' : 'Type at cursor'}
+						</Label>
+						<Switch
+							id="output-mode"
+							checked={settings.output_mode === 'paste'}
+							onCheckedChange={(checked) => save({ output_mode: checked ? 'paste' : 'clipboard' })}
+						/>
+					</div>
+					<p class="text-xs text-muted-foreground">
+						{settings.output_mode === 'clipboard'
+							? 'Transcribed text is copied to your clipboard.'
+							: 'Transcribed text is typed directly at your cursor.'}
+					</p>
+				</section>
+
+				<Separator />
+
+				<!-- Hotkey -->
+				<section class="flex flex-col gap-2">
+					<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Hotkey</h2>
+					<div class="flex items-center gap-3">
+						{#if capturing}
+							<Kbd class="animate-pulse">
+								{capturedKeys.size > 0 ? Array.from(capturedKeys).join(' + ') : 'Press keys...'}
+							</Kbd>
+							<span class="text-xs text-muted-foreground">Release to save, Esc to cancel</span>
+						{:else}
+							<Kbd>{settings.hotkey.replaceAll('+', ' + ')}</Kbd>
+							<span class="text-xs text-muted-foreground">Hold to record</span>
+							<Button size="sm" variant="outline" onclick={startCapture} class="ml-auto">
+								Change
+							</Button>
+						{/if}
+					</div>
+				</section>
 
 				{#if lastTranscription}
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Last Transcription</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<p class="text-sm">{lastTranscription}</p>
-						</Card.Content>
-					</Card.Root>
+					<Separator />
+					<section class="flex flex-col gap-1">
+						<h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+							Last Transcription
+						</h2>
+						<p class="text-sm">{lastTranscription}</p>
+					</section>
 				{/if}
 			{/if}
 		</div>
-	</div>
+	</ScrollArea>
 </div>

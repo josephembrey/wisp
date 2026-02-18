@@ -17,7 +17,7 @@
 				"title": "Wisp Settings",
 				"width": 400,
 				"height": 520,
-				"resizable": true,
+				"resizable": false,
 				"visible": false,
 				"decorations": false,
 				"center": true

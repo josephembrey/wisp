@@ -59,7 +59,12 @@
       check-toml.enable = true;
       clippy = {
         enable = true;
-        entry = "cargo clippy --";
+        packageOverrides = let
+          toolchain = pkgs.rust-bin.stable.latest.default;
+        in {
+          cargo = toolchain;
+          clippy = toolchain;
+        };
       };
       commitizen.enable = true;
       end-of-file-fixer.enable = true;
