@@ -93,13 +93,14 @@ in {
     # Check for Windows signing tools (WSL2 only)
     if [ -d /mnt/c/Windows ]; then
       _missing=""
-      if ! powershell.exe -Command "Get-Command signtool.exe -ErrorAction SilentlyContinue" &>/dev/null; then
-        _missing="$_missing  - signtool.exe (install Windows SDK)\n"
+      if ! ls "/mnt/c/Program Files (x86)/Windows Kits/10/bin/"*/x64/signtool.exe &>/dev/null; then
+        _missing="$_missing  - signtool.exe (winget install --id Microsoft.WindowsSDK.10.0.26100)\n"
       fi
-      if ! powershell.exe -Command "Test-Path \"$env:LOCALAPPDATA\Microsoft\MicrosoftTrustedSigningClientTools\Azure.CodeSigning.Dlib.dll\"" 2>/dev/null | grep -qi true; then
+      _appdata="$(wslpath "$(cmd.exe /C 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')" 2>/dev/null)"
+      if [ -z "$_appdata" ] || [ ! -f "$_appdata/Microsoft/MicrosoftTrustedSigningClientTools/Azure.CodeSigning.Dlib.dll" ]; then
         _missing="$_missing  - Azure Trusted Signing Client Tools (winget install -e --id Microsoft.Azure.TrustedSigningClientTools)\n"
       fi
-      if ! powershell.exe -Command "Get-Command az -ErrorAction SilentlyContinue" &>/dev/null; then
+      if ! ls "/mnt/c/Program Files"/*/CLI2/wbin/az.cmd &>/dev/null && ! ls "/mnt/c/Program Files (x86)"/*/CLI2/wbin/az.cmd &>/dev/null; then
         _missing="$_missing  - Azure CLI (winget install --id Microsoft.AzureCLI)\n"
       fi
       if [ -n "$_missing" ]; then

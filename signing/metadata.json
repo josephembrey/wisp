@@ -1,5 +1,12 @@
 {
 	"Endpoint": "https://eus.codesigning.azure.net/",
 	"CodeSigningAccountName": "josephembrey",
-	"CertificateProfileName": "josephembrey"
+	"CertificateProfileName": "josephembrey",
+	"ExcludeCredentials": [
+		"ManagedIdentityCredential",
+		"SharedTokenCacheCredential",
+		"EnvironmentCredential",
+		"WorkloadIdentityCredential",
+		"InteractiveBrowserCredential"
+	]
 }

@@ -1,35 +1,54 @@
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-if (-not $RepoRoot) { $RepoRoot = Split-Path -Parent $PSScriptRoot }
+$RepoRoot = Split-Path -Parent $PSScriptRoot
 
-$Exe = Get-ChildItem "$RepoRoot\target\x86_64-pc-windows-msvc\release\wisp.exe" -ErrorAction SilentlyContinue
+$Exe = Get-ChildItem (Join-Path $RepoRoot 'target\x86_64-pc-windows-msvc\release\wisp.exe') -ErrorAction SilentlyContinue
 if (-not $Exe) {
-    Write-Error "wisp.exe not found — run build-windows first"
+    Write-Host "ERROR: wisp.exe not found. Run build-windows first." -ForegroundColor Red
     exit 1
 }
 
-$DlibPath = "$env:LOCALAPPDATA\Microsoft\MicrosoftTrustedSigningClientTools\Azure.CodeSigning.Dlib.dll"
+$LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
+$DlibPath = Join-Path $LocalAppData 'Microsoft\MicrosoftTrustedSigningClientTools\Azure.CodeSigning.Dlib.dll'
 if (-not (Test-Path $DlibPath)) {
-    Write-Error "Azure Trusted Signing client tools not found at $DlibPath`nInstall with: winget install -e --id Microsoft.Azure.TrustedSigningClientTools"
+    Write-Host ("ERROR: Azure Trusted Signing client tools not found at " + $DlibPath) -ForegroundColor Red
+    Write-Host "Install with: winget install --exact --id Microsoft.Azure.TrustedSigningClientTools" -ForegroundColor Yellow
     exit 1
 }
 
-$Metadata = "$PSScriptRoot\metadata.json"
+$Metadata = Join-Path $PSScriptRoot 'metadata.json'
 if (-not (Test-Path $Metadata)) {
-    Write-Error "metadata.json not found at $Metadata"
+    Write-Host ("ERROR: metadata.json not found at " + $Metadata) -ForegroundColor Red
     exit 1
 }
 
-$SignTool = Get-Command signtool.exe -ErrorAction SilentlyContinue
+$SignTool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
 if (-not $SignTool) {
-    Write-Error "signtool.exe not found — install Windows SDK"
+    $SignTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' -ErrorAction SilentlyContinue |
+        Sort-Object { $_.Directory.Name } -Descending |
+        Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $SignTool) {
+    Write-Host "ERROR: signtool.exe not found. Install Windows SDK." -ForegroundColor Red
     exit 1
 }
+# Ensure Azure CLI is on PATH for the signing dlib (needed when invoked from WSL)
+$AzCliPaths = @(
+    'C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin',
+    'C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin'
+)
+foreach ($p in $AzCliPaths) {
+    if ((Test-Path $p) -and ($env:PATH -notlike "*$p*")) {
+        $env:PATH = "$p;$env:PATH"
+        break
+    }
+}
 
-Write-Host "Signing $($Exe.FullName) ..." -ForegroundColor Cyan
+Write-Host ("Using " + $SignTool) -ForegroundColor DarkGray
 
-& signtool.exe sign /v /debug `
+Write-Host ("Signing " + $Exe.FullName + " ...") -ForegroundColor Cyan
+
+& $SignTool sign /v /debug `
     /fd SHA256 `
     /tr "http://timestamp.acs.microsoft.com" `
     /td SHA256 `
@@ -38,10 +57,10 @@ Write-Host "Signing $($Exe.FullName) ..." -ForegroundColor Cyan
     $Exe.FullName
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Signing failed (exit code $LASTEXITCODE)"
+    Write-Host ("Signing failed with exit code " + $LASTEXITCODE) -ForegroundColor Red
     exit $LASTEXITCODE
 }
 
 Write-Host "Signed successfully." -ForegroundColor Green
 
-& signtool.exe verify /pa /v $Exe.FullName
+& $SignTool verify /pa /v $Exe.FullName
