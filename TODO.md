@@ -2,4 +2,3 @@ investigate hotkey "invalid" sound on Windows — if it recurs, switch from rdev
 start on login
 the input devices need more descriptive names
 better hotkey detection while the overlay is focused
-fix "fullscreen borderless" detection
