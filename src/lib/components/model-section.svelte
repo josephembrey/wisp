@@ -73,7 +73,7 @@
 </script>
 
 <div class="grid grid-cols-[5rem_1fr] items-start gap-2">
-	<label class="pt-1.5 text-sm font-medium">Model</label>
+	<span class="pt-1.5 text-sm font-medium">Model</span>
 	<div class="flex flex-col gap-1.5">
 		<div class="flex items-center gap-2">
 			<Select.Root

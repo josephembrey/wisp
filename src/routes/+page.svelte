@@ -7,15 +7,19 @@
 		onTranscription,
 		onError,
 		onSettingsChanged,
+		onOverlayFlash,
 		getGpuBackend,
 		getMonitors,
 		getInputDevices,
 		isFirstRun,
 		resetApp,
 		resizeWindow as resizeWindowCmd,
+		hotkeyPress,
+		hotkeyRelease,
 		type Settings,
 		type Status,
-		type MonitorInfo
+		type MonitorInfo,
+		type InputDeviceInfo
 	} from '$lib/tauri';
 	import { tick } from 'svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -40,11 +44,13 @@
 	let contentEl: HTMLDivElement | undefined = $state();
 	let gpuBackend: string = $state('');
 	let monitors: MonitorInfo[] = $state([]);
-	let inputDevices: string[] = $state([]);
+	let inputDevices: InputDeviceInfo[] = $state([]);
 	let isDownloading: boolean = $state(false);
 	let defaultTab: string = $state('main');
 	let showSaved: boolean = $state(false);
+	let flashMessage: string = $state('');
 	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
+	let flashTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	let lastHeight = 0;
 
@@ -113,6 +119,11 @@
 			onError((msg) => toast.error(msg)),
 			onSettingsChanged(() => {
 				getSettings().then((s) => (settings = s));
+			}),
+			onOverlayFlash((msg) => {
+				clearTimeout(flashTimeout);
+				flashMessage = msg;
+				flashTimeout = setTimeout(() => (flashMessage = ''), 1000);
 			})
 		];
 
@@ -120,10 +131,37 @@
 			unsubs.forEach((p) => p.then((fn) => fn()));
 		};
 	});
+
+	// JS-side hotkey fallback: rdev doesn't receive key events when WebView2 is focused
+	import { mapBrowserKey } from '$lib/keys';
+
+	let pressedKeys = new Set<string>();
+	let hotkeyActive = false;
+
+	function handleKeydown(e: KeyboardEvent) {
+		e.preventDefault();
+		pressedKeys.add(mapBrowserKey(e.code));
+		const combo = settings?.hotkey?.split('+') || [];
+		if (!hotkeyActive && combo.length > 0 && combo.every((k) => pressedKeys.has(k))) {
+			hotkeyActive = true;
+			hotkeyPress();
+		}
+	}
+
+	function handleKeyup(e: KeyboardEvent) {
+		const key = mapBrowserKey(e.code);
+		if (hotkeyActive && (settings?.hotkey?.split('+') || []).includes(key)) {
+			hotkeyActive = false;
+			hotkeyRelease();
+		}
+		pressedKeys.delete(key);
+	}
 </script>
 
+<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
+
 <div bind:this={contentEl}>
-	<Titlebar {status} {showSaved} downloading={isDownloading} />
+	<Titlebar {status} {showSaved} downloading={isDownloading} {flashMessage} />
 
 	{#if settings}
 		<div class="flex flex-col gap-4 p-4">
@@ -173,12 +211,14 @@
 								}}
 							>
 								<Select.Trigger class="w-48 truncate">
-									{settings.input_device || 'Default'}
+									{inputDevices.find((d) => d.name === settings?.input_device)?.label ||
+										settings?.input_device ||
+										'Default'}
 								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value="">Default</Select.Item>
-									{#each inputDevices as device (device)}
-										<Select.Item value={device}>{device}</Select.Item>
+									{#each inputDevices as device (device.name)}
+										<Select.Item value={device.name}>{device.label}</Select.Item>
 									{/each}
 								</Select.Content>
 							</Select.Root>
@@ -354,6 +394,20 @@
 
 						<Separator />
 
+						<SettingRow label="Visibility">
+							<div class="flex items-center gap-3">
+								<Switch
+									checked={settings.overlay_always_show}
+									onCheckedChange={(v) => save({ overlay_always_show: v })}
+								/>
+								<span class="text-xs text-muted-foreground">
+									{settings.overlay_always_show ? 'Always visible' : 'Only when active'}
+								</span>
+							</div>
+						</SettingRow>
+
+						<Separator />
+
 						<SettingRow label="Position">
 							<Select.Root
 								type="single"
@@ -434,38 +488,60 @@
 				</Tabs.Content>
 
 				<Tabs.Content value="readme" class="flex-none">
-					<div class="flex flex-col gap-3 pt-2 text-sm text-muted-foreground">
-						<p class="font-medium text-foreground">
-							Wisp is a push-to-talk dictation app. Hold a hotkey to record from your mic, release
-							to transcribe locally with Whisper, and the text is sent to your clipboard or typed at
-							your cursor.
+					<div class="flex flex-col gap-4 pt-2">
+						<p class="text-sm leading-relaxed text-muted-foreground">
+							Wisp is a push-to-talk dictation app. Hold a hotkey to record, release to transcribe
+							locally with Whisper, and the text goes to your clipboard or cursor.
 						</p>
 
-						<div class="flex flex-col gap-1">
-							<span class="text-xs font-medium tracking-wide text-foreground uppercase"
+						<Separator />
+
+						<div class="flex flex-col gap-2">
+							<span class="text-xs font-semibold tracking-wide text-foreground uppercase"
 								>Quick Start</span
 							>
-							<ol class="list-inside list-decimal space-y-1 text-xs">
-								<li>
-									Download a model in the <strong>Advanced</strong> tab (base is a good start)
+							<ol class="space-y-2 text-xs text-muted-foreground">
+								<li class="flex gap-2">
+									<span class="font-semibold text-foreground">1.</span>
+									<span>Download a model in <strong>Advanced</strong> (base is a good start)</span>
 								</li>
-								<li>
-									Hold <strong>{settings.hotkey.replace(/\+/g, ' + ')}</strong> to record
+								<li class="flex gap-2">
+									<span class="font-semibold text-foreground">2.</span>
+									<span
+										>Hold <strong>{settings.hotkey.replace(/\+/g, ' + ')}</strong> to record</span
+									>
 								</li>
-								<li>Release to transcribe — text goes to your clipboard or cursor</li>
+								<li class="flex gap-2">
+									<span class="font-semibold text-foreground">3.</span>
+									<span>Release to transcribe</span>
+								</li>
 							</ol>
 						</div>
 
-						<div class="flex flex-col gap-1">
-							<span class="text-xs font-medium tracking-wide text-foreground uppercase">Tips</span>
-							<ul class="list-inside list-disc space-y-1 text-xs">
-								<li>Wisp runs in the system tray — close this window and it keeps running</li>
-								<li>
-									Switch output mode between <strong>Clipboard</strong> (copy) and
-									<strong>Type</strong> (paste at cursor) in the Main tab
+						<Separator />
+
+						<div class="flex flex-col gap-2">
+							<span class="text-xs font-semibold tracking-wide text-foreground uppercase">Tips</span
+							>
+							<ul class="space-y-1.5 text-xs text-muted-foreground">
+								<li class="flex items-start gap-2">
+									<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
+									<span>Close this window — Wisp keeps running in the system tray</span>
 								</li>
-								<li>Larger models are slower but more accurate</li>
-								<li>Enable GPU acceleration in Advanced for faster transcription</li>
+								<li class="flex items-start gap-2">
+									<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
+									<span
+										><strong>Clipboard</strong> copies text, <strong>Type</strong> pastes at your cursor</span
+									>
+								</li>
+								<li class="flex items-start gap-2">
+									<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
+									<span>Larger models are slower but more accurate</span>
+								</li>
+								<li class="flex items-start gap-2">
+									<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
+									<span>Enable GPU in Advanced for faster transcription</span>
+								</li>
 							</ul>
 						</div>
 					</div>

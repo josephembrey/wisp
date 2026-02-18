@@ -2,31 +2,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Kbd } from '$lib/components/ui/kbd/index.js';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { mapBrowserKey } from '$lib/keys';
 
 	let { hotkey, onsave }: { hotkey: string; onsave: (combo: string) => void } = $props();
 
 	let capturing = $state(false);
 	let capturedKeys = new SvelteSet<string>();
-
-	function mapBrowserKey(code: string): string {
-		const map: Record<string, string> = {
-			AltLeft: 'Alt',
-			AltRight: 'RightAlt',
-			ControlLeft: 'ControlLeft',
-			ControlRight: 'ControlRight',
-			ShiftLeft: 'ShiftLeft',
-			ShiftRight: 'ShiftRight',
-			MetaLeft: 'MetaLeft',
-			MetaRight: 'MetaRight',
-			Space: 'Space',
-			CapsLock: 'CapsLock'
-		};
-		if (map[code]) return map[code];
-		if (code.startsWith('Key')) return code;
-		if (code.startsWith('Digit')) return 'Num' + code.slice(5);
-		if (code.startsWith('F') && !isNaN(Number(code.slice(1)))) return code;
-		return code;
-	}
 
 	function startCapture() {
 		capturing = true;

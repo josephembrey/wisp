@@ -73,27 +73,32 @@ pub fn run() {
                 hotkey::parse_combo(&settings.output_hotkey).unwrap_or_default();
             let output_hotkey_key = Arc::new(parking_lot::Mutex::new(initial_output_keys));
 
-            app.manage(WispState {
-                settings: parking_lot::Mutex::new(settings),
-                status: parking_lot::Mutex::new(Status::Idle),
-                data_dir,
-                models_dir,
-                hotkey: hotkey_key.clone(),
-                output_hotkey: output_hotkey_key.clone(),
-                first_run,
-            });
-
             // Unified event channel
             let (tx, rx) = std::sync::mpsc::channel::<AppEvent>();
 
             // Start hotkey listener → forward into AppEvent channel
             let (hotkey_tx, hotkey_rx) = std::sync::mpsc::channel();
-            hotkey::start(hotkey_key, output_hotkey_key, hotkey_tx);
+            hotkey::start(
+                hotkey_key.clone(),
+                output_hotkey_key.clone(),
+                hotkey_tx.clone(),
+            );
             let tx_fwd = tx.clone();
             std::thread::spawn(move || {
                 for e in hotkey_rx {
                     let _ = tx_fwd.send(AppEvent::Hotkey(e));
                 }
+            });
+
+            app.manage(WispState {
+                settings: parking_lot::Mutex::new(settings),
+                status: parking_lot::Mutex::new(Status::Idle),
+                data_dir,
+                models_dir,
+                hotkey: hotkey_key,
+                output_hotkey: output_hotkey_key,
+                hotkey_tx,
+                first_run,
             });
 
             // Forward reload-model Tauri events
@@ -145,8 +150,8 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Create overlay window (offscreen, transparent, click-through)
-            let overlay =
+            // Create overlay window (starts offscreen; positioned by set_status)
+            let _overlay =
                 WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
                     .title("Wisp Status")
                     .inner_size(160.0, 36.0)
@@ -160,7 +165,7 @@ pub fn run() {
                     .visible(true)
                     .resizable(false)
                     .build()?;
-            overlay.set_ignore_cursor_events(true)?;
+            _overlay.set_ignore_cursor_events(true).ok();
 
             if first_run {
                 if let Some(window) = app.get_webview_window("main") {
@@ -194,6 +199,8 @@ pub fn run() {
             commands::get_monitors,
             commands::get_input_devices,
             commands::quit,
+            commands::hotkey_press,
+            commands::hotkey_release,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -240,6 +247,11 @@ fn run_event_loop(
     for event in rx {
         match event {
             AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed) => {
+                // Skip if already recording (prevents double-fire from rdev + JS fallback)
+                if recorder.is_some() {
+                    continue;
+                }
+
                 let settings = state.settings.lock().clone();
 
                 if settings.interrupt && transcription_in_flight {
@@ -342,6 +354,7 @@ fn run_event_loop(
                         set_status(&app, &state, Status::Processing);
                     }
 
+                    let mut did_output = false;
                     if let Some(ref eng) = engine {
                         match eng.transcribe(&audio, &settings.language, None) {
                             Ok(text) if !text.is_empty() => {
@@ -351,6 +364,7 @@ fn run_event_loop(
                                         app.emit("backend-error", format!("Output error: {}", e));
                                 }
                                 let _ = app.emit("transcription", &text);
+                                did_output = true;
                             }
                             Ok(_) => {}
                             Err(e) => {
@@ -361,7 +375,22 @@ fn run_event_loop(
                         }
                     }
 
-                    set_status(&app, &state, Status::Idle);
+                    if did_output {
+                        let flash = match settings.output_mode {
+                            OutputMode::Clipboard => "Copied",
+                            OutputMode::Paste => "Typed",
+                        };
+                        let _ = app.emit("overlay-flash", flash);
+                        // Delay idle so flash is visible
+                        let app2 = app.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(1200));
+                            let state2 = app2.state::<WispState>();
+                            set_status(&app2, &state2, Status::Idle);
+                        });
+                    } else {
+                        set_status(&app, &state, Status::Idle);
+                    }
                 }
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
@@ -382,6 +411,7 @@ fn run_event_loop(
                 transcription_in_flight = false;
                 abort_flag.store(false, Ordering::Relaxed);
 
+                let mut did_flash = false;
                 if !cancelled {
                     // Output the result
                     match result {
@@ -391,6 +421,12 @@ fn run_event_loop(
                                 let _ = app.emit("backend-error", format!("Output error: {}", e));
                             }
                             let _ = app.emit("transcription", text);
+                            let flash = match output_mode {
+                                OutputMode::Clipboard => "Copied",
+                                OutputMode::Paste => "Typed",
+                            };
+                            let _ = app.emit("overlay-flash", flash);
+                            did_flash = true;
                         }
                         Ok(_) => {}
                         Err(ref e) => {
@@ -420,7 +456,17 @@ fn run_event_loop(
                     engine = Some(returned_engine);
                     // Only go idle if we're not recording
                     if recorder.is_none() {
-                        set_status(&app, &state, Status::Idle);
+                        if did_flash {
+                            // Delay idle so flash is visible on overlay
+                            let app2 = app.clone();
+                            std::thread::spawn(move || {
+                                std::thread::sleep(std::time::Duration::from_millis(1200));
+                                let state2 = app2.state::<WispState>();
+                                set_status(&app2, &state2, Status::Idle);
+                            });
+                        } else {
+                            set_status(&app, &state, Status::Idle);
+                        }
                     }
                 }
             }
@@ -505,26 +551,28 @@ fn start_transcription(
 fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {
     *state.status.lock() = status.clone();
     let _ = app.emit("status-changed", &status);
+    update_overlay(app, state);
+}
 
-    let Some(overlay) = app.get_webview_window("overlay") else {
-        return;
-    };
+pub fn update_overlay(app: &tauri::AppHandle, state: &WispState) {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let settings = state.settings.lock().clone();
+        let status = state.status.lock().clone();
+        let hide =
+            !settings.overlay_enabled || (status == Status::Idle && !settings.overlay_always_show);
 
-    let settings = state.settings.lock().clone();
-    let hide =
-        !settings.overlay_enabled || status == Status::Idle || overlay::is_foreground_fullscreen();
-
-    if hide {
-        let _ = overlay.set_position(PhysicalPosition::new(-10000, -10000));
-    } else {
-        position_overlay(&overlay, &settings);
+        if hide {
+            let _ = overlay.set_position(PhysicalPosition::new(-10000, -10000));
+        } else {
+            position_overlay(&overlay, &settings);
+        }
     }
 }
 
 fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
     let (w, h) = match settings.overlay_size.as_str() {
-        "small" => (140.0, 32.0),
-        "large" => (200.0, 44.0),
+        "small" => (120.0, 26.0),
+        "large" => (240.0, 52.0),
         _ => (160.0, 36.0),
     };
 
@@ -539,35 +587,34 @@ fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
         return;
     };
 
-    let mon_size = monitor.size();
-    let mon_pos = monitor.position();
     let scale = monitor.scale_factor();
     let pw = (w * scale) as i32;
     let ph = (h * scale) as i32;
     let margin = (12.0 * scale) as i32;
 
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let work = overlay::get_work_area(
+        mon_pos.x,
+        mon_pos.y,
+        mon_size.width as i32,
+        mon_size.height as i32,
+    );
+
     let (x, y) = match settings.overlay_position.as_str() {
-        "top-left" => (mon_pos.x + margin, mon_pos.y + margin),
-        "top-right" => (
-            mon_pos.x + mon_size.width as i32 - pw - margin,
-            mon_pos.y + margin,
-        ),
-        "bottom-left" => (
-            mon_pos.x + margin,
-            mon_pos.y + mon_size.height as i32 - ph - margin,
-        ),
+        "top-left" => (work.x + margin, work.y + margin),
+        "top-right" => (work.x + work.width - pw - margin, work.y + margin),
+        "bottom-left" => (work.x + margin, work.y + work.height - ph - margin),
         "bottom-center" => (
-            mon_pos.x + (mon_size.width as i32 - pw) / 2,
-            mon_pos.y + mon_size.height as i32 - ph - margin,
+            work.x + (work.width - pw) / 2,
+            work.y + work.height - ph - margin,
         ),
         "bottom-right" => (
-            mon_pos.x + mon_size.width as i32 - pw - margin,
-            mon_pos.y + mon_size.height as i32 - ph - margin,
+            work.x + work.width - pw - margin,
+            work.y + work.height - ph - margin,
         ),
-        _ => (
-            mon_pos.x + (mon_size.width as i32 - pw) / 2,
-            mon_pos.y + margin,
-        ),
+        // top-center (default)
+        _ => (work.x + (work.width - pw) / 2, work.y + margin),
     };
 
     let _ = overlay.set_size(tauri::PhysicalSize::new(pw as u32, ph as u32));

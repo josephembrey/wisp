@@ -28,6 +28,8 @@ pub struct Settings {
     #[serde(default)]
     pub overlay_monitor: usize,
     #[serde(default)]
+    pub overlay_always_show: bool,
+    #[serde(default)]
     pub input_device: String,
 }
 
@@ -77,6 +79,7 @@ impl Default for Settings {
             overlay_position: "top-center".to_string(),
             overlay_size: "medium".to_string(),
             overlay_monitor: 0,
+            overlay_always_show: false,
             input_device: String::new(),
         }
     }
@@ -121,5 +124,6 @@ pub struct WispState {
     pub models_dir: PathBuf,
     pub hotkey: Arc<Mutex<Vec<rdev::Key>>>,
     pub output_hotkey: Arc<Mutex<Vec<rdev::Key>>>,
+    pub hotkey_tx: std::sync::mpsc::Sender<crate::hotkey::HotkeyEvent>,
     pub first_run: bool,
 }

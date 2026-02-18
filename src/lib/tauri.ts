@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export interface Settings {
 	model: string;
@@ -14,7 +15,13 @@ export interface Settings {
 	overlay_position: string;
 	overlay_size: string;
 	overlay_monitor: number;
+	overlay_always_show: boolean;
 	input_device: string;
+}
+
+export interface InputDeviceInfo {
+	name: string;
+	label: string;
 }
 
 export interface MonitorInfo {
@@ -50,8 +57,11 @@ export const getGpuBackend = () => invoke<string>('get_gpu_backend');
 export const resizeWindow = (height: number) => invoke('resize_window', { height });
 export const resetApp = () => invoke('reset_app');
 export const getMonitors = () => invoke<MonitorInfo[]>('get_monitors');
-export const getInputDevices = () => invoke<string[]>('get_input_devices');
+export const getInputDevices = () => invoke<InputDeviceInfo[]>('get_input_devices');
 export const quit = () => invoke('quit');
+export const hotkeyPress = () => invoke('hotkey_press');
+export const hotkeyRelease = () => invoke('hotkey_release');
+export const hideWindow = () => getCurrentWindow().hide();
 
 export const onStatusChanged = (cb: (status: Status) => void): Promise<UnlistenFn> =>
 	listen<Status>('status-changed', (e) => cb(e.payload));
@@ -67,3 +77,6 @@ export const onError = (cb: (message: string) => void): Promise<UnlistenFn> =>
 
 export const onSettingsChanged = (cb: () => void): Promise<UnlistenFn> =>
 	listen('settings-changed', () => cb());
+
+export const onOverlayFlash = (cb: (message: string) => void): Promise<UnlistenFn> =>
+	listen<string>('overlay-flash', (e) => cb(e.payload));

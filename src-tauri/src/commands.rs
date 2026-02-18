@@ -41,6 +41,9 @@ pub fn update_settings(
         *state.settings.lock() = settings;
     }
 
+    // Reposition overlay in case overlay settings changed
+    crate::update_overlay(&app, &state);
+
     Ok(())
 }
 
@@ -140,11 +143,21 @@ pub struct MonitorInfo {
 }
 
 #[tauri::command]
-pub fn get_input_devices() -> Vec<String> {
+pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {
     audio::list_input_devices()
 }
 
 #[tauri::command]
 pub fn quit(app: tauri::AppHandle) {
     app.exit(0);
+}
+
+#[tauri::command]
+pub fn hotkey_press(state: tauri::State<'_, WispState>) {
+    let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::Pressed);
+}
+
+#[tauri::command]
+pub fn hotkey_release(state: tauri::State<'_, WispState>) {
+    let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::Released);
 }

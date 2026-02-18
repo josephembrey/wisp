@@ -2,15 +2,20 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { toggleMode, mode } from 'mode-watcher';
-	import { quit, type Status } from '$lib/tauri';
+	import { quit, hideWindow, type Status } from '$lib/tauri';
 
 	let {
 		status,
 		showSaved = false,
-		downloading = false
-	}: { status: Status; showSaved?: boolean; downloading?: boolean } = $props();
+		downloading = false,
+		flashMessage = ''
+	}: {
+		status: Status;
+		showSaved?: boolean;
+		downloading?: boolean;
+		flashMessage?: string;
+	} = $props();
 
 	const statusColor: Record<Status, string> = {
 		idle: 'default',
@@ -27,10 +32,20 @@
 	};
 
 	let badgeLabel = $derived(
-		showSaved ? 'Saved' : downloading && status === 'idle' ? 'Downloading' : statusLabel[status]
+		flashMessage
+			? flashMessage
+			: showSaved
+				? 'Saved'
+				: downloading && status === 'idle'
+					? 'Downloading'
+					: statusLabel[status]
 	);
 	let badgeVariant = $derived(
-		showSaved ? 'outline' : downloading && status === 'idle' ? 'outline' : statusColor[status]
+		flashMessage || showSaved
+			? 'outline'
+			: downloading && status === 'idle'
+				? 'outline'
+				: statusColor[status]
 	);
 </script>
 
@@ -97,7 +112,7 @@
 		</button>
 		<button
 			class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-			onclick={() => getCurrentWindow().hide()}
+			onclick={() => hideWindow()}
 			aria-label="Hide to tray"
 		>
 			<svg
