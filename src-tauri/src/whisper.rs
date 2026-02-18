@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Emitter;
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 const MODELS: &[(&str, u64)] = &[
     ("tiny", 75),
@@ -84,4 +85,42 @@ pub fn delete_model(models_dir: &PathBuf, name: &str) -> Result<(), String> {
         fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+pub struct WhisperEngine {
+    ctx: WhisperContext,
+}
+
+impl WhisperEngine {
+    pub fn new(path: &Path) -> Result<Self, String> {
+        let params = WhisperContextParameters::new();
+        let ctx =
+            WhisperContext::new_with_params(path.to_str().ok_or("invalid model path")?, params)
+                .map_err(|e| format!("{:?}", e))?;
+        Ok(Self { ctx })
+    }
+
+    pub fn transcribe(&self, audio: &[f32]) -> Result<String, String> {
+        let mut state = self.ctx.create_state().map_err(|e| format!("{:?}", e))?;
+
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        params.set_language(Some("en"));
+        params.set_print_progress(false);
+        params.set_print_realtime(false);
+        params.set_print_special(false);
+        params.set_print_timestamps(false);
+        params.set_no_timestamps(true);
+
+        state.full(params, audio).map_err(|e| format!("{:?}", e))?;
+
+        let n = state.full_n_segments().map_err(|e| format!("{:?}", e))?;
+        let mut text = String::new();
+        for i in 0..n {
+            if let Ok(seg) = state.full_get_segment_text_lossy(i) {
+                text.push_str(&seg);
+            }
+        }
+
+        Ok(text.trim().to_string())
+    }
 }
