@@ -8,10 +8,14 @@
 		onError,
 		onSettingsChanged,
 		getGpuBackend,
+		getMonitors,
+		getInputDevices,
+		isFirstRun,
 		resetApp,
 		resizeWindow as resizeWindowCmd,
 		type Settings,
-		type Status
+		type Status,
+		type MonitorInfo
 	} from '$lib/tauri';
 	import { tick } from 'svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -35,6 +39,10 @@
 	let lastTranscription: string = $state('');
 	let contentEl: HTMLDivElement | undefined = $state();
 	let gpuBackend: string = $state('');
+	let monitors: MonitorInfo[] = $state([]);
+	let inputDevices: string[] = $state([]);
+	let isDownloading: boolean = $state(false);
+	let defaultTab: string = $state('main');
 	let showSaved: boolean = $state(false);
 	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -93,6 +101,11 @@
 		getSettings().then((s) => (settings = s));
 		getStatus().then((s) => (status = s));
 		getGpuBackend().then((b) => (gpuBackend = b));
+		getMonitors().then((m) => (monitors = m));
+		getInputDevices().then((d) => (inputDevices = d));
+		isFirstRun().then((first) => {
+			if (first) defaultTab = 'readme';
+		});
 
 		const unsubs = [
 			onStatusChanged((s) => (status = s)),
@@ -110,14 +123,16 @@
 </script>
 
 <div bind:this={contentEl}>
-	<Titlebar {status} {showSaved} />
+	<Titlebar {status} {showSaved} downloading={isDownloading} />
 
 	{#if settings}
 		<div class="flex flex-col gap-4 p-4">
-			<Tabs.Root value="main">
+			<Tabs.Root value={defaultTab}>
 				<Tabs.List class="w-full">
 					<Tabs.Trigger value="main">Main</Tabs.Trigger>
 					<Tabs.Trigger value="advanced">Advanced</Tabs.Trigger>
+					<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
+					<Tabs.Trigger value="readme">About</Tabs.Trigger>
 				</Tabs.List>
 
 				<Tabs.Content value="main" class="flex-none">
@@ -145,6 +160,28 @@
 
 						<SettingRow label="Hotkey">
 							<HotkeyCapture hotkey={settings.hotkey} onsave={(combo) => save({ hotkey: combo })} />
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Input Device">
+							<Select.Root
+								type="single"
+								value={settings.input_device || ''}
+								onValueChange={(v) => {
+									save({ input_device: v === '' ? '' : v });
+								}}
+							>
+								<Select.Trigger class="w-48 truncate">
+									{settings.input_device || 'Default'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">Default</Select.Item>
+									{#each inputDevices as device (device)}
+										<Select.Item value={device}>{device}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
 						</SettingRow>
 
 						<Separator />
@@ -194,7 +231,7 @@
 
 				<Tabs.Content value="advanced" class="flex-none">
 					<div class="flex flex-col gap-4 pt-2">
-						<ModelSection {settings} onsave={save} />
+						<ModelSection {settings} onsave={save} ondownloadchange={(v) => (isDownloading = v)} />
 
 						<Separator />
 
@@ -298,6 +335,139 @@
 								</AlertDialog.Footer>
 							</AlertDialog.Content>
 						</AlertDialog.Root>
+					</div>
+				</Tabs.Content>
+
+				<Tabs.Content value="overlay" class="flex-none">
+					<div class="flex flex-col gap-4 pt-2">
+						<SettingRow label="Enabled">
+							<div class="flex items-center gap-3">
+								<Switch
+									checked={settings.overlay_enabled}
+									onCheckedChange={(v) => save({ overlay_enabled: v })}
+								/>
+								<span class="text-xs text-muted-foreground">
+									{settings.overlay_enabled ? 'Shows status pill' : 'Overlay hidden'}
+								</span>
+							</div>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Position">
+							<Select.Root
+								type="single"
+								value={settings.overlay_position}
+								onValueChange={(v) => {
+									if (v) save({ overlay_position: v });
+								}}
+							>
+								<Select.Trigger class="w-36">
+									{(
+										{
+											'top-left': 'Top Left',
+											'top-center': 'Top Center',
+											'top-right': 'Top Right',
+											'bottom-left': 'Bottom Left',
+											'bottom-center': 'Bottom Center',
+											'bottom-right': 'Bottom Right'
+										} as Record<string, string>
+									)[settings.overlay_position] ?? settings.overlay_position}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="top-left">Top Left</Select.Item>
+									<Select.Item value="top-center">Top Center</Select.Item>
+									<Select.Item value="top-right">Top Right</Select.Item>
+									<Select.Item value="bottom-left">Bottom Left</Select.Item>
+									<Select.Item value="bottom-center">Bottom Center</Select.Item>
+									<Select.Item value="bottom-right">Bottom Right</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Size">
+							<ToggleGroup.Root
+								type="single"
+								value={settings.overlay_size}
+								variant="outline"
+								onValueChange={(v) => {
+									if (v) save({ overlay_size: v });
+								}}
+							>
+								<ToggleGroup.Item value="small">Small</ToggleGroup.Item>
+								<ToggleGroup.Item value="medium">Medium</ToggleGroup.Item>
+								<ToggleGroup.Item value="large">Large</ToggleGroup.Item>
+							</ToggleGroup.Root>
+						</SettingRow>
+
+						<Separator />
+
+						<SettingRow label="Monitor">
+							<Select.Root
+								type="single"
+								value={String(settings.overlay_monitor)}
+								onValueChange={(v) => {
+									if (v !== undefined) save({ overlay_monitor: Number(v) });
+								}}
+							>
+								<Select.Trigger class="w-48 truncate">
+									{(() => {
+										const m = monitors.find((m) => m.index === settings?.overlay_monitor);
+										if (!m) return `Monitor ${settings.overlay_monitor}`;
+										return `${m.name || `Monitor ${m.index}`}${m.primary ? ' (Primary)' : ''} - ${m.width}x${m.height}`;
+									})()}
+								</Select.Trigger>
+								<Select.Content>
+									{#each monitors as monitor (monitor.index)}
+										<Select.Item value={String(monitor.index)}>
+											{monitor.name || `Monitor ${monitor.index}`}{monitor.primary
+												? ' (Primary)'
+												: ''} - {monitor.width}x{monitor.height}
+										</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</SettingRow>
+					</div>
+				</Tabs.Content>
+
+				<Tabs.Content value="readme" class="flex-none">
+					<div class="flex flex-col gap-3 pt-2 text-sm text-muted-foreground">
+						<p class="font-medium text-foreground">
+							Wisp is a push-to-talk dictation app. Hold a hotkey to record from your mic, release
+							to transcribe locally with Whisper, and the text is sent to your clipboard or typed at
+							your cursor.
+						</p>
+
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium tracking-wide text-foreground uppercase"
+								>Quick Start</span
+							>
+							<ol class="list-inside list-decimal space-y-1 text-xs">
+								<li>
+									Download a model in the <strong>Advanced</strong> tab (base is a good start)
+								</li>
+								<li>
+									Hold <strong>{settings.hotkey.replace(/\+/g, ' + ')}</strong> to record
+								</li>
+								<li>Release to transcribe — text goes to your clipboard or cursor</li>
+							</ol>
+						</div>
+
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium tracking-wide text-foreground uppercase">Tips</span>
+							<ul class="list-inside list-disc space-y-1 text-xs">
+								<li>Wisp runs in the system tray — close this window and it keeps running</li>
+								<li>
+									Switch output mode between <strong>Clipboard</strong> (copy) and
+									<strong>Type</strong> (paste at cursor) in the Main tab
+								</li>
+								<li>Larger models are slower but more accurate</li>
+								<li>Enable GPU acceleration in Advanced for faster transcription</li>
+							</ul>
+						</div>
 					</div>
 				</Tabs.Content>
 			</Tabs.Root>

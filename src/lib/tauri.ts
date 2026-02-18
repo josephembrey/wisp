@@ -10,6 +10,19 @@ export interface Settings {
 	interrupt: boolean;
 	output_hotkey: string;
 	min_duration: number;
+	overlay_enabled: boolean;
+	overlay_position: string;
+	overlay_size: string;
+	overlay_monitor: number;
+	input_device: string;
+}
+
+export interface MonitorInfo {
+	index: number;
+	name: string;
+	width: number;
+	height: number;
+	primary: boolean;
 }
 
 export interface ModelInfo {
@@ -36,6 +49,8 @@ export const deleteModel = (name: string) => invoke('delete_model', { name });
 export const getGpuBackend = () => invoke<string>('get_gpu_backend');
 export const resizeWindow = (height: number) => invoke('resize_window', { height });
 export const resetApp = () => invoke('reset_app');
+export const getMonitors = () => invoke<MonitorInfo[]>('get_monitors');
+export const getInputDevices = () => invoke<string[]>('get_input_devices');
 export const quit = () => invoke('quit');
 
 export const onStatusChanged = (cb: (status: Status) => void): Promise<UnlistenFn> =>

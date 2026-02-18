@@ -2,6 +2,7 @@ mod audio;
 mod commands;
 mod hotkey;
 mod output;
+mod overlay;
 mod state;
 mod whisper;
 
@@ -11,7 +12,8 @@ use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Listener, Manager,
+    webview::WebviewWindowBuilder,
+    Emitter, Listener, Manager, PhysicalPosition, WebviewUrl,
 };
 
 enum AppEvent {
@@ -64,8 +66,8 @@ pub fn run() {
             if first_run {
                 let _ = settings.save(&data_dir);
             }
-            let initial_keys =
-                hotkey::parse_combo(&settings.hotkey).unwrap_or_else(|| vec![rdev::Key::AltGr]);
+            let initial_keys = hotkey::parse_combo(&settings.hotkey)
+                .unwrap_or_else(|| vec![rdev::Key::Alt, rdev::Key::KeyQ]);
             let hotkey_key = Arc::new(parking_lot::Mutex::new(initial_keys));
             let initial_output_keys =
                 hotkey::parse_combo(&settings.output_hotkey).unwrap_or_default();
@@ -143,6 +145,23 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // Create overlay window (offscreen, transparent, click-through)
+            let overlay =
+                WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
+                    .title("Wisp Status")
+                    .inner_size(160.0, 36.0)
+                    .position(-10000.0, -10000.0)
+                    .decorations(false)
+                    .transparent(true)
+                    .shadow(false)
+                    .always_on_top(true)
+                    .focused(false)
+                    .skip_taskbar(true)
+                    .visible(true)
+                    .resizable(false)
+                    .build()?;
+            overlay.set_ignore_cursor_events(true)?;
+
             if first_run {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
@@ -153,8 +172,12 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                window.app_handle().exit(0);
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "overlay" {
+                    api.prevent_close();
+                } else {
+                    window.app_handle().exit(0);
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -168,6 +191,8 @@ pub fn run() {
             commands::get_gpu_backend,
             commands::resize_window,
             commands::reset_app,
+            commands::get_monitors,
+            commands::get_input_devices,
             commands::quit,
         ])
         .run(tauri::generate_context!())
@@ -223,7 +248,7 @@ fn run_event_loop(
                     cancelled = true;
                 }
 
-                match audio::AudioRecorder::start() {
+                match audio::AudioRecorder::start(&settings.input_device) {
                     Ok(rec) => {
                         recorder = Some(rec);
                         set_status(&app, &state, Status::Recording);
@@ -480,4 +505,71 @@ fn start_transcription(
 fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {
     *state.status.lock() = status.clone();
     let _ = app.emit("status-changed", &status);
+
+    let Some(overlay) = app.get_webview_window("overlay") else {
+        return;
+    };
+
+    let settings = state.settings.lock().clone();
+    let hide =
+        !settings.overlay_enabled || status == Status::Idle || overlay::is_foreground_fullscreen();
+
+    if hide {
+        let _ = overlay.set_position(PhysicalPosition::new(-10000, -10000));
+    } else {
+        position_overlay(&overlay, &settings);
+    }
+}
+
+fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
+    let (w, h) = match settings.overlay_size.as_str() {
+        "small" => (140.0, 32.0),
+        "large" => (200.0, 44.0),
+        _ => (160.0, 36.0),
+    };
+
+    let monitor = overlay
+        .available_monitors()
+        .ok()
+        .and_then(|m| m.into_iter().nth(settings.overlay_monitor))
+        .or_else(|| overlay.primary_monitor().ok().flatten());
+
+    let Some(monitor) = monitor else {
+        log::warn!("overlay: no monitor found");
+        return;
+    };
+
+    let mon_size = monitor.size();
+    let mon_pos = monitor.position();
+    let scale = monitor.scale_factor();
+    let pw = (w * scale) as i32;
+    let ph = (h * scale) as i32;
+    let margin = (12.0 * scale) as i32;
+
+    let (x, y) = match settings.overlay_position.as_str() {
+        "top-left" => (mon_pos.x + margin, mon_pos.y + margin),
+        "top-right" => (
+            mon_pos.x + mon_size.width as i32 - pw - margin,
+            mon_pos.y + margin,
+        ),
+        "bottom-left" => (
+            mon_pos.x + margin,
+            mon_pos.y + mon_size.height as i32 - ph - margin,
+        ),
+        "bottom-center" => (
+            mon_pos.x + (mon_size.width as i32 - pw) / 2,
+            mon_pos.y + mon_size.height as i32 - ph - margin,
+        ),
+        "bottom-right" => (
+            mon_pos.x + mon_size.width as i32 - pw - margin,
+            mon_pos.y + mon_size.height as i32 - ph - margin,
+        ),
+        _ => (
+            mon_pos.x + (mon_size.width as i32 - pw) / 2,
+            mon_pos.y + margin,
+        ),
+    };
+
+    let _ = overlay.set_size(tauri::PhysicalSize::new(pw as u32, ph as u32));
+    let _ = overlay.set_position(PhysicalPosition::new(x, y));
 }

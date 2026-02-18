@@ -1,3 +1,4 @@
+use crate::audio;
 use crate::hotkey;
 use crate::state::{Settings, Status, WispState};
 use crate::whisper;
@@ -100,6 +101,47 @@ pub fn resize_window(window: tauri::WebviewWindow, height: f64) {
         (400.0 * scale) as u32,
         (height * scale) as u32,
     )));
+}
+
+#[tauri::command]
+pub fn get_monitors(app: tauri::AppHandle) -> Vec<MonitorInfo> {
+    use tauri::Manager;
+    let Some(window) = app.get_webview_window("main") else {
+        return vec![];
+    };
+    let primary = window.primary_monitor().ok().flatten();
+    let monitors = window.available_monitors().unwrap_or_default();
+    monitors
+        .into_iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let is_primary = primary
+                .as_ref()
+                .map(|p| p.position() == m.position() && p.size() == m.size())
+                .unwrap_or(false);
+            MonitorInfo {
+                index: i,
+                name: m.name().cloned().unwrap_or_default(),
+                width: m.size().width,
+                height: m.size().height,
+                primary: is_primary,
+            }
+        })
+        .collect()
+}
+
+#[derive(serde::Serialize)]
+pub struct MonitorInfo {
+    pub index: usize,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub primary: bool,
+}
+
+#[tauri::command]
+pub fn get_input_devices() -> Vec<String> {
+    audio::list_input_devices()
 }
 
 #[tauri::command]

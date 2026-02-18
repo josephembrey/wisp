@@ -3,6 +3,14 @@ use std::sync::Arc;
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
 
+#[allow(deprecated)] // cpal deprecated name() but description()/id() API is unstable
+pub fn list_input_devices() -> Vec<String> {
+    let host = cpal::default_host();
+    host.input_devices()
+        .map(|devices| devices.filter_map(|d| d.name().ok()).collect())
+        .unwrap_or_default()
+}
+
 pub struct AudioRecorder {
     stream: cpal::Stream,
     buffer: Arc<parking_lot::Mutex<Vec<f32>>>,
@@ -11,9 +19,22 @@ pub struct AudioRecorder {
 }
 
 impl AudioRecorder {
-    pub fn start() -> Result<Self, String> {
+    #[allow(deprecated)]
+    pub fn start(device_name: &str) -> Result<Self, String> {
         let host = cpal::default_host();
-        let device = host.default_input_device().ok_or("no input device found")?;
+        let device = if device_name.is_empty() {
+            host.default_input_device().ok_or("no input device found")?
+        } else {
+            host.input_devices()
+                .map_err(|e| e.to_string())?
+                .find(|d| d.name().map(|n| n == device_name).unwrap_or(false))
+                .ok_or_else(|| format!("input device '{}' not found, using default", device_name))
+                .or_else(|e| {
+                    log::warn!("{}", e);
+                    host.default_input_device()
+                        .ok_or("no input device found".to_string())
+                })?
+        };
 
         let config = device.default_input_config().map_err(|e| e.to_string())?;
 

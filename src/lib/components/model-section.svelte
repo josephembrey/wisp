@@ -16,10 +16,12 @@
 
 	let {
 		settings,
-		onsave
+		onsave,
+		ondownloadchange
 	}: {
 		settings: Settings;
 		onsave: (updates: Partial<Settings>) => void;
+		ondownloadchange?: (downloading: boolean) => void;
 	} = $props();
 
 	let models: ModelInfo[] = $state([]);
@@ -39,6 +41,7 @@
 	async function handleDownload(name: string) {
 		downloading = name;
 		progress = null;
+		ondownloadchange?.(true);
 		try {
 			await downloadModel(name);
 			models = await getModels();
@@ -47,6 +50,7 @@
 		} finally {
 			downloading = null;
 			progress = null;
+			ondownloadchange?.(false);
 		}
 	}
 

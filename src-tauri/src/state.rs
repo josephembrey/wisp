@@ -19,6 +19,16 @@ pub struct Settings {
     pub output_hotkey: String,
     #[serde(default = "default_min_duration")]
     pub min_duration: f64,
+    #[serde(default = "default_overlay_enabled")]
+    pub overlay_enabled: bool,
+    #[serde(default = "default_overlay_position")]
+    pub overlay_position: String,
+    #[serde(default = "default_overlay_size")]
+    pub overlay_size: String,
+    #[serde(default)]
+    pub overlay_monitor: usize,
+    #[serde(default)]
+    pub input_device: String,
 }
 
 fn default_language() -> String {
@@ -33,6 +43,18 @@ fn default_min_duration() -> f64 {
     0.5
 }
 
+fn default_overlay_enabled() -> bool {
+    false
+}
+
+fn default_overlay_position() -> String {
+    "top-center".to_string()
+}
+
+fn default_overlay_size() -> String {
+    "medium".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputMode {
@@ -45,12 +67,17 @@ impl Default for Settings {
         Self {
             model: "base".to_string(),
             output_mode: OutputMode::Clipboard,
-            hotkey: "RightAlt".to_string(),
+            hotkey: "Alt+KeyQ".to_string(),
             language: "en".to_string(),
             gpu: true,
             interrupt: false,
             output_hotkey: String::new(),
             min_duration: 0.5,
+            overlay_enabled: false,
+            overlay_position: "top-center".to_string(),
+            overlay_size: "medium".to_string(),
+            overlay_monitor: 0,
+            input_device: String::new(),
         }
     }
 }

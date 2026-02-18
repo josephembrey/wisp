@@ -6,7 +6,11 @@
 	import { toggleMode, mode } from 'mode-watcher';
 	import { quit, type Status } from '$lib/tauri';
 
-	let { status, showSaved = false }: { status: Status; showSaved?: boolean } = $props();
+	let {
+		status,
+		showSaved = false,
+		downloading = false
+	}: { status: Status; showSaved?: boolean; downloading?: boolean } = $props();
 
 	const statusColor: Record<Status, string> = {
 		idle: 'default',
@@ -22,8 +26,12 @@
 		processing: 'Processing'
 	};
 
-	let badgeLabel = $derived(showSaved ? 'Saved' : statusLabel[status]);
-	let badgeVariant = $derived(showSaved ? 'outline' : statusColor[status]);
+	let badgeLabel = $derived(
+		showSaved ? 'Saved' : downloading && status === 'idle' ? 'Downloading' : statusLabel[status]
+	);
+	let badgeVariant = $derived(
+		showSaved ? 'outline' : downloading && status === 'idle' ? 'outline' : statusColor[status]
+	);
 </script>
 
 <div
