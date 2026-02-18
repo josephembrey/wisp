@@ -89,6 +89,25 @@ in {
     };
   };
 
+  enterShell = ''
+    # Check for Windows signing tools (WSL2 only)
+    if [ -d /mnt/c/Windows ]; then
+      _missing=""
+      if ! powershell.exe -Command "Get-Command signtool.exe -ErrorAction SilentlyContinue" &>/dev/null; then
+        _missing="$_missing  - signtool.exe (install Windows SDK)\n"
+      fi
+      if ! powershell.exe -Command "Test-Path \"$env:LOCALAPPDATA\Microsoft\MicrosoftTrustedSigningClientTools\Azure.CodeSigning.Dlib.dll\"" 2>/dev/null | grep -qi true; then
+        _missing="$_missing  - Azure Trusted Signing Client Tools (winget install -e --id Microsoft.Azure.TrustedSigningClientTools)\n"
+      fi
+      if ! powershell.exe -Command "Get-Command az -ErrorAction SilentlyContinue" &>/dev/null; then
+        _missing="$_missing  - Azure CLI (winget install --id Microsoft.AzureCLI)\n"
+      fi
+      if [ -n "$_missing" ]; then
+        echo -e "\033[33m[warn] Windows signing tools missing:\n$_missing\033[0m"
+      fi
+    fi
+  '';
+
   scripts.pre.exec = "cd \"$(git rev-parse --show-toplevel)\" && prek run --all-files";
   scripts.clean.exec = "cd \"$(git rev-parse --show-toplevel)\" && cargo clean";
   scripts.build-windows.exec = ''
@@ -124,6 +143,13 @@ in {
     rm -rf target/x86_64-pc-windows-msvc/release/build/whisper-rs-sys-*/out/build/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix
 
     bun tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle
+  '';
+  scripts.sign.exec = ''
+    cd "$(git rev-parse --show-toplevel)"
+    powershell.exe -ExecutionPolicy Bypass -File signing/sign.ps1
+  '';
+  scripts.build-sign.exec = ''
+    build-windows && sign
   '';
 
   env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
