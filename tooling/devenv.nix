@@ -10,6 +10,15 @@
     librsvg
     libayatana-appindicator
     xorg.libXtst
+    xdotool
+
+    # Windows cross-compilation
+    cargo-xwin
+    ninja
+    nsis
+    llvmPackages.clang
+    llvmPackages.lld
+    llvmPackages.llvm
   ];
 
   languages = {
@@ -21,7 +30,11 @@
       };
     };
     nix.enable = true;
-    rust.enable = true;
+    rust = {
+      enable = true;
+      channel = "stable";
+      targets = ["x86_64-pc-windows-msvc"];
+    };
     typescript.enable = true;
   };
 
@@ -60,7 +73,13 @@
     };
   };
 
-  scripts.fmt.exec = "cd \"$(git rev-parse --show-toplevel)\" && prek run --all-files";
+  scripts.pre.exec = "cd \"$(git rev-parse --show-toplevel)\" && prek run --all-files";
+  scripts.build-windows.exec = ''
+    cd "$(git rev-parse --show-toplevel)"
+    XWIN_CACHE="''${CARGO_XWIN_CACHE_DIR:-$HOME/.cache/cargo-xwin}/xwin"
+    export BINDGEN_EXTRA_CLANG_ARGS_x86_64_pc_windows_msvc="--target=x86_64-pc-windows-msvc -I$XWIN_CACHE/sdk/include/ucrt -I$XWIN_CACHE/crt/include -I$XWIN_CACHE/sdk/include/shared"
+    bun tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle
+  '';
 
   env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
 }
