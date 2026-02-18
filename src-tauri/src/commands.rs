@@ -13,8 +13,8 @@ pub fn update_settings(
     settings: Settings,
 ) -> Result<(), String> {
     settings.save(&state.data_dir)?;
-    if let Some(key) = hotkey::parse_key(&settings.hotkey) {
-        *state.hotkey.lock() = key;
+    if let Some(keys) = hotkey::parse_combo(&settings.hotkey) {
+        *state.hotkey.lock() = keys;
     }
     *state.settings.lock() = settings;
     Ok(())

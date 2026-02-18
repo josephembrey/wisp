@@ -16,7 +16,7 @@
     cargo-xwin
     ninja
     nsis
-    llvmPackages.clang
+    clang
     llvmPackages.lld
     llvmPackages.llvm
   ];
@@ -57,7 +57,10 @@
         excludes = ["tsconfig\\.json$"];
       };
       check-toml.enable = true;
-      clippy.enable = true;
+      clippy = {
+        enable = true;
+        entry = "cargo clippy --";
+      };
       commitizen.enable = true;
       end-of-file-fixer.enable = true;
       eslint = {
@@ -74,6 +77,7 @@
   };
 
   scripts.pre.exec = "cd \"$(git rev-parse --show-toplevel)\" && prek run --all-files";
+  scripts.clean.exec = "cd \"$(git rev-parse --show-toplevel)\" && cargo clean";
   scripts.build-windows.exec = ''
     cd "$(git rev-parse --show-toplevel)"
     XWIN_CACHE="''${CARGO_XWIN_CACHE_DIR:-$HOME/.cache/cargo-xwin}/xwin"

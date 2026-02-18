@@ -32,10 +32,17 @@ pub fn run() {
                 .expect("failed to get app data dir");
             let models_dir = data_dir.join("models");
 
+            // First run: show the window so the user can configure settings
+            let first_run = !Settings::exists(&data_dir);
+
             // Load settings and create app state
             let settings = Settings::load(&data_dir);
-            let initial_key = hotkey::parse_key(&settings.hotkey).unwrap_or(rdev::Key::AltGr);
-            let hotkey_key = Arc::new(parking_lot::Mutex::new(initial_key));
+            if first_run {
+                let _ = settings.save(&data_dir);
+            }
+            let initial_keys =
+                hotkey::parse_combo(&settings.hotkey).unwrap_or_else(|| vec![rdev::Key::AltGr]);
+            let hotkey_key = Arc::new(parking_lot::Mutex::new(initial_keys));
 
             app.manage(WispState {
                 settings: parking_lot::Mutex::new(settings),
@@ -77,6 +84,13 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+
+            if first_run {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
 
             Ok(())
         })

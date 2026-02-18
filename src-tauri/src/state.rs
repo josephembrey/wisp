@@ -29,6 +29,10 @@ impl Default for Settings {
 }
 
 impl Settings {
+    pub fn exists(data_dir: &PathBuf) -> bool {
+        data_dir.join("settings.json").exists()
+    }
+
     pub fn load(data_dir: &PathBuf) -> Self {
         let path = data_dir.join("settings.json");
         if path.exists() {
@@ -60,5 +64,5 @@ pub struct WispState {
     pub status: Mutex<Status>,
     pub data_dir: PathBuf,
     pub models_dir: PathBuf,
-    pub hotkey: Arc<Mutex<rdev::Key>>,
+    pub hotkey: Arc<Mutex<Vec<rdev::Key>>>,
 }
