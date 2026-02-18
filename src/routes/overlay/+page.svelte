@@ -22,6 +22,8 @@
 				: 'justify-center'
 	);
 
+	const align = $derived(position.includes('bottom') ? 'items-end' : 'items-start');
+
 	const scale = $derived(size === 'small' ? 'scale-75' : size === 'large' ? 'scale-150' : '');
 
 	onMount(() => {
@@ -66,7 +68,7 @@
 </svelte:head>
 
 {#if flash}
-	<div class="flex items-center {justify}" style="width: 100vw; height: 100vh;">
+	<div class="flex {align} {justify} p-3" style="width: 100vw; height: 100vh;">
 		<div
 			class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm {scale}"
 		>
@@ -85,7 +87,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="flex items-center {justify}" style="width: 100vw; height: 100vh;">
+	<div class="flex {align} {justify} p-3" style="width: 100vw; height: 100vh;">
 		<div
 			class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm {scale}"
 		>

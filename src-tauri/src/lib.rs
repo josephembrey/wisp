@@ -570,12 +570,8 @@ pub fn update_overlay(app: &tauri::AppHandle, state: &WispState) {
 }
 
 fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
-    let (w, h) = match settings.overlay_size.as_str() {
-        "small" => (120.0, 26.0),
-        "large" => (240.0, 52.0),
-        _ => (160.0, 36.0),
-    };
-
+    // Cover the full work area — the window is transparent and click-through.
+    // The pill is positioned within the window via CSS flexbox.
     let monitor = overlay
         .available_monitors()
         .ok()
@@ -587,11 +583,6 @@ fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
         return;
     };
 
-    let scale = monitor.scale_factor();
-    let pw = (w * scale) as i32;
-    let ph = (h * scale) as i32;
-    let margin = (12.0 * scale) as i32;
-
     let mon_pos = monitor.position();
     let mon_size = monitor.size();
     let work = overlay::get_work_area(
@@ -601,22 +592,9 @@ fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
         mon_size.height as i32,
     );
 
-    let (x, y) = match settings.overlay_position.as_str() {
-        "top-left" => (work.x + margin, work.y + margin),
-        "top-right" => (work.x + work.width - pw - margin, work.y + margin),
-        "bottom-left" => (work.x + margin, work.y + work.height - ph - margin),
-        "bottom-center" => (
-            work.x + (work.width - pw) / 2,
-            work.y + work.height - ph - margin,
-        ),
-        "bottom-right" => (
-            work.x + work.width - pw - margin,
-            work.y + work.height - ph - margin,
-        ),
-        // top-center (default)
-        _ => (work.x + (work.width - pw) / 2, work.y + margin),
-    };
-
-    let _ = overlay.set_size(tauri::PhysicalSize::new(pw as u32, ph as u32));
-    let _ = overlay.set_position(PhysicalPosition::new(x, y));
+    let _ = overlay.set_size(tauri::PhysicalSize::new(
+        work.width as u32,
+        work.height as u32,
+    ));
+    let _ = overlay.set_position(PhysicalPosition::new(work.x, work.y));
 }
