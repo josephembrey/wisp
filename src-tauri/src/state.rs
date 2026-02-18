@@ -2,6 +2,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -59,4 +60,5 @@ pub struct WispState {
     pub status: Mutex<Status>,
     pub data_dir: PathBuf,
     pub models_dir: PathBuf,
+    pub hotkey: Arc<Mutex<rdev::Key>>,
 }

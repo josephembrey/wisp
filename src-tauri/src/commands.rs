@@ -1,3 +1,4 @@
+use crate::hotkey;
 use crate::state::{Settings, Status, WispState};
 use crate::whisper;
 
@@ -12,6 +13,9 @@ pub fn update_settings(
     settings: Settings,
 ) -> Result<(), String> {
     settings.save(&state.data_dir)?;
+    if let Some(key) = hotkey::parse_key(&settings.hotkey) {
+        *state.hotkey.lock() = key;
+    }
     *state.settings.lock() = settings;
     Ok(())
 }
