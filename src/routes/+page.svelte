@@ -139,9 +139,13 @@
 	let hotkeyActive = false;
 
 	function handleKeydown(e: KeyboardEvent) {
-		e.preventDefault();
-		pressedKeys.add(mapBrowserKey(e.code));
+		const key = mapBrowserKey(e.code);
 		const combo = settings?.hotkey?.split('+') || [];
+		// Only intercept keys that are part of the hotkey combo
+		if (combo.includes(key)) {
+			e.preventDefault();
+		}
+		pressedKeys.add(key);
 		if (!hotkeyActive && combo.length > 0 && combo.every((k) => pressedKeys.has(k))) {
 			hotkeyActive = true;
 			hotkeyPress();
