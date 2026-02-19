@@ -39,7 +39,7 @@ pub fn update_settings(
         crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
     }
 
-    let _ = app.emit("settings-changed", ());
+    let _ = app.emit("settings-changed", &settings);
 
     Ok(())
 }

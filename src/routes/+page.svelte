@@ -24,7 +24,7 @@
 		type ModelInfo,
 		type DownloadProgress
 	} from '$lib/tauri';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import Titlebar from '$lib/components/settings/titlebar.svelte';
@@ -136,7 +136,7 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		getSettings().then((s) => (settings = s));
 		getStatus().then((s) => (status = s));
 		getGpuBackend().then((b) => (gpuBackend = b));
@@ -156,8 +156,8 @@
 			}),
 			onTranscription((t) => (lastTranscription = t)),
 			onError((msg) => toast.error(msg)),
-			onSettingsChanged(() => {
-				getSettings().then((s) => (settings = s));
+			onSettingsChanged((s) => {
+				settings = s;
 			}),
 			onOverlayFlash((msg) => {
 				clearTimeout(flashTimeout);

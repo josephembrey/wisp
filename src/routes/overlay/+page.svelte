@@ -50,13 +50,11 @@
 				flash = msg;
 				flashTimeout = setTimeout(() => (flash = ''), 1000);
 			}),
-			onSettingsChanged(() => {
-				getSettings().then((s) => {
-					position = s.overlay_position;
-					size = s.overlay_size;
-					alwaysShow = s.overlay_always_show;
-				});
-			})
+		onSettingsChanged((s) => {
+			position = s.overlay_position;
+			size = s.overlay_size;
+			alwaysShow = s.overlay_always_show;
+		})
 		];
 		return () => {
 			unsubs.forEach((p) => p.then((fn) => fn()));

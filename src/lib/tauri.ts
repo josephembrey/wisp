@@ -13,19 +13,21 @@ export type {
 	ModelLoading
 } from './bindings';
 
+// Result-unwrapping helpers for commands that return Result<T, string>
 function unwrap<T>(result: Result<T, string>): T {
 	if (result.status === 'error') throw new Error(result.error);
 	return result.data;
 }
 
+// Commands (pass-through for simple getters, unwrap for fallible actions)
 export const isFirstRun = commands.isFirstRun;
 export const getSettings = commands.getSettings;
 export const getStatus = commands.getStatus;
 export const getModels = commands.getModels;
 export const getGpuBackend = commands.getGpuBackend;
-export const resizeWindow = commands.resizeWindow;
 export const getMonitors = commands.getMonitors;
 export const getInputDevices = commands.getInputDevices;
+export const resizeWindow = commands.resizeWindow;
 export const quit = commands.quit;
 
 export const updateSettings = async (settings: import('./bindings').Settings) =>
@@ -34,9 +36,11 @@ export const downloadModel = async (name: string) => unwrap(await commands.downl
 export const deleteModel = async (name: string) => unwrap(await commands.deleteModel(name));
 export const resetApp = async () => unwrap(await commands.resetApp());
 
+// Window helpers
 export const hideWindow = () => getCurrentWindow().hide();
 export const minimizeWindow = () => getCurrentWindow().minimize();
 
+// Event listeners
 export const onStatusChanged = (
 	cb: (status: import('./bindings').Status) => void
 ): Promise<UnlistenFn> => listen<import('./bindings').Status>('status-changed', (e) => cb(e.payload));
@@ -52,8 +56,10 @@ export const onTranscription = (cb: (text: string) => void): Promise<UnlistenFn>
 export const onError = (cb: (message: string) => void): Promise<UnlistenFn> =>
 	listen<string>('backend-error', (e) => cb(e.payload));
 
-export const onSettingsChanged = (cb: () => void): Promise<UnlistenFn> =>
-	listen('settings-changed', () => cb());
+export const onSettingsChanged = (
+	cb: (settings: import('./bindings').Settings) => void
+): Promise<UnlistenFn> =>
+	listen<import('./bindings').Settings>('settings-changed', (e) => cb(e.payload));
 
 export const onOverlayFlash = (cb: (message: string) => void): Promise<UnlistenFn> =>
 	listen<string>('overlay-flash', (e) => cb(e.payload));

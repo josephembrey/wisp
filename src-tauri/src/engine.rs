@@ -221,8 +221,8 @@ pub fn run(
                     OutputMode::Paste => "Paste",
                 };
                 let _ = settings.save(&state.data_dir);
-                *state.settings.lock() = settings;
-                let _ = app.emit("settings-changed", ());
+                *state.settings.lock() = settings.clone();
+                let _ = app.emit("settings-changed", &settings);
                 let _ = app.emit("overlay-flash", flash);
             }
             AppEvent::TranscriptionDone {
