@@ -6,7 +6,7 @@ mod overlay;
 mod state;
 mod whisper;
 
-use state::{OutputMode, Settings, Status, WispState};
+use state::{ModelLoading, OutputMode, Settings, Status, WispState};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{
@@ -222,24 +222,26 @@ fn run_event_loop(
     let mut transcription_in_flight = false;
     let mut pending_audio: Option<(Vec<f32>, Settings)> = None;
 
-    // Eagerly load the configured model at startup
+    // Eagerly load the configured model at startup (only in Eager mode)
     {
         let settings = state.settings.lock().clone();
-        let model_file = state
-            .models_dir
-            .join(format!("ggml-{}.bin", settings.model));
-        if model_file.exists() {
-            set_status(&app, &state, Status::Loading);
-            match whisper::WhisperEngine::new(&model_file, settings.gpu) {
-                Ok(e) => {
-                    log::info!("eagerly loaded model: {}", settings.model);
-                    engine = Some(e);
-                    loaded_model = settings.model.clone();
-                    loaded_gpu = settings.gpu;
+        if settings.model_loading == ModelLoading::Eager {
+            let model_file = state
+                .models_dir
+                .join(format!("ggml-{}.bin", settings.model));
+            if model_file.exists() {
+                set_status(&app, &state, Status::Loading);
+                match whisper::WhisperEngine::new(&model_file, settings.gpu) {
+                    Ok(e) => {
+                        log::info!("eagerly loaded model: {}", settings.model);
+                        engine = Some(e);
+                        loaded_model = settings.model.clone();
+                        loaded_gpu = settings.gpu;
+                    }
+                    Err(e) => log::warn!("failed to eagerly load model: {}", e),
                 }
-                Err(e) => log::warn!("failed to eagerly load model: {}", e),
+                set_status(&app, &state, Status::Idle);
             }
-            set_status(&app, &state, Status::Idle);
         }
     }
 
@@ -374,6 +376,12 @@ fn run_event_loop(
                         }
                     }
 
+                    // Per-use: unload model after transcription
+                    if settings.model_loading == ModelLoading::PerUse {
+                        engine = None;
+                        loaded_model.clear();
+                    }
+
                     if did_output {
                         let flash = match settings.output_mode {
                             OutputMode::Clipboard => "Copied",
@@ -437,6 +445,9 @@ fn run_event_loop(
                 }
                 cancelled = false;
 
+                // Per-use: unload model after transcription
+                let per_use = state.settings.lock().model_loading == ModelLoading::PerUse;
+
                 // Check for pending audio
                 if let Some((audio, settings)) = pending_audio.take() {
                     engine = Some(returned_engine);
@@ -451,6 +462,9 @@ fn run_event_loop(
                         &state.models_dir,
                     );
                     transcription_in_flight = true;
+                } else if per_use {
+                    drop(returned_engine);
+                    loaded_model.clear();
                 } else {
                     engine = Some(returned_engine);
                     // Only go idle if we're not recording

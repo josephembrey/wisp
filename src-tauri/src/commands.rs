@@ -102,7 +102,7 @@ pub fn reset_app(app: tauri::AppHandle, state: tauri::State<'_, WispState>) -> R
 pub fn resize_window(window: tauri::WebviewWindow, height: f64) {
     let scale = window.scale_factor().unwrap_or(1.0);
     let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-        (400.0 * scale) as u32,
+        (540.0 * scale) as u32,
         (height * scale) as u32,
     )));
 }

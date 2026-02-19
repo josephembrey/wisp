@@ -31,6 +31,8 @@ pub struct Settings {
     pub overlay_always_show: bool,
     #[serde(default)]
     pub input_device: String,
+    #[serde(default)]
+    pub model_loading: ModelLoading,
 }
 
 fn default_language() -> String {
@@ -64,6 +66,20 @@ pub enum OutputMode {
     Paste,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelLoading {
+    Eager,
+    Lazy,
+    PerUse,
+}
+
+impl Default for ModelLoading {
+    fn default() -> Self {
+        Self::Eager
+    }
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -81,6 +97,7 @@ impl Default for Settings {
             overlay_monitor: 0,
             overlay_always_show: false,
             input_device: String::new(),
+            model_loading: ModelLoading::Eager,
         }
     }
 }

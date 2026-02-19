@@ -17,6 +17,7 @@ export interface Settings {
 	overlay_monitor: number;
 	overlay_always_show: boolean;
 	input_device: string;
+	model_loading: 'eager' | 'lazy' | 'per_use';
 }
 
 export interface InputDeviceInfo {
