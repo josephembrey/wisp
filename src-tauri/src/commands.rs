@@ -4,16 +4,19 @@ use crate::whisper;
 use tauri::Emitter;
 
 #[tauri::command]
+#[specta::specta]
 pub fn is_first_run(state: tauri::State<'_, WispState>) -> bool {
     state.first_run
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_settings(state: tauri::State<'_, WispState>) -> Settings {
     state.settings.lock().clone()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_settings(
     app: tauri::AppHandle,
     state: tauri::State<'_, WispState>,
@@ -42,16 +45,19 @@ pub fn update_settings(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_status(state: tauri::State<'_, WispState>) -> Status {
     state.status.lock().clone()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_models(state: tauri::State<'_, WispState>) -> Vec<whisper::ModelInfo> {
     whisper::list_models(&state.models_dir)
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn download_model(
     app: tauri::AppHandle,
     state: tauri::State<'_, WispState>,
@@ -61,11 +67,13 @@ pub async fn download_model(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_model(state: tauri::State<'_, WispState>, name: String) -> Result<(), String> {
     whisper::delete_model(&state.models_dir, &name)
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_gpu_backend() -> String {
     if cfg!(target_os = "macos") {
         "Metal".to_string()
@@ -77,6 +85,7 @@ pub fn get_gpu_backend() -> String {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn reset_app(app: tauri::AppHandle, state: tauri::State<'_, WispState>) -> Result<(), String> {
     let settings_path = state.data_dir.join("settings.json");
     if settings_path.exists() {
@@ -89,6 +98,7 @@ pub fn reset_app(app: tauri::AppHandle, state: tauri::State<'_, WispState>) -> R
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn resize_window(window: tauri::WebviewWindow, height: f64) {
     let scale = window.scale_factor().unwrap_or(1.0);
     let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
@@ -98,6 +108,7 @@ pub fn resize_window(window: tauri::WebviewWindow, height: f64) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_monitors(app: tauri::AppHandle) -> Vec<MonitorInfo> {
     use tauri::Manager;
     let Some(window) = app.get_webview_window("main") else {
@@ -124,7 +135,7 @@ pub fn get_monitors(app: tauri::AppHandle) -> Vec<MonitorInfo> {
         .collect()
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct MonitorInfo {
     pub index: usize,
     pub name: String,
@@ -134,11 +145,13 @@ pub struct MonitorInfo {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {
     audio::list_input_devices()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn quit(app: tauri::AppHandle) {
     app.exit(0);
 }

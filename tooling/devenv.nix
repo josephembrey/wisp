@@ -111,8 +111,35 @@ in {
 
   scripts.pre.exec = "cd \"$(git rev-parse --show-toplevel)\" && prek run --all-files";
   scripts.clean.exec = "cd \"$(git rev-parse --show-toplevel)\" && cargo clean";
-  scripts.build-windows.exec = ''
+
+  scripts.dev.exec = ''
     cd "$(git rev-parse --show-toplevel)"
+    bun tauri dev
+  '';
+  scripts.build.exec = ''
+    cd "$(git rev-parse --show-toplevel)"
+    echo "Generating TypeScript bindings..."
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings
+    echo "Bindings generated."
+    bun tauri build
+  '';
+  scripts.check.exec = ''
+    cd "$(git rev-parse --show-toplevel)"
+    echo "[cargo check] Checking Rust compilation..."
+    cargo check --manifest-path src-tauri/Cargo.toml
+    echo "[svelte-check] Checking SvelteKit types..."
+    bun run check
+    echo "[lint] Checking formatting and linting..."
+    bun run lint
+    echo "All checks passed."
+  '';
+
+  scripts.build-wsl-windows.exec = ''
+    cd "$(git rev-parse --show-toplevel)"
+    echo "Generating TypeScript bindings..."
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings
+    echo "Bindings generated."
+
     XWIN_CACHE="''${CARGO_XWIN_CACHE_DIR:-$HOME/.cache/cargo-xwin}/xwin"
     export BINDGEN_EXTRA_CLANG_ARGS_x86_64_pc_windows_msvc="--target=x86_64-pc-windows-msvc -I$XWIN_CACHE/sdk/include/ucrt -I$XWIN_CACHE/crt/include -I$XWIN_CACHE/sdk/include/shared"
 
@@ -145,12 +172,12 @@ in {
 
     bun tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle
   '';
-  scripts.sign.exec = ''
+  scripts.sign-wsl-windows.exec = ''
     cd "$(git rev-parse --show-toplevel)"
     powershell.exe -ExecutionPolicy Bypass -File signing/sign.ps1
   '';
-  scripts.build-sign.exec = ''
-    build-windows && sign
+  scripts.build-sign-wsl-windows.exec = ''
+    build-wsl-windows && sign-wsl-windows
   '';
 
   env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";

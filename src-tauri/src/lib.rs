@@ -23,8 +23,40 @@ use settings::{Settings, Status, WispState};
 use tauri::{Listener, Manager};
 use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
+pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
+    tauri_specta::Builder::<tauri::Wry>::new()
+        .commands(tauri_specta::collect_commands![
+            commands::is_first_run,
+            commands::get_settings,
+            commands::update_settings,
+            commands::get_status,
+            commands::get_models,
+            commands::download_model,
+            commands::delete_model,
+            commands::get_gpu_backend,
+            commands::resize_window,
+            commands::reset_app,
+            commands::get_monitors,
+            commands::get_input_devices,
+            commands::quit,
+        ])
+        .typ::<whisper::DownloadProgress>()
+}
+
+pub fn ts_export_config() -> specta_typescript::Typescript {
+    specta_typescript::Typescript::default()
+        .bigint(specta_typescript::BigIntExportBehavior::Number)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let builder = specta_builder();
+
+    #[cfg(debug_assertions)]
+    builder
+        .export(ts_export_config(), "../src/lib/bindings.ts")
+        .expect("Failed to export typescript bindings");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -132,21 +164,7 @@ pub fn run() {
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::is_first_run,
-            commands::get_settings,
-            commands::update_settings,
-            commands::get_status,
-            commands::get_models,
-            commands::download_model,
-            commands::delete_model,
-            commands::get_gpu_backend,
-            commands::resize_window,
-            commands::reset_app,
-            commands::get_monitors,
-            commands::get_input_devices,
-            commands::quit,
-        ])
+        .invoke_handler(builder.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

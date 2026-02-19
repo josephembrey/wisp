@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputMode {
     Clipboard,
     Paste,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelLoading {
     Eager,
@@ -21,7 +22,7 @@ impl Default for ModelLoading {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
     Idle,

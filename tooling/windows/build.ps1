@@ -10,4 +10,10 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\_env.ps1"
 
 Push-Location $root
-try { bun tauri build } finally { Pop-Location }
+try {
+    Write-Host "Generating TypeScript bindings..." -ForegroundColor Cyan
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings
+    Write-Host "Bindings generated." -ForegroundColor Green
+
+    bun tauri build
+} finally { Pop-Location }

@@ -44,6 +44,9 @@ async deleteModel(name: string) : Promise<Result<null, string>> {
 async getGpuBackend() : Promise<string> {
     return await TAURI_INVOKE("get_gpu_backend");
 },
+async resizeWindow(height: number) : Promise<void> {
+    await TAURI_INVOKE("resize_window", { height });
+},
 async resetApp() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("reset_app") };
@@ -51,9 +54,6 @@ async resetApp() : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
-},
-async resizeWindow(height: number) : Promise<void> {
-    await TAURI_INVOKE("resize_window", { height });
 },
 async getMonitors() : Promise<MonitorInfo[]> {
     return await TAURI_INVOKE("get_monitors");
@@ -69,21 +69,6 @@ async quit() : Promise<void> {
 /** user-defined events **/
 
 
-export const events = __makeEvents__<{
-backendError: BackendError,
-downloadProgress: DownloadProgress,
-overlayFlash: OverlayFlash,
-settingsChanged: SettingsChanged,
-statusChanged: StatusChanged,
-transcription: Transcription
-}>({
-backendError: "backend-error",
-downloadProgress: "download-progress",
-overlayFlash: "overlay-flash",
-settingsChanged: "settings-changed",
-statusChanged: "status-changed",
-transcription: "transcription"
-})
 
 /** user-defined constants **/
 
@@ -91,19 +76,14 @@ transcription: "transcription"
 
 /** user-defined types **/
 
-export type BackendError = string
 export type DownloadProgress = { model: string; downloaded: number; total: number }
 export type InputDeviceInfo = { name: string; label: string }
 export type ModelInfo = { name: string; size_mb: number; downloaded: boolean }
 export type ModelLoading = "eager" | "lazy" | "per_use"
 export type MonitorInfo = { index: number; name: string; width: number; height: number; primary: boolean }
 export type OutputMode = "clipboard" | "paste"
-export type OverlayFlash = string
 export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language?: string; gpu?: boolean; interrupt?: boolean; output_hotkey?: string; min_duration?: number; overlay_enabled?: boolean; overlay_position?: string; overlay_size?: string; overlay_monitor?: number; overlay_always_show?: boolean; input_device?: string; model_loading?: ModelLoading }
-export type SettingsChanged = null
 export type Status = "idle" | "loading" | "recording" | "processing"
-export type StatusChanged = Status
-export type Transcription = string
 
 /** tauri-specta globals **/
 

@@ -1,6 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait};
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct InputDeviceInfo {
     pub name: String,
     pub label: String,

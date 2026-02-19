@@ -22,11 +22,18 @@ fn model_path(models_dir: &PathBuf, name: &str) -> PathBuf {
     models_dir.join(format!("ggml-{}.bin", name))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ModelInfo {
     pub name: String,
     pub size_mb: u64,
     pub downloaded: bool,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct DownloadProgress {
+    pub model: String,
+    pub downloaded: u64,
+    pub total: u64,
 }
 
 pub fn list_models(models_dir: &PathBuf) -> Vec<ModelInfo> {
@@ -67,11 +74,11 @@ pub async fn download_model(
 
         let _ = app.emit(
             "download-progress",
-            serde_json::json!({
-                "model": name,
-                "downloaded": downloaded,
-                "total": total,
-            }),
+            DownloadProgress {
+                model: name.to_string(),
+                downloaded,
+                total,
+            },
         );
     }
 
