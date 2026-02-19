@@ -2,7 +2,6 @@ mod audio;
 mod commands;
 mod hotkey;
 mod output;
-mod overlay;
 mod state;
 mod whisper;
 
@@ -13,7 +12,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::WebviewWindowBuilder,
-    Emitter, Listener, Manager, PhysicalPosition, WebviewUrl,
+    Emitter, Listener, Manager, WebviewUrl,
 };
 
 enum AppEvent {
@@ -150,12 +149,10 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Create overlay window (starts offscreen; positioned by set_status)
             let _overlay =
                 WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
                     .title("Wisp Status")
-                    .inner_size(160.0, 36.0)
-                    .position(-10000.0, -10000.0)
+                    .maximized(true)
                     .decorations(false)
                     .transparent(true)
                     .shadow(false)
@@ -289,6 +286,7 @@ fn run_event_loop(
                         audio.len(),
                         min_samples
                     );
+                    let _ = app.emit("overlay-flash", "Cancelled");
                     if !transcription_in_flight {
                         set_status(&app, &state, Status::Idle);
                     }
@@ -388,16 +386,8 @@ fn run_event_loop(
                             OutputMode::Paste => "Typed",
                         };
                         let _ = app.emit("overlay-flash", flash);
-                        // Delay idle so flash is visible
-                        let app2 = app.clone();
-                        std::thread::spawn(move || {
-                            std::thread::sleep(std::time::Duration::from_millis(1200));
-                            let state2 = app2.state::<WispState>();
-                            set_status(&app2, &state2, Status::Idle);
-                        });
-                    } else {
-                        set_status(&app, &state, Status::Idle);
                     }
+                    set_status(&app, &state, Status::Idle);
                 }
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
@@ -418,9 +408,7 @@ fn run_event_loop(
                 transcription_in_flight = false;
                 abort_flag.store(false, Ordering::Relaxed);
 
-                let mut did_flash = false;
                 if !cancelled {
-                    // Output the result
                     match result {
                         Ok(ref text) if !text.is_empty() => {
                             if let Err(e) = output::send(text, &output_mode) {
@@ -433,7 +421,6 @@ fn run_event_loop(
                                 OutputMode::Paste => "Typed",
                             };
                             let _ = app.emit("overlay-flash", flash);
-                            did_flash = true;
                         }
                         Ok(_) => {}
                         Err(ref e) => {
@@ -467,19 +454,8 @@ fn run_event_loop(
                     loaded_model.clear();
                 } else {
                     engine = Some(returned_engine);
-                    // Only go idle if we're not recording
                     if recorder.is_none() {
-                        if did_flash {
-                            // Delay idle so flash is visible on overlay
-                            let app2 = app.clone();
-                            std::thread::spawn(move || {
-                                std::thread::sleep(std::time::Duration::from_millis(1200));
-                                let state2 = app2.state::<WispState>();
-                                set_status(&app2, &state2, Status::Idle);
-                            });
-                        } else {
-                            set_status(&app, &state, Status::Idle);
-                        }
+                        set_status(&app, &state, Status::Idle);
                     }
                 }
             }
@@ -564,50 +540,5 @@ fn start_transcription(
 fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {
     *state.status.lock() = status.clone();
     let _ = app.emit("status-changed", &status);
-    update_overlay(app, state);
 }
 
-pub fn update_overlay(app: &tauri::AppHandle, state: &WispState) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let settings = state.settings.lock().clone();
-        let status = state.status.lock().clone();
-        let hide =
-            !settings.overlay_enabled || (status == Status::Idle && !settings.overlay_always_show);
-
-        if hide {
-            let _ = overlay.set_position(PhysicalPosition::new(-10000, -10000));
-        } else {
-            position_overlay(&overlay, &settings);
-        }
-    }
-}
-
-fn position_overlay(overlay: &tauri::WebviewWindow, settings: &Settings) {
-    // Cover the full work area — the window is transparent and click-through.
-    // The pill is positioned within the window via CSS flexbox.
-    let monitor = overlay
-        .available_monitors()
-        .ok()
-        .and_then(|m| m.into_iter().nth(settings.overlay_monitor))
-        .or_else(|| overlay.primary_monitor().ok().flatten());
-
-    let Some(monitor) = monitor else {
-        log::warn!("overlay: no monitor found");
-        return;
-    };
-
-    let mon_pos = monitor.position();
-    let mon_size = monitor.size();
-    let work = overlay::get_work_area(
-        mon_pos.x,
-        mon_pos.y,
-        mon_size.width as i32,
-        mon_size.height as i32,
-    );
-
-    let _ = overlay.set_size(tauri::PhysicalSize::new(
-        work.width as u32,
-        work.height as u32,
-    ));
-    let _ = overlay.set_position(PhysicalPosition::new(work.x, work.y));
-}

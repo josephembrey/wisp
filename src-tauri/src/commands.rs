@@ -41,9 +41,7 @@ pub fn update_settings(
         *state.settings.lock() = settings;
     }
 
-    // Notify overlay and other listeners that settings changed
     let _ = app.emit("settings-changed", ());
-    crate::update_overlay(&app, &state);
 
     Ok(())
 }
