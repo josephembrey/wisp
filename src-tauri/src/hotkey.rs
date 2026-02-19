@@ -108,22 +108,19 @@ pub fn start(
                 EventType::KeyPress(key) => {
                     pressed_keys.insert(key);
 
-                    // Main hotkey: press-and-hold
-                    if !main_active
-                        && !main_keys.is_empty()
-                        && main_keys.iter().all(|k| pressed_keys.contains(k))
-                    {
-                        main_active = true;
-                        let _ = tx.send(HotkeyEvent::Pressed);
-                    }
-
-                    // Output toggle: fire once on all-keys-down
+                    // Output toggle: fire once on all-keys-down (checked first, mutually exclusive)
                     if !output_active
                         && !out_keys.is_empty()
                         && out_keys.iter().all(|k| pressed_keys.contains(k))
                     {
                         output_active = true;
                         let _ = tx.send(HotkeyEvent::OutputToggle);
+                    } else if !main_active
+                        && !main_keys.is_empty()
+                        && main_keys.iter().all(|k| pressed_keys.contains(k))
+                    {
+                        main_active = true;
+                        let _ = tx.send(HotkeyEvent::Pressed);
                     }
                 }
                 EventType::KeyRelease(key) => {

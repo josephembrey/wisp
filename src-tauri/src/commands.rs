@@ -160,3 +160,8 @@ pub fn hotkey_press(state: tauri::State<'_, WispState>) {
 pub fn hotkey_release(state: tauri::State<'_, WispState>) {
     let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::Released);
 }
+
+#[tauri::command]
+pub fn output_toggle(state: tauri::State<'_, WispState>) {
+    let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::OutputToggle);
+}

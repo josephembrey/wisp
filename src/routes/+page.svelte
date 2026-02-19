@@ -15,6 +15,7 @@
 		resizeWindow as resizeWindowCmd,
 		hotkeyPress,
 		hotkeyRelease,
+		outputToggle,
 		type Settings,
 		type Status,
 		type MonitorInfo,
@@ -140,15 +141,20 @@
 
 	let pressedKeys = new Set<string>();
 	let hotkeyActive = false;
+	let outputToggleFired = false;
 
 	function handleKeydown(e: KeyboardEvent) {
 		const key = mapBrowserKey(e.code);
 		const combo = settings?.hotkey?.split('+') || [];
-		if (combo.includes(key)) {
+		const outputCombo = settings?.output_hotkey?.split('+').filter(Boolean) || [];
+		if (combo.includes(key) || outputCombo.includes(key)) {
 			e.preventDefault();
 		}
 		pressedKeys.add(key);
-		if (!hotkeyActive && combo.length > 0 && combo.every((k) => pressedKeys.has(k))) {
+		if (!outputToggleFired && outputCombo.length > 0 && outputCombo.every((k) => pressedKeys.has(k))) {
+			outputToggleFired = true;
+			outputToggle();
+		} else if (!hotkeyActive && combo.length > 0 && combo.every((k) => pressedKeys.has(k))) {
 			hotkeyActive = true;
 			hotkeyPress();
 		}
@@ -159,6 +165,10 @@
 		if (hotkeyActive && (settings?.hotkey?.split('+') || []).includes(key)) {
 			hotkeyActive = false;
 			hotkeyRelease();
+		}
+		const outputCombo = settings?.output_hotkey?.split('+').filter(Boolean) || [];
+		if (outputToggleFired && outputCombo.includes(key)) {
+			outputToggleFired = false;
 		}
 		pressedKeys.delete(key);
 	}

@@ -62,6 +62,7 @@ export const getInputDevices = () => invoke<InputDeviceInfo[]>('get_input_device
 export const quit = () => invoke('quit');
 export const hotkeyPress = () => invoke('hotkey_press');
 export const hotkeyRelease = () => invoke('hotkey_release');
+export const outputToggle = () => invoke('output_toggle');
 export const hideWindow = () => getCurrentWindow().hide();
 export const minimizeWindow = () => getCurrentWindow().minimize();
 

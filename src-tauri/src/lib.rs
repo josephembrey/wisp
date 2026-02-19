@@ -197,6 +197,7 @@ pub fn run() {
             commands::quit,
             commands::hotkey_press,
             commands::hotkey_release,
+            commands::output_toggle,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -396,9 +397,14 @@ fn run_event_loop(
                     OutputMode::Clipboard => OutputMode::Paste,
                     OutputMode::Paste => OutputMode::Clipboard,
                 };
+                let flash = match settings.output_mode {
+                    OutputMode::Clipboard => "Clipboard",
+                    OutputMode::Paste => "Paste",
+                };
                 let _ = settings.save(&state.data_dir);
                 *state.settings.lock() = settings;
                 let _ = app.emit("settings-changed", ());
+                let _ = app.emit("overlay-flash", flash);
             }
             AppEvent::TranscriptionDone {
                 engine: returned_engine,
