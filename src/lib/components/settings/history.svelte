@@ -1,14 +1,24 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 	import {
 		getHistory,
 		clearHistory,
 		deleteHistoryEntry,
 		onHistoryChanged,
-		type HistoryEntry
+		type HistoryEntry,
+		type Settings
 	} from '$lib/tauri';
 	import { onMount } from 'svelte';
 	import { log } from '$lib/log';
+
+	let {
+		settings,
+		onsave
+	}: {
+		settings: Settings;
+		onsave: (updates: Partial<Settings>) => void;
+	} = $props();
 
 	let entries: HistoryEntry[] = $state([]);
 	let expandedId: number | null = $state(null);
@@ -68,6 +78,33 @@
 </script>
 
 <div class="flex flex-col gap-2">
+	<div class="flex items-center justify-between gap-2">
+		<div class="flex items-center gap-2">
+			<Switch
+				checked={settings.history_enabled ?? true}
+				onCheckedChange={(v) => onsave({ history_enabled: v })}
+			/>
+			<span class="text-xs text-muted-foreground">Save history</span>
+		</div>
+		<div class="flex items-center gap-1.5 transition-opacity {settings.history_enabled ? '' : 'pointer-events-none opacity-40'}">
+			<span class="text-xs text-muted-foreground">Keep</span>
+			<input
+				type="number"
+				min="10"
+				max="10000"
+				step="10"
+				disabled={!settings.history_enabled}
+				value={settings.history_retention ?? 100}
+				onchange={(e) => {
+					const v = parseInt(e.currentTarget.value);
+					if (!isNaN(v) && v >= 10) onsave({ history_retention: v });
+				}}
+				class="h-6 w-16 rounded-md border border-input bg-background px-1.5 text-xs"
+			/>
+			<span class="text-xs text-muted-foreground">entries</span>
+		</div>
+	</div>
+
 	{#if entries.length === 0}
 		<p class="py-6 text-center text-xs text-muted-foreground">No transcription history yet.</p>
 	{:else}
@@ -82,7 +119,7 @@
 							<div class="flex items-center gap-1.5">
 								<span
 									class="shrink-0 rounded px-1 py-0.5 text-[10px] font-medium leading-none uppercase {entry.source ===
-									'ptt'
+								'mic'
 										? 'bg-primary/10 text-primary'
 										: 'bg-secondary text-secondary-foreground'}"
 								>

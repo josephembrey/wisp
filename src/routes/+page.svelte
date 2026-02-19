@@ -262,11 +262,11 @@
 					</Tabs.Content>
 
 					<Tabs.Content value="history">
-						<SettingsHistory />
+						<SettingsHistory {settings} onsave={save} />
 					</Tabs.Content>
 
 					<Tabs.Content value="about">
-						<SettingsAbout hotkey={settings.hotkey} {settings} onsave={save} />
+						<SettingsAbout hotkey={settings.hotkey} />
 					</Tabs.Content>
 				</div>
 			</div>

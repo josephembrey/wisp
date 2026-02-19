@@ -334,7 +334,7 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
 
     let settings = state.settings.lock();
     if settings.history_enabled {
-        history::append(&state.data_dir, text, "ptt", settings.history_retention);
+        history::append(&state.data_dir, text, "mic", settings.history_retention);
         let _ = app.emit("history-changed", ());
     }
 }

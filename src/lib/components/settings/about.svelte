@@ -1,17 +1,11 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
-	import SettingRow from '$lib/components/settings/setting-row.svelte';
-	import { resetApp, type Settings } from '$lib/tauri';
+	import { resetApp } from '$lib/tauri';
 
 	let {
-		hotkey,
-		settings,
-		onsave
+		hotkey
 	}: {
 		hotkey: string;
-		settings: Settings;
-		onsave: (updates: Partial<Settings>) => void;
 	} = $props();
 </script>
 
@@ -60,32 +54,6 @@
 				<span>Enable GPU in Model for faster transcription</span>
 			</li>
 		</ul>
-	</div>
-
-	<div class="flex flex-col gap-1.5">
-		<span class="text-xs font-semibold tracking-wide text-foreground uppercase">History</span>
-		<SettingRow label="Save Transcriptions">
-			<Switch
-				checked={settings.history_enabled ?? true}
-				onCheckedChange={(v) => onsave({ history_enabled: v })}
-			/>
-		</SettingRow>
-		{#if settings.history_enabled}
-			<SettingRow label="Max Entries" description="oldest entries are removed when exceeded">
-				<input
-					type="number"
-					min="10"
-					max="10000"
-					step="10"
-					value={settings.history_retention ?? 100}
-					onchange={(e) => {
-						const v = parseInt(e.currentTarget.value);
-						if (!isNaN(v) && v >= 10) onsave({ history_retention: v });
-					}}
-					class="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs"
-				/>
-			</SettingRow>
-		{/if}
 	</div>
 
 	<AlertDialog.Root>
