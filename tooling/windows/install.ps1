@@ -109,11 +109,13 @@ if ($vulkanDir -and -not $env:VULKAN_SDK) {
 }
 
 # --- Bun (in case the user doesn't have it yet) ---
+$bunInstalled = $false
 if (Test-Command 'bun') {
     Write-Host "`n[bun] Already installed - skipping." -ForegroundColor Green
 } else {
     Write-Host "`n[bun] Installing bun..." -ForegroundColor Yellow
     winget install --id Oven-sh.Bun -e --accept-source-agreements --accept-package-agreements
+    $bunInstalled = $true
 }
 
 # --- Signing tools (optional) ---
@@ -145,11 +147,24 @@ if ($Scope -eq 'sign') {
     }
 }
 
+# --- Node dependencies ---
+if ($bunInstalled) {
+    Write-Host "`n=== Done ===" -ForegroundColor Cyan
+    Write-Host "`nBun was just installed. Restart your terminal, then run:" -ForegroundColor Yellow
+    Write-Host "  .\win.ps1 install" -ForegroundColor White
+    Write-Host "to finish setting up node dependencies.`n"
+    exit 0
+}
+
+Write-Host "`n[bun] Installing node dependencies..." -ForegroundColor Cyan
+Push-Location (Split-Path $PSScriptRoot -Parent | Split-Path -Parent)
+try { bun install } finally { Pop-Location }
+
 # --- Summary ---
 Write-Host "`n=== Done ===" -ForegroundColor Cyan
 Write-Host @"
 
-Restart your terminal, then verify:
+Verify tools:
   rustup --version
   cargo --version
   cmake --version
@@ -157,6 +172,5 @@ Restart your terminal, then verify:
   bun --version
 
 Then from the repo root:
-  bun install
   bun tauri dev
 "@
