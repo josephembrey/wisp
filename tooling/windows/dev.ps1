@@ -10,4 +10,11 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\_env.ps1"
 
 Push-Location $root
-try { bun tauri dev } finally { Pop-Location }
+try {
+    if (-not (Test-Path (Join-Path $root 'node_modules'))) {
+        Write-Host "Installing dependencies..." -ForegroundColor Cyan
+        bun install
+    }
+
+    bun tauri dev
+} finally { Pop-Location }

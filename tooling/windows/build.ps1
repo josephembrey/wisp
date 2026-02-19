@@ -11,6 +11,11 @@ $ErrorActionPreference = 'Stop'
 
 Push-Location $root
 try {
+    if (-not (Test-Path (Join-Path $root 'node_modules'))) {
+        Write-Host "Installing dependencies..." -ForegroundColor Cyan
+        bun install
+    }
+
     Write-Host "Generating TypeScript bindings..." -ForegroundColor Cyan
     cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings
     Write-Host "Bindings generated." -ForegroundColor Green
