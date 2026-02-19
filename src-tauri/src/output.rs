@@ -1,4 +1,4 @@
-use crate::state::OutputMode;
+use crate::settings::OutputMode;
 use enigo::{Enigo, Keyboard, Settings};
 
 pub fn send(text: &str, mode: &OutputMode) -> Result<(), String> {

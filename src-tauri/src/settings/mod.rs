@@ -1,8 +1,12 @@
-use parking_lot::Mutex;
+mod state;
+mod types;
+
+pub use state::WispState;
+pub use types::{ModelLoading, OutputMode, Status};
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -59,27 +63,6 @@ fn default_overlay_size() -> String {
     "medium".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum OutputMode {
-    Clipboard,
-    Paste,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelLoading {
-    Eager,
-    Lazy,
-    PerUse,
-}
-
-impl Default for ModelLoading {
-    fn default() -> Self {
-        Self::Eager
-    }
-}
-
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -123,24 +106,4 @@ impl Settings {
         let content = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
         fs::write(&path, content).map_err(|e| e.to_string())
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Status {
-    Idle,
-    Loading,
-    Recording,
-    Processing,
-}
-
-pub struct WispState {
-    pub settings: Mutex<Settings>,
-    pub status: Mutex<Status>,
-    pub data_dir: PathBuf,
-    pub models_dir: PathBuf,
-    pub hotkey: Arc<Mutex<Vec<rdev::Key>>>,
-    pub output_hotkey: Arc<Mutex<Vec<rdev::Key>>>,
-    pub hotkey_tx: std::sync::mpsc::Sender<crate::hotkey::HotkeyEvent>,
-    pub first_run: bool,
 }

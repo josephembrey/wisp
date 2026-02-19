@@ -1,6 +1,6 @@
 use crate::audio;
 use crate::hotkey;
-use crate::state::{Settings, Status, WispState};
+use crate::settings::{Settings, Status, WispState};
 use crate::whisper;
 use tauri::Emitter;
 
@@ -23,17 +23,14 @@ pub fn update_settings(
     let old = state.settings.lock().clone();
     settings.save(&state.data_dir)?;
 
-    // Update main hotkey
     if let Some(keys) = hotkey::parse_combo(&settings.hotkey) {
         *state.hotkey.lock() = keys;
     } else {
         *state.hotkey.lock() = Vec::new();
     }
 
-    // Update output hotkey
     *state.output_hotkey.lock() = hotkey::parse_combo(&settings.output_hotkey).unwrap_or_default();
 
-    // Emit reload-model if model or GPU changed
     if old.model != settings.model || old.gpu != settings.gpu {
         *state.settings.lock() = settings;
         let _ = app.emit("reload-model", ());
@@ -83,16 +80,13 @@ pub fn get_gpu_backend() -> String {
 
 #[tauri::command]
 pub fn reset_app(app: tauri::AppHandle, state: tauri::State<'_, WispState>) -> Result<(), String> {
-    // Delete settings file
     let settings_path = state.data_dir.join("settings.json");
     if settings_path.exists() {
         std::fs::remove_file(&settings_path).map_err(|e| e.to_string())?;
     }
-    // Delete models directory
     if state.models_dir.exists() {
         std::fs::remove_dir_all(&state.models_dir).map_err(|e| e.to_string())?;
     }
-    // Restart the app
     app.restart();
 }
 
