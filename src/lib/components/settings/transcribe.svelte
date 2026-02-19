@@ -48,8 +48,11 @@
 			multiple: false,
 			filters: [
 				{
-					name: 'Audio',
-					extensions: ['wav', 'mp3', 'flac', 'ogg', 'oga', 'm4a', 'aac', 'wma', 'opus', 'webm']
+					name: 'Audio / Video',
+					extensions: [
+						'wav', 'mp3', 'flac', 'ogg', 'oga', 'm4a', 'aac', 'wma', 'opus', 'webm',
+						'mp4', 'm4v', 'mov', 'mkv'
+					]
 				}
 			]
 		});
@@ -127,7 +130,7 @@
 				<line x1="12" y1="3" x2="12" y2="15" />
 			</svg>
 			<span class="text-xs text-muted-foreground">
-				Drop an audio file or <span class="underline">browse</span>
+				Drop an audio or video file or <span class="underline">browse</span>
 			</span>
 		{/if}
 	</button>

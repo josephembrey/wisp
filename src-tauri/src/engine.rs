@@ -1,4 +1,5 @@
 use crate::audio;
+use crate::history;
 use crate::hotkey;
 use crate::output;
 use crate::settings::{ModelLoading, OutputMode, Settings, Status, WispState};
@@ -155,7 +156,7 @@ pub(crate) fn run(
                     if let Some(ref eng) = engine {
                         match eng.transcribe(&audio, &settings.language, None) {
                             Ok(text) if !text.is_empty() => {
-                                emit_output(&app, &text, &settings.output_mode);
+                                emit_output(&app, &text, &settings.output_mode, &state);
                             }
                             Ok(_) => {}
                             Err(e) => {
@@ -202,7 +203,7 @@ pub(crate) fn run(
                 if !cancelled {
                     match result {
                         Ok(ref text) if !text.is_empty() => {
-                            emit_output(&app, text, &output_mode);
+                            emit_output(&app, text, &output_mode, &state);
                         }
                         Ok(_) => {}
                         Err(ref e) => {
@@ -318,7 +319,7 @@ fn load_model(
         .map_err(|e| format!("Failed to load model '{}': {}", name, e))
 }
 
-fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode) {
+fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &WispState) {
     log::info!("transcription result: {} chars", text.len());
     if let Err(e) = output::send(text, mode) {
         log::error!("output error: {}", e);
@@ -330,6 +331,12 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode) {
         OutputMode::Paste => "Typed",
     };
     let _ = app.emit("overlay-flash", flash);
+
+    let settings = state.settings.lock();
+    if settings.history_enabled {
+        history::append(&state.data_dir, text, "ptt", settings.history_retention);
+        let _ = app.emit("history-changed", ());
+    }
 }
 
 fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {

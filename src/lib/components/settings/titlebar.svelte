@@ -2,6 +2,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { quit, hideWindow, minimizeWindow, type Status } from '$lib/tauri';
 	import { toggleMode, mode } from 'mode-watcher';
 
@@ -71,16 +72,16 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger asChild>
 					{#snippet child({ props })}
-						<button
-							{...props}
-							class="inline-flex h-5 w-5 items-center justify-center rounded-sm transition-colors {autostart ? 'text-foreground' : 'text-muted-foreground/40'} hover:bg-accent hover:text-foreground"
-							onclick={() => onautostart?.(!autostart)}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 2.5h3L12 7" /><path d="M10 14v-3" /><path d="M14 14v-3" /><path d="M11 19c-1.7 0-3-1.3-3-3v-2h8v2c0 1.7-1.3 3-3 3Z" /><path d="M12 22v-3" /></svg>
-						</button>
+						<div {...props} class="inline-flex items-center">
+							<Switch
+								checked={autostart}
+								onCheckedChange={(v) => onautostart?.(v)}
+								class="scale-75"
+							/>
+						</div>
 					{/snippet}
 				</Tooltip.Trigger>
-				<Tooltip.Content><p>{autostart ? 'Autostart on' : 'Autostart off'}</p></Tooltip.Content>
+				<Tooltip.Content><p>Toggle Autostart</p></Tooltip.Content>
 			</Tooltip.Root>
 
 			<Tooltip.Root>

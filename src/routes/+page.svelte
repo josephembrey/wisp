@@ -34,6 +34,7 @@
 	import SettingsOverlay from '$lib/components/settings/overlay.svelte';
 	import SettingsAbout from '$lib/components/settings/about.svelte';
 	import SettingsTranscribe from '$lib/components/settings/transcribe.svelte';
+	import SettingsHistory from '$lib/components/settings/history.svelte';
 
 	let settings: Settings | null = $state(null);
 	let status: Status = $state('idle');
@@ -215,6 +216,7 @@
 					<Tabs.Trigger value="model">Model</Tabs.Trigger>
 					<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
 					<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
+					<Tabs.Trigger value="history">History</Tabs.Trigger>
 					<Tabs.Trigger value="about">About</Tabs.Trigger>
 				</Tabs.List>
 			</div>
@@ -259,8 +261,12 @@
 						<SettingsTranscribe {settings} />
 					</Tabs.Content>
 
+					<Tabs.Content value="history">
+						<SettingsHistory />
+					</Tabs.Content>
+
 					<Tabs.Content value="about">
-						<SettingsAbout hotkey={settings.hotkey} />
+						<SettingsAbout hotkey={settings.hotkey} {settings} onsave={save} />
 					</Tabs.Content>
 				</div>
 			</div>

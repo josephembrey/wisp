@@ -31,7 +31,7 @@ log = "0.4"
 cpal = "0.17"
 
 # Audio file decoding
-symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "ogg", "wav", "pcm"] }
+symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "ogg", "wav", "pcm", "isomp4", "mkv", "vorbis"] }
 
 # Speech-to-text
 whisper-rs = "0.15"

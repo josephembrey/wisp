@@ -1,4 +1,5 @@
 use crate::audio;
+use crate::history;
 use crate::settings::{Settings, Status, WispState};
 use crate::whisper;
 use tauri::Emitter;
@@ -198,7 +199,33 @@ pub async fn transcribe_file(
 
     let _ = app.emit("transcribe-file-progress", "done");
     log::info!("transcribe_file: {} chars", text.len());
+
+    if settings.history_enabled {
+        history::append(&state.data_dir, &text, "file", settings.history_retention);
+        let _ = app.emit("history-changed", ());
+    }
+
     Ok(text)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_history(state: tauri::State<'_, WispState>) -> Vec<history::HistoryEntry> {
+    history::load(&state.data_dir)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn clear_history(state: tauri::State<'_, WispState>) {
+    log::info!("cmd: clear_history");
+    history::clear(&state.data_dir);
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_history_entry(state: tauri::State<'_, WispState>, id: u64) {
+    log::info!("cmd: delete_history_entry id={}", id);
+    history::delete_entry(&state.data_dir, id);
 }
 
 #[tauri::command]

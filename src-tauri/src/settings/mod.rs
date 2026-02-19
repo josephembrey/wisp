@@ -39,6 +39,10 @@ pub struct Settings {
     pub model_loading: ModelLoading,
     #[serde(default)]
     pub autostart: bool,
+    #[serde(default = "default_history_enabled")]
+    pub history_enabled: bool,
+    #[serde(default = "default_history_retention")]
+    pub history_retention: usize,
 }
 
 fn default_language() -> String {
@@ -65,6 +69,14 @@ fn default_overlay_size() -> String {
     "medium".to_string()
 }
 
+fn default_history_enabled() -> bool {
+    true
+}
+
+fn default_history_retention() -> usize {
+    100
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -84,6 +96,8 @@ impl Default for Settings {
             input_device: String::new(),
             model_loading: ModelLoading::Eager,
             autostart: false,
+            history_enabled: true,
+            history_retention: 100,
         }
     }
 }

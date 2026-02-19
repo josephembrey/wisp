@@ -10,7 +10,8 @@ export type {
 	MonitorInfo,
 	DownloadProgress,
 	OutputMode,
-	ModelLoading
+	ModelLoading,
+	HistoryEntry
 } from './bindings';
 
 // Result-unwrapping helpers for commands that return Result<T, string>
@@ -36,6 +37,9 @@ export const downloadModel = async (name: string) => unwrap(await commands.downl
 export const deleteModel = async (name: string) => unwrap(await commands.deleteModel(name));
 export const resetApp = async () => unwrap(await commands.resetApp());
 export const transcribeFile = async (path: string) => unwrap(await commands.transcribeFile(path));
+export const getHistory = commands.getHistory;
+export const clearHistory = commands.clearHistory;
+export const deleteHistoryEntry = commands.deleteHistoryEntry;
 
 // Window helpers
 export const hideWindow = () => getCurrentWindow().hide();
@@ -67,3 +71,6 @@ export const onOverlayFlash = (cb: (message: string) => void): Promise<UnlistenF
 
 export const onTranscribeFileProgress = (cb: (status: string) => void): Promise<UnlistenFn> =>
 	listen<string>('transcribe-file-progress', (e) => cb(e.payload));
+
+export const onHistoryChanged = (cb: () => void): Promise<UnlistenFn> =>
+	listen('history-changed', () => cb());

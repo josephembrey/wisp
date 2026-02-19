@@ -69,6 +69,15 @@ async transcribeFile(path: string) : Promise<Result<string, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getHistory() : Promise<HistoryEntry[]> {
+    return await TAURI_INVOKE("get_history");
+},
+async clearHistory() : Promise<void> {
+    await TAURI_INVOKE("clear_history");
+},
+async deleteHistoryEntry(id: number) : Promise<void> {
+    await TAURI_INVOKE("delete_history_entry", { id });
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 }
@@ -85,12 +94,13 @@ async quit() : Promise<void> {
 /** user-defined types **/
 
 export type DownloadProgress = { model: string; downloaded: number; total: number }
+export type HistoryEntry = { id: number; timestamp: number; text: string; source: string }
 export type InputDeviceInfo = { name: string; label: string }
 export type ModelInfo = { name: string; size_mb: number; downloaded: boolean }
 export type ModelLoading = "eager" | "lazy" | "per_use"
 export type MonitorInfo = { index: number; name: string; width: number; height: number; primary: boolean }
 export type OutputMode = "clipboard" | "paste"
-export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language?: string; gpu?: boolean; interrupt?: boolean; output_hotkey?: string; min_duration?: number; overlay_enabled?: boolean; overlay_position?: string; overlay_size?: string; overlay_monitor?: number; overlay_always_show?: boolean; input_device?: string; model_loading?: ModelLoading }
+export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language?: string; gpu?: boolean; interrupt?: boolean; output_hotkey?: string; min_duration?: number; overlay_enabled?: boolean; overlay_position?: string; overlay_size?: string; overlay_monitor?: number; overlay_always_show?: boolean; input_device?: string; model_loading?: ModelLoading; autostart?: boolean; history_enabled?: boolean; history_retention?: number }
 export type Status = "idle" | "loading" | "recording" | "processing"
 
 /** tauri-specta globals **/

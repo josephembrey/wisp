@@ -1,6 +1,7 @@
 mod audio;
 mod commands;
 mod engine;
+mod history;
 mod hotkey;
 mod output;
 mod settings;
@@ -27,9 +28,13 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::get_monitors,
             commands::get_input_devices,
             commands::transcribe_file,
+            commands::get_history,
+            commands::clear_history,
+            commands::delete_history_entry,
             commands::quit,
         ])
         .typ::<whisper::DownloadProgress>()
+        .typ::<history::HistoryEntry>()
 }
 
 pub fn ts_export_config() -> specta_typescript::Typescript {
