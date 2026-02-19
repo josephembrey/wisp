@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import {
 		getSettings,
 		getStatus,
@@ -37,20 +38,20 @@
 	onMount(() => {
 		log.info('[overlay] mounted');
 
-		getSettings()
-			.then((s) => {
+		Promise.all([
+			getSettings().then((s) => {
 				log.info(`[overlay] settings loaded, position=${s.overlay_position}`);
 				position = s.overlay_position;
 				size = s.overlay_size;
 				alwaysShow = s.overlay_always_show;
-			})
-			.catch((e) => log.error(`[overlay] getSettings failed: ${e}`));
-		getStatus()
-			.then((s) => {
+			}),
+			getStatus().then((s) => {
 				log.info(`[overlay] status: ${s}`);
 				status = s;
 			})
-			.catch((e) => log.error(`[overlay] getStatus failed: ${e}`));
+		])
+			.then(() => getCurrentWebviewWindow().show())
+			.catch((e) => log.error(`[overlay] init failed: ${e}`));
 
 		const unsubs = [
 			onStatusChanged((s) => {

@@ -62,7 +62,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
             .always_on_top(true)
             .focused(false)
             .skip_taskbar(true)
-            .visible(true)
+            .visible(false)
             .resizable(false)
             .build()?;
     log::info!("overlay: window created");
