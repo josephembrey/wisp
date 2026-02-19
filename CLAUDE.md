@@ -54,4 +54,4 @@ src-tauri/src/                      — Rust backend
 - `bun tauri dev` — run in development
 - `bun tauri build` — production build
 - `cargo check --manifest-path src-tauri/Cargo.toml` — check Rust compilation
-- `cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings` — regenerate TypeScript bindings
+- `cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings` — regenerate TypeScript bindings

@@ -94,14 +94,14 @@ in {
   scripts.build.exec = ''
     cd "$(git rev-parse --show-toplevel)"
     echo "Generating TypeScript bindings..."
-    cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings
     echo "Bindings generated."
     bun tauri build
   '';
   scripts.build-debug.exec = ''
     cd "$(git rev-parse --show-toplevel)"
     echo "Generating TypeScript bindings..."
-    cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings
     echo "Bindings generated."
     echo "Building with verbose-log feature..."
     bun tauri build -- --features verbose-log

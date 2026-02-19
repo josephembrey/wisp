@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 Push-Location $root
 try {
     Write-Host "Generating TypeScript bindings..." -ForegroundColor Cyan
-    cargo run --manifest-path src-tauri/Cargo.toml --bin generate-bindings
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings
     Write-Host "Bindings generated." -ForegroundColor Green
 
     Write-Host "Building with verbose-log feature..." -ForegroundColor Yellow
