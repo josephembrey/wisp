@@ -57,8 +57,10 @@ pub async fn download_model(
     let url = model_url(name);
     let path = model_path(models_dir, name);
 
+    log::info!("downloading model '{}' from {}", name, url);
     let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
     let total = response.content_length().unwrap_or(0);
+    log::info!("download started: {} bytes", total);
     let mut downloaded: u64 = 0;
 
     let mut file = fs::File::create(&path).map_err(|e| e.to_string())?;
@@ -82,6 +84,7 @@ pub async fn download_model(
         );
     }
 
+    log::info!("download complete: '{}' ({} bytes)", name, downloaded);
     Ok(())
 }
 

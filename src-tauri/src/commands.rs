@@ -27,8 +27,13 @@ pub fn update_settings(
 
     let hotkey_changed =
         old.hotkey != settings.hotkey || old.output_hotkey != settings.output_hotkey;
+    let model_changed = old.model != settings.model || old.gpu != settings.gpu;
 
-    if old.model != settings.model || old.gpu != settings.gpu {
+    if model_changed {
+        log::info!(
+            "settings: model changed {}(gpu={}) -> {}(gpu={})",
+            old.model, old.gpu, settings.model, settings.gpu
+        );
         *state.settings.lock() = settings.clone();
         let _ = app.emit("reload-model", ());
     } else {
@@ -36,6 +41,10 @@ pub fn update_settings(
     }
 
     if hotkey_changed {
+        log::info!(
+            "settings: hotkeys changed main='{}' output='{}'",
+            settings.hotkey, settings.output_hotkey
+        );
         crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
     }
 
@@ -63,12 +72,14 @@ pub async fn download_model(
     state: tauri::State<'_, WispState>,
     name: String,
 ) -> Result<(), String> {
+    log::info!("download requested: {}", name);
     whisper::download_model(app, &state.models_dir, &name).await
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn delete_model(state: tauri::State<'_, WispState>, name: String) -> Result<(), String> {
+    log::info!("delete requested: {}", name);
     whisper::delete_model(&state.models_dir, &name)
 }
 
@@ -87,6 +98,7 @@ pub fn get_gpu_backend() -> String {
 #[tauri::command]
 #[specta::specta]
 pub fn reset_app(app: tauri::AppHandle, state: tauri::State<'_, WispState>) -> Result<(), String> {
+    log::warn!("resetting app: deleting settings and models");
     let settings_path = state.data_dir.join("settings.json");
     if settings_path.exists() {
         std::fs::remove_file(&settings_path).map_err(|e| e.to_string())?;

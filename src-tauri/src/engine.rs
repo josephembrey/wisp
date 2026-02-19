@@ -93,6 +93,8 @@ pub(crate) fn run(
                 };
 
                 let audio = rec.stop();
+                let duration_ms = (audio.len() as f64 / 16.0) as u64;
+                log::info!("recording stopped: {} samples ({}ms)", audio.len(), duration_ms);
                 let settings = state.settings.lock().clone();
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
@@ -174,10 +176,12 @@ pub(crate) fn run(
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
                 let mut settings = state.settings.lock().clone();
+                let old_mode = settings.output_mode.clone();
                 settings.output_mode = match settings.output_mode {
                     OutputMode::Clipboard => OutputMode::Paste,
                     OutputMode::Paste => OutputMode::Clipboard,
                 };
+                log::info!("output mode toggled: {:?} -> {:?}", old_mode, settings.output_mode);
                 let flash = match settings.output_mode {
                     OutputMode::Clipboard => "Clipboard",
                     OutputMode::Paste => "Paste",
@@ -309,11 +313,13 @@ fn load_model(
     if !path.exists() {
         return Err(format!("Model '{}' not downloaded", name));
     }
+    log::info!("loading model '{}' (gpu={})", name, use_gpu);
     whisper::WhisperEngine::new(&path, use_gpu)
         .map_err(|e| format!("Failed to load model '{}': {}", name, e))
 }
 
 fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode) {
+    log::info!("transcription result: {} chars", text.len());
     if let Err(e) = output::send(text, mode) {
         log::error!("output error: {}", e);
         let _ = app.emit("backend-error", format!("Output error: {}", e));

@@ -30,10 +30,15 @@ impl AudioRecorder {
                 })?
         };
 
+        let device_label = device.name().unwrap_or_else(|_| "unknown".into());
         let config = device.default_input_config().map_err(|e| e.to_string())?;
 
         let channels = config.channels();
         let sample_rate = config.sample_rate();
+        log::info!(
+            "recording: device='{}' {}Hz {}ch {:?}",
+            device_label, sample_rate.0, channels, config.sample_format()
+        );
         let buffer: Arc<parking_lot::Mutex<Vec<f32>>> =
             Arc::new(parking_lot::Mutex::new(Vec::new()));
         let buf = buffer.clone();

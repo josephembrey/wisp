@@ -16,12 +16,14 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
+                log::debug!("tray: settings clicked");
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
             }
             "quit" => {
+                log::info!("tray: quit");
                 app.exit(0);
             }
             _ => {}

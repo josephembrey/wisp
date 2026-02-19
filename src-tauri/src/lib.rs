@@ -82,13 +82,7 @@ pub fn run() {
         )
         .setup(|app| {
             app.handle().plugin(
-                tauri_plugin_log::Builder::default()
-                    .level(if cfg!(debug_assertions) {
-                        log::LevelFilter::Info
-                    } else {
-                        log::LevelFilter::Warn
-                    })
-                    .build(),
+                log_builder().build(),
             )?;
 
             let data_dir = app
@@ -149,6 +143,29 @@ pub fn run() {
         .invoke_handler(builder.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn log_builder() -> tauri_plugin_log::Builder {
+    use tauri_plugin_log::{Target, TargetKind};
+
+    let verbose = cfg!(debug_assertions) || cfg!(feature = "verbose-log");
+    let level = if verbose {
+        log::LevelFilter::Info
+    } else {
+        log::LevelFilter::Warn
+    };
+
+    let mut targets = vec![Target::new(TargetKind::LogDir {
+        file_name: Some("wisp".into()),
+    })];
+    if verbose {
+        targets.push(Target::new(TargetKind::Stdout));
+    }
+
+    tauri_plugin_log::Builder::default()
+        .level(level)
+        .targets(targets)
+        .max_file_size(5_000_000) // 5 MB per log file
 }
 
 pub(crate) fn register_shortcuts(

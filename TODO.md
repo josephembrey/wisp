@@ -1,3 +1,3 @@
-the input devices need more descriptive names, explore options
-start on login
-add debug build mode that spits out logs
+manual code review
+build and sign working on macos
+build and sign working on windows

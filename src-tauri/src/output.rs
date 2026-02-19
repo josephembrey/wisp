@@ -2,6 +2,7 @@ use crate::settings::OutputMode;
 use enigo::{Enigo, Keyboard, Settings};
 
 pub fn send(text: &str, mode: &OutputMode) -> Result<(), String> {
+    log::info!("output: {:?} ({} chars)", mode, text.len());
     match mode {
         OutputMode::Clipboard => {
             let mut clipboard =
