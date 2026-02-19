@@ -22,6 +22,7 @@ pub fn update_settings(
     state: tauri::State<'_, WispState>,
     settings: Settings,
 ) -> Result<(), String> {
+    log::info!("cmd: update_settings (model={} hotkey={} gpu={})", settings.model, settings.hotkey, settings.gpu);
     let old = state.settings.lock().clone();
     settings.save(&state.data_dir)?;
 
@@ -165,5 +166,6 @@ pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {
 #[tauri::command]
 #[specta::specta]
 pub fn quit(app: tauri::AppHandle) {
+    log::info!("cmd: quit");
     app.exit(0);
 }

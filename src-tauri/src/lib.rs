@@ -47,9 +47,12 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            log::info!("single-instance: second instance detected, focusing main window");
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
+            } else {
+                log::warn!("single-instance: main window not found");
             }
         }))
         .plugin(
@@ -64,6 +67,7 @@ pub fn run() {
                         .and_then(|s| s.parse::<Shortcut>().ok());
 
                     if main_shortcut.as_ref() == Some(shortcut) {
+                        log::info!("hotkey: main {:?}", event.state());
                         match event.state() {
                             ShortcutState::Pressed => {
                                 let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::Pressed);
@@ -74,8 +78,11 @@ pub fn run() {
                         }
                     } else if output_shortcut.as_ref() == Some(shortcut) {
                         if event.state() == ShortcutState::Pressed {
+                            log::info!("hotkey: output toggle");
                             let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::OutputToggle);
                         }
+                    } else {
+                        log::warn!("hotkey: unrecognized shortcut {:?} {:?}", shortcut, event.state());
                     }
                 })
                 .build(),
@@ -85,14 +92,20 @@ pub fn run() {
                 log_builder().build(),
             )?;
 
+            log::info!("=== wisp starting ===");
+            log::info!("version: {}", app.package_info().version);
+
             let data_dir = app
                 .path()
                 .app_data_dir()
                 .expect("failed to get app data dir");
+            log::info!("data dir: {}", data_dir.display());
             let models_dir = data_dir.join("models");
             let first_run = !Settings::exists(&data_dir);
+            log::info!("first_run: {}", first_run);
 
             let settings = Settings::load(&data_dir);
+            log::info!("settings loaded: model={} hotkey={} gpu={} overlay_enabled={}", settings.model, settings.hotkey, settings.gpu, settings.overlay_enabled);
             if first_run {
                 let _ = settings.save(&data_dir);
             }
@@ -133,11 +146,22 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                if window.label() != "overlay" {
-                    let _ = window.hide();
+            let label = window.label();
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    log::info!("window[{}]: close requested, hiding instead", label);
+                    api.prevent_close();
+                    if label != "overlay" {
+                        let _ = window.hide();
+                    }
                 }
+                tauri::WindowEvent::Focused(focused) => {
+                    log::info!("window[{}]: focused={}", label, focused);
+                }
+                tauri::WindowEvent::Destroyed => {
+                    log::warn!("window[{}]: destroyed", label);
+                }
+                _ => {}
             }
         })
         .invoke_handler(builder.invoke_handler())
@@ -160,6 +184,7 @@ fn log_builder() -> tauri_plugin_log::Builder {
     })];
     if verbose {
         targets.push(Target::new(TargetKind::Stdout));
+        targets.push(Target::new(TargetKind::Webview));
     }
 
     tauri_plugin_log::Builder::default()

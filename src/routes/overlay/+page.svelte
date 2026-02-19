@@ -8,6 +8,7 @@
 		onSettingsChanged,
 		type Status
 	} from '$lib/tauri';
+	import { log } from '$lib/log';
 	import OverlayPill from '$lib/components/overlay/pill.svelte';
 
 	let status = $state<Status>('idle');
@@ -34,29 +35,43 @@
 	);
 
 	onMount(() => {
-		getSettings().then((s) => {
-			position = s.overlay_position;
-			size = s.overlay_size;
-			alwaysShow = s.overlay_always_show;
-		});
-		getStatus().then((s) => (status = s));
+		log.info('[overlay] mounted');
+
+		getSettings()
+			.then((s) => {
+				log.info(`[overlay] settings loaded, position=${s.overlay_position}`);
+				position = s.overlay_position;
+				size = s.overlay_size;
+				alwaysShow = s.overlay_always_show;
+			})
+			.catch((e) => log.error(`[overlay] getSettings failed: ${e}`));
+		getStatus()
+			.then((s) => {
+				log.info(`[overlay] status: ${s}`);
+				status = s;
+			})
+			.catch((e) => log.error(`[overlay] getStatus failed: ${e}`));
 
 		const unsubs = [
 			onStatusChanged((s) => {
+				log.info(`[overlay] event: status-changed -> ${s}`);
 				status = s;
 			}),
 			onOverlayFlash((msg) => {
+				log.info(`[overlay] event: overlay-flash: ${msg}`);
 				clearTimeout(flashTimeout);
 				flash = msg;
 				flashTimeout = setTimeout(() => (flash = ''), 1000);
 			}),
-		onSettingsChanged((s) => {
-			position = s.overlay_position;
-			size = s.overlay_size;
-			alwaysShow = s.overlay_always_show;
-		})
+			onSettingsChanged((s) => {
+				log.info('[overlay] event: settings-changed');
+				position = s.overlay_position;
+				size = s.overlay_size;
+				alwaysShow = s.overlay_always_show;
+			})
 		];
 		return () => {
+			log.info('[overlay] unmounting');
 			unsubs.forEach((p) => p.then((fn) => fn()));
 		};
 	});

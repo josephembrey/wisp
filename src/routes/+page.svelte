@@ -26,6 +26,7 @@
 	} from '$lib/tauri';
 	import { onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { log } from '$lib/log';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import Titlebar from '$lib/components/settings/titlebar.svelte';
 	import SettingsGeneral from '$lib/components/settings/general.svelte';
@@ -96,11 +97,14 @@
 
 	async function save(updates: Partial<Settings>) {
 		if (!settings) return;
+		const keys = Object.keys(updates);
+		log.info(`[page] save: ${keys.join(', ')}`);
 		settings = { ...settings, ...updates };
 		try {
 			await updateSettings(settings);
 			showSavedFlag(true, 750);
 		} catch (e) {
+			log.error(`[page] save failed: ${e}`);
 			toast.error(`Failed to save settings: ${e}`);
 		}
 	}
@@ -114,12 +118,15 @@
 	}
 
 	async function handleDownload(name: string) {
+		log.info(`[page] download: ${name}`);
 		downloading = name;
 		downloadProgress = null;
 		try {
 			await downloadModel(name);
+			log.info(`[page] download complete: ${name}`);
 			models = await getModels();
 		} catch (e) {
+			log.error(`[page] download failed: ${name} ${e}`);
 			toast.error(`Failed to download model: ${e}`);
 		} finally {
 			downloading = null;
@@ -128,38 +135,59 @@
 	}
 
 	async function handleDeleteModel(name: string) {
+		log.info(`[page] delete: ${name}`);
 		try {
 			await deleteModel(name);
 			models = await getModels();
 		} catch (e) {
+			log.error(`[page] delete failed: ${name} ${e}`);
 			toast.error(`Failed to delete model: ${e}`);
 		}
 	}
 
 	onMount(() => {
-		getSettings().then((s) => (settings = s));
-		getStatus().then((s) => (status = s));
-		getGpuBackend().then((b) => (gpuBackend = b));
-		getMonitors().then((m) => (monitors = m));
-		getInputDevices().then((d) => (inputDevices = d));
-		getModels().then((m) => (models = m));
-		isFirstRun().then((first) => {
-			if (first) {
-				activeTab = 'about';
-				handleDownload('base');
-			}
-		});
+		log.info('[page] mounted');
+
+		Promise.all([
+			getSettings().then((s) => (settings = s)),
+			getStatus().then((s) => (status = s)),
+			getGpuBackend().then((b) => (gpuBackend = b)),
+			getMonitors().then((m) => (monitors = m)),
+			getInputDevices().then((d) => (inputDevices = d)),
+			getModels().then((m) => (models = m))
+		])
+			.then(() => log.info('[page] initial data loaded'))
+			.catch((e) => log.error(`[page] initial data load error: ${e}`));
+
+		isFirstRun()
+			.then((first) => {
+				log.info(`[page] isFirstRun: ${first}`);
+				if (first) {
+					activeTab = 'about';
+					handleDownload('base');
+				}
+			})
+			.catch((e) => log.error(`[page] isFirstRun failed: ${e}`));
 
 		const unsubs = [
 			onStatusChanged((s) => {
+				log.info(`[page] event: status-changed -> ${s}`);
 				status = s;
 			}),
-			onTranscription((t) => (lastTranscription = t)),
-			onError((msg) => toast.error(msg)),
+			onTranscription((t) => {
+				log.info(`[page] event: transcription ${t.length} chars`);
+				lastTranscription = t;
+			}),
+			onError((msg) => {
+				log.error(`[page] event: backend-error: ${msg}`);
+				toast.error(msg);
+			}),
 			onSettingsChanged((s) => {
+				log.info('[page] event: settings-changed');
 				settings = s;
 			}),
 			onOverlayFlash((msg) => {
+				log.info(`[page] event: overlay-flash: ${msg}`);
 				clearTimeout(flashTimeout);
 				flashMessage = msg;
 				flashTimeout = setTimeout(() => (flashMessage = ''), 1000);
