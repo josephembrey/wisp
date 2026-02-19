@@ -83,8 +83,8 @@
 				<span class="relative flex h-2.5 w-2.5">
 					{#if iconKind === 'pulse'}
 						<span
-							class="absolute inline-flex h-full w-full animate-ping rounded-full"
-							style="background: {dotColor}; opacity: 0.5;"
+							class="absolute inline-flex h-full w-full rounded-full pill-pulse"
+							style="background: {dotColor};"
 						></span>
 					{/if}
 					<span
@@ -150,3 +150,23 @@
 		</span>
 	</div>
 </div>
+
+<style>
+	@keyframes pill-pulse {
+		0% {
+			transform: scale(1);
+			opacity: 0.7;
+		}
+		70% {
+			transform: scale(2.2);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(2.2);
+			opacity: 0;
+		}
+	}
+	:global(.pill-pulse) {
+		animation: pill-pulse 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+	}
+</style>
