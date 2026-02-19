@@ -3,7 +3,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { toggleMode, mode } from 'mode-watcher';
-	import { quit, hideWindow, type Status } from '$lib/tauri';
+	import { quit, hideWindow, minimizeWindow, type Status } from '$lib/tauri';
 
 	let {
 		status,
@@ -112,8 +112,8 @@
 		</button>
 		<button
 			class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-			onclick={() => hideWindow()}
-			aria-label="Hide to tray"
+			onclick={() => minimizeWindow()}
+			aria-label="Minimize"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -127,11 +127,30 @@
 				stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg
 			>
 		</button>
+		<button
+			class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+			onclick={() => hideWindow()}
+			aria-label="Close to tray"
+		>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg
+			>
+		</button>
 		<AlertDialog.Root>
 			<AlertDialog.Trigger
 				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
 				aria-label="Quit"
 			>
+				<!-- Power icon -->
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="14"
@@ -142,7 +161,7 @@
 					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg
+					><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg
 				>
 			</AlertDialog.Trigger>
 			<AlertDialog.Content>

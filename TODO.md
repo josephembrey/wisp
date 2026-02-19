@@ -3,3 +3,5 @@ start on login
 the input devices need more descriptive names
 better hotkey detection while the overlay is focused
 setting for preemptive model loading
+add debug build mode that spits out logs
+understand rust-overlay and why we need it

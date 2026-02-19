@@ -178,10 +178,9 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "overlay" {
-                    api.prevent_close();
-                } else {
-                    window.app_handle().exit(0);
+                api.prevent_close();
+                if window.label() != "overlay" {
+                    let _ = window.hide();
                 }
             }
         })

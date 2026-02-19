@@ -62,6 +62,7 @@ export const quit = () => invoke('quit');
 export const hotkeyPress = () => invoke('hotkey_press');
 export const hotkeyRelease = () => invoke('hotkey_release');
 export const hideWindow = () => getCurrentWindow().hide();
+export const minimizeWindow = () => getCurrentWindow().minimize();
 
 export const onStatusChanged = (cb: (status: Status) => void): Promise<UnlistenFn> =>
 	listen<Status>('status-changed', (e) => cb(e.payload));
