@@ -8,9 +8,13 @@
 		onError,
 		onSettingsChanged,
 		onOverlayFlash,
+		onDownloadProgress,
 		getGpuBackend,
 		getMonitors,
 		getInputDevices,
+		getModels,
+		downloadModel,
+		deleteModel,
 		isFirstRun,
 		resizeWindow as resizeWindowCmd,
 		hotkeyPress,
@@ -19,7 +23,9 @@
 		type Settings,
 		type Status,
 		type MonitorInfo,
-		type InputDeviceInfo
+		type InputDeviceInfo,
+		type ModelInfo,
+		type DownloadProgress
 	} from '$lib/tauri';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -29,6 +35,7 @@
 	import SettingsModel from '$lib/components/settings/model.svelte';
 	import SettingsOverlay from '$lib/components/settings/overlay.svelte';
 	import SettingsAbout from '$lib/components/settings/about.svelte';
+	import { mapBrowserKey } from '$lib/keys';
 
 	let settings: Settings | null = $state(null);
 	let status: Status = $state('idle');
@@ -38,7 +45,9 @@
 	let gpuBackend: string = $state('');
 	let monitors: MonitorInfo[] = $state([]);
 	let inputDevices: InputDeviceInfo[] = $state([]);
-	let isDownloading: boolean = $state(false);
+	let models: ModelInfo[] = $state([]);
+	let downloading: string | null = $state(null);
+	let downloadProgress: DownloadProgress | null = $state(null);
 	let activeTab: string = $state('general');
 	let showSaved: boolean = $state(false);
 	let flashMessage: string = $state('');
@@ -108,14 +117,41 @@
 		}
 	}
 
+	async function handleDownload(name: string) {
+		downloading = name;
+		downloadProgress = null;
+		try {
+			await downloadModel(name);
+			models = await getModels();
+		} catch (e) {
+			toast.error(`Failed to download model: ${e}`);
+		} finally {
+			downloading = null;
+			downloadProgress = null;
+		}
+	}
+
+	async function handleDeleteModel(name: string) {
+		try {
+			await deleteModel(name);
+			models = await getModels();
+		} catch (e) {
+			toast.error(`Failed to delete model: ${e}`);
+		}
+	}
+
 	$effect(() => {
 		getSettings().then((s) => (settings = s));
 		getStatus().then((s) => (status = s));
 		getGpuBackend().then((b) => (gpuBackend = b));
 		getMonitors().then((m) => (monitors = m));
 		getInputDevices().then((d) => (inputDevices = d));
+		getModels().then((m) => (models = m));
 		isFirstRun().then((first) => {
-			if (first) activeTab = 'about';
+			if (first) {
+				activeTab = 'about';
+				handleDownload('base');
+			}
 		});
 
 		const unsubs = [
@@ -129,15 +165,14 @@
 				clearTimeout(flashTimeout);
 				flashMessage = msg;
 				flashTimeout = setTimeout(() => (flashMessage = ''), 1000);
-			})
+			}),
+			onDownloadProgress((p) => (downloadProgress = p))
 		];
 
 		return () => {
 			unsubs.forEach((p) => p.then((fn) => fn()));
 		};
 	});
-
-	import { mapBrowserKey } from '$lib/keys';
 
 	let pressedKeys = new Set<string>();
 	let hotkeyActive = false;
@@ -178,7 +213,7 @@
 
 <div class="p-2">
 <div bind:this={contentEl} class="rounded-xl border border-border bg-card shadow-md overflow-hidden">
-	<Titlebar {status} {showSaved} downloading={isDownloading} {flashMessage} />
+	<Titlebar {status} {showSaved} downloading={downloading !== null} {flashMessage} />
 
 	{#if settings}
 		<Tabs.Root bind:value={activeTab}>
@@ -214,8 +249,12 @@
 						<SettingsModel
 							{settings}
 							{gpuBackend}
+							{models}
+							{downloading}
+							progress={downloadProgress}
 							onsave={save}
-							ondownloadchange={(v) => (isDownloading = v)}
+							ondownload={handleDownload}
+							ondelete={handleDeleteModel}
 						/>
 					</Tabs.Content>
 

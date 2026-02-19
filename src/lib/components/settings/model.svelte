@@ -6,18 +6,26 @@
 	import SettingRow from '$lib/components/settings/setting-row.svelte';
 	import ModelSection from '$lib/components/settings/model-section.svelte';
 	import HotkeyCapture from '$lib/components/settings/hotkey-capture.svelte';
-	import type { Settings } from '$lib/tauri';
+	import type { Settings, ModelInfo, DownloadProgress } from '$lib/tauri';
 
 	let {
 		settings,
 		gpuBackend,
+		models,
+		downloading = null,
+		progress = null,
 		onsave,
-		ondownloadchange
+		ondownload,
+		ondelete
 	}: {
 		settings: Settings;
 		gpuBackend: string;
+		models: ModelInfo[];
+		downloading?: string | null;
+		progress?: DownloadProgress | null;
 		onsave: (updates: Partial<Settings>) => void;
-		ondownloadchange: (downloading: boolean) => void;
+		ondownload: (name: string) => void;
+		ondelete: (name: string) => void;
 	} = $props();
 
 	const loadingModes = [
@@ -28,7 +36,7 @@
 </script>
 
 <div class="flex flex-col gap-3">
-	<ModelSection {settings} {onsave} ondownloadchange={(v) => ondownloadchange(v)} />
+	<ModelSection {settings} {models} {downloading} {progress} {onsave} {ondownload} {ondelete} />
 
 	<SettingRow label="Model Loading">
 		<div class="flex flex-col gap-1">

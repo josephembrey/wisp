@@ -2,74 +2,27 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
-	import {
-		getModels,
-		downloadModel,
-		deleteModel,
-		isFirstRun,
-		onDownloadProgress,
-		type ModelInfo,
-		type Settings,
-		type DownloadProgress
-	} from '$lib/tauri';
-	import { toast } from 'svelte-sonner';
+	import type { ModelInfo, Settings, DownloadProgress } from '$lib/tauri';
 
 	let {
 		settings,
+		models,
+		downloading = null,
+		progress = null,
 		onsave,
-		ondownloadchange
+		ondownload,
+		ondelete
 	}: {
 		settings: Settings;
+		models: ModelInfo[];
+		downloading?: string | null;
+		progress?: DownloadProgress | null;
 		onsave: (updates: Partial<Settings>) => void;
-		ondownloadchange?: (downloading: boolean) => void;
+		ondownload: (name: string) => void;
+		ondelete: (name: string) => void;
 	} = $props();
 
-	let models: ModelInfo[] = $state([]);
-	let downloading: string | null = $state(null);
-	let progress: DownloadProgress | null = $state(null);
-
 	let selectedModel = $derived(models.find((m) => m.name === settings.model));
-
-	async function load() {
-		models = await getModels();
-
-		if ((await isFirstRun()) && !downloading) {
-			handleDownload('base');
-		}
-	}
-
-	async function handleDownload(name: string) {
-		downloading = name;
-		progress = null;
-		ondownloadchange?.(true);
-		try {
-			await downloadModel(name);
-			models = await getModels();
-		} catch (e) {
-			toast.error(`Failed to download model: ${e}`);
-		} finally {
-			downloading = null;
-			progress = null;
-			ondownloadchange?.(false);
-		}
-	}
-
-	async function handleDelete(name: string) {
-		try {
-			await deleteModel(name);
-			models = await getModels();
-		} catch (e) {
-			toast.error(`Failed to delete model: ${e}`);
-		}
-	}
-
-	$effect(() => {
-		load();
-		const unsub = onDownloadProgress((p) => (progress = p));
-		return () => {
-			unsub.then((fn) => fn());
-		};
-	});
 </script>
 
 <div class="flex flex-col gap-1.5">
@@ -103,7 +56,7 @@
 				{#if !selectedModel.downloaded}
 					<Button
 						size="sm"
-						onclick={() => handleDownload(selectedModel.name)}
+						onclick={() => ondownload(selectedModel.name)}
 						disabled={downloading !== null}
 					>
 						{downloading === selectedModel.name ? 'Downloading...' : 'Download'}
@@ -112,7 +65,7 @@
 					<Button
 						size="sm"
 						variant="outline"
-						onclick={() => handleDelete(selectedModel.name)}
+						onclick={() => ondelete(selectedModel.name)}
 						class="h-8 w-8 shrink-0 p-0"
 						aria-label="Delete model"
 					>
