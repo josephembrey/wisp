@@ -1,9 +1,8 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import SettingRow from '$lib/components/setting-row.svelte';
+	import SettingRow from '$lib/components/settings/setting-row.svelte';
 	import type { Settings, MonitorInfo } from '$lib/tauri';
 
 	let {
@@ -17,7 +16,7 @@
 	} = $props();
 </script>
 
-<div class="flex flex-col gap-4">
+<div class="flex flex-col gap-3">
 	<SettingRow label="Enabled">
 		<div class="flex items-center gap-3">
 			<Switch
@@ -29,8 +28,6 @@
 			</span>
 		</div>
 	</SettingRow>
-
-	<Separator />
 
 	<SettingRow label="Visibility">
 		<div class="flex items-center gap-3">
@@ -44,8 +41,6 @@
 		</div>
 	</SettingRow>
 
-	<Separator />
-
 	<SettingRow label="Position">
 		<Select.Root
 			type="single"
@@ -54,7 +49,7 @@
 				if (v) onsave({ overlay_position: v });
 			}}
 		>
-			<Select.Trigger class="w-36">
+			<Select.Trigger class="w-full">
 				{(
 					{
 						'top-left': 'Top Left',
@@ -77,8 +72,6 @@
 		</Select.Root>
 	</SettingRow>
 
-	<Separator />
-
 	<SettingRow label="Size">
 		<ToggleGroup.Root
 			type="single"
@@ -94,8 +87,6 @@
 		</ToggleGroup.Root>
 	</SettingRow>
 
-	<Separator />
-
 	<SettingRow label="Monitor">
 		<Select.Root
 			type="single"
@@ -104,7 +95,7 @@
 				if (v !== undefined) onsave({ overlay_monitor: Number(v) });
 			}}
 		>
-			<Select.Trigger class="w-48 truncate">
+			<Select.Trigger class="w-full truncate">
 				{(() => {
 					const m = monitors.find((m) => m.index === settings.overlay_monitor);
 					if (!m) return `Monitor ${settings.overlay_monitor}`;

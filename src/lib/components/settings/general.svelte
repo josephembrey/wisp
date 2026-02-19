@@ -1,10 +1,9 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import SettingRow from '$lib/components/setting-row.svelte';
-	import HotkeyCapture from '$lib/components/hotkey-capture.svelte';
+	import SettingRow from '$lib/components/settings/setting-row.svelte';
+	import HotkeyCapture from '$lib/components/settings/hotkey-capture.svelte';
 	import type { Settings, InputDeviceInfo } from '$lib/tauri';
 
 	let {
@@ -22,9 +21,24 @@
 		onsave: (updates: Partial<Settings>) => void;
 		onsavedflag: (show: boolean, timeout?: number) => void;
 	} = $props();
+
+	const languages = [
+		{ value: 'auto', label: 'Auto-detect' },
+		{ value: 'en', label: 'English' },
+		{ value: 'es', label: 'Spanish' },
+		{ value: 'fr', label: 'French' },
+		{ value: 'de', label: 'German' },
+		{ value: 'it', label: 'Italian' },
+		{ value: 'pt', label: 'Portuguese' },
+		{ value: 'zh', label: 'Chinese' },
+		{ value: 'ja', label: 'Japanese' },
+		{ value: 'ko', label: 'Korean' },
+		{ value: 'ru', label: 'Russian' },
+		{ value: 'ar', label: 'Arabic' }
+	];
 </script>
 
-<div class="flex flex-col gap-4">
+<div class="flex flex-col gap-3">
 	<SettingRow label="Output">
 		<div class="flex items-center gap-3">
 			<ToggleGroup.Root
@@ -44,13 +58,9 @@
 		</div>
 	</SettingRow>
 
-	<Separator />
-
 	<SettingRow label="Hotkey">
 		<HotkeyCapture hotkey={settings.hotkey} onsave={(combo) => onsave({ hotkey: combo })} />
 	</SettingRow>
-
-	<Separator />
 
 	<SettingRow label="Input Device">
 		<Select.Root
@@ -60,7 +70,7 @@
 				onsave({ input_device: v === '' ? '' : v });
 			}}
 		>
-			<Select.Trigger class="w-48 truncate">
+			<Select.Trigger class="w-full truncate">
 				{inputDevices.find((d) => d.name === settings.input_device)?.label ||
 					settings.input_device ||
 					'Default'}
@@ -74,14 +84,29 @@
 		</Select.Root>
 	</SettingRow>
 
-	<Separator />
+	<SettingRow label="Language">
+		<Select.Root
+			type="single"
+			value={settings.language}
+			onValueChange={(v) => {
+				if (v) onsave({ language: v });
+			}}
+		>
+			<Select.Trigger class="w-full">
+				{languages.find((l) => l.value === settings.language)?.label ?? settings.language}
+			</Select.Trigger>
+			<Select.Content>
+				{#each languages as lang (lang.value)}
+					<Select.Item value={lang.value}>{lang.label}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	</SettingRow>
 
-	<div class="flex flex-col gap-1">
-		<div class="flex items-center justify-between">
-			<span class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-				Last Transcription
-			</span>
-			{#if lastTranscription}
+	{#if lastTranscription}
+		<div class="flex flex-col gap-1">
+			<div class="flex items-center justify-between">
+				<span class="text-xs font-medium text-muted-foreground">Last Transcription</span>
 				<button
 					class="inline-flex h-5 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
 					onclick={() => {
@@ -105,13 +130,13 @@
 					>
 					Copy
 				</button>
-			{/if}
+			</div>
+			<Textarea
+				value={lastTranscription}
+				disabled
+				class="h-16 resize-none text-xs"
+				placeholder="No transcription yet"
+			/>
 		</div>
-		<Textarea
-			value={lastTranscription}
-			disabled
-			class="h-24 resize-none text-sm"
-			placeholder="No transcription yet"
-		/>
-	</div>
+	{/if}
 </div>

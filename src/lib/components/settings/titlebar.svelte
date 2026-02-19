@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { toggleMode, mode } from 'mode-watcher';
 	import { quit, hideWindow, minimizeWindow, type Status } from '$lib/tauri';
 
 	let {
@@ -50,11 +48,11 @@
 </script>
 
 <div
-	class="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3"
+	class="flex h-8 shrink-0 items-center justify-between px-3"
 	data-tauri-drag-region
 >
 	<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
-		<span class="text-sm font-medium" data-tauri-drag-region>Wisp</span>
+		<span class="text-sm font-semibold" data-tauri-drag-region>Wisp</span>
 		<Badge
 			variant={badgeVariant as 'default' | 'outline' | 'destructive' | 'secondary'}
 			class="transition-all duration-300"
@@ -62,63 +60,16 @@
 			{badgeLabel}
 		</Badge>
 	</div>
-	<div class="flex items-center gap-1">
+	<div class="flex items-center gap-0.5">
 		<button
-			class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-			onclick={() => toggleMode()}
-			aria-label="Toggle theme"
-		>
-			{#if mode.current === 'dark'}
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line
-						x1="12"
-						y1="21"
-						x2="12"
-						y2="23"
-					/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line
-						x1="18.36"
-						y1="18.36"
-						x2="19.78"
-						y2="19.78"
-					/><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line
-						x1="4.22"
-						y1="19.78"
-						x2="5.64"
-						y2="18.36"
-					/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg
-				>
-			{:else}
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg
-				>
-			{/if}
-		</button>
-		<button
-			class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+			class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
 			onclick={() => minimizeWindow()}
 			aria-label="Minimize"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
-				width="14"
-				height="14"
+				width="12"
+				height="12"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
@@ -128,14 +79,14 @@
 			>
 		</button>
 		<button
-			class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+			class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
 			onclick={() => hideWindow()}
 			aria-label="Close to tray"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
-				width="14"
-				height="14"
+				width="12"
+				height="12"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke="currentColor"
@@ -147,14 +98,13 @@
 		</button>
 		<AlertDialog.Root>
 			<AlertDialog.Trigger
-				class="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
+				class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
 				aria-label="Quit"
 			>
-				<!-- Power icon -->
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
+					width="12"
+					height="12"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"

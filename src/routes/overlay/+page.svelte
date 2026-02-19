@@ -7,7 +7,7 @@
 		onSettingsChanged,
 		type Status
 	} from '$lib/tauri';
-	import OverlayPill from '$lib/components/overlay-pill.svelte';
+	import OverlayPill from '$lib/components/overlay/pill.svelte';
 
 	let status = $state<Status>('idle');
 	let flash = $state('');

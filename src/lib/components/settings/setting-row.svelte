@@ -4,8 +4,8 @@
 	let { label, children }: { label: string; children: Snippet } = $props();
 </script>
 
-<div class="grid grid-cols-[5rem_1fr] items-center gap-2">
-	<span class="text-sm font-medium">{label}</span>
+<div class="flex flex-col gap-1.5">
+	<span class="text-xs font-medium text-muted-foreground">{label}</span>
 	<div>
 		{@render children()}
 	</div>

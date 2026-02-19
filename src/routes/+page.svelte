@@ -22,34 +22,38 @@
 	} from '$lib/tauri';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import Titlebar from '$lib/components/titlebar.svelte';
-	import NavSidebar from '$lib/components/nav-sidebar.svelte';
-	import SettingsMain from '$lib/components/settings-main.svelte';
-	import SettingsAdvanced from '$lib/components/settings-advanced.svelte';
-	import SettingsOverlay from '$lib/components/settings-overlay.svelte';
-	import SettingsAbout from '$lib/components/settings-about.svelte';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import Titlebar from '$lib/components/settings/titlebar.svelte';
+	import SettingsGeneral from '$lib/components/settings/general.svelte';
+	import SettingsModel from '$lib/components/settings/model.svelte';
+	import SettingsOverlay from '$lib/components/settings/overlay.svelte';
+	import SettingsAbout from '$lib/components/settings/about.svelte';
 
 	let settings: Settings | null = $state(null);
 	let status: Status = $state('idle');
 	let lastTranscription: string = $state('');
 	let contentEl: HTMLDivElement | undefined = $state();
+	let tabInnerEl: HTMLDivElement | undefined = $state();
 	let gpuBackend: string = $state('');
 	let monitors: MonitorInfo[] = $state([]);
 	let inputDevices: InputDeviceInfo[] = $state([]);
 	let isDownloading: boolean = $state(false);
-	let activeSection: string = $state('main');
+	let activeTab: string = $state('general');
 	let showSaved: boolean = $state(false);
 	let flashMessage: string = $state('');
 	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
 	let flashTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	let lastHeight = 0;
+	let tabHeight: number = $state(0);
+	let tabAnimated: boolean = $state(false);
 
-	// Auto-resize window to fit content
+	const OUTER_PAD = 16;
+
 	async function resizeWindow() {
 		await tick();
 		if (!contentEl) return;
-		const h = Math.ceil(contentEl.getBoundingClientRect().height);
+		const h = Math.ceil(contentEl.getBoundingClientRect().height) + OUTER_PAD;
 		if (h > 0 && Math.abs(h - lastHeight) >= 2) {
 			lastHeight = h;
 			resizeWindowCmd(h);
@@ -62,6 +66,24 @@
 		const ro = new ResizeObserver(() => resizeWindow());
 		ro.observe(contentEl);
 		resizeWindow();
+
+		return () => ro.disconnect();
+	});
+
+	$effect(() => {
+		if (!tabInnerEl) return;
+
+		const measure = () => {
+			const h = tabInnerEl!.scrollHeight;
+			if (h > 0) tabHeight = h;
+		};
+
+		const ro = new ResizeObserver(measure);
+		ro.observe(tabInnerEl);
+		measure();
+		requestAnimationFrame(() => {
+			tabAnimated = true;
+		});
 
 		return () => ro.disconnect();
 	});
@@ -92,7 +114,7 @@
 		getMonitors().then((m) => (monitors = m));
 		getInputDevices().then((d) => (inputDevices = d));
 		isFirstRun().then((first) => {
-			if (first) activeSection = 'about';
+			if (first) activeTab = 'about';
 		});
 
 		const unsubs = [
@@ -114,7 +136,6 @@
 		};
 	});
 
-	// JS-side hotkey fallback: rdev doesn't receive key events when WebView2 is focused
 	import { mapBrowserKey } from '$lib/keys';
 
 	let pressedKeys = new Set<string>();
@@ -123,7 +144,6 @@
 	function handleKeydown(e: KeyboardEvent) {
 		const key = mapBrowserKey(e.code);
 		const combo = settings?.hotkey?.split('+') || [];
-		// Only intercept keys that are part of the hotkey combo
 		if (combo.includes(key)) {
 			e.preventDefault();
 		}
@@ -146,37 +166,59 @@
 
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
-<div bind:this={contentEl}>
+<div class="p-2">
+<div bind:this={contentEl} class="rounded-xl border border-border bg-card shadow-md overflow-hidden">
 	<Titlebar {status} {showSaved} downloading={isDownloading} {flashMessage} />
 
 	{#if settings}
-		<div class="flex gap-0 p-4">
-			<div class="w-28 shrink-0 pr-3">
-				<NavSidebar active={activeSection} onnavigate={(s) => (activeSection = s)} />
+		<Tabs.Root bind:value={activeTab}>
+			<div class="px-3 pb-2">
+				<Tabs.List class="w-full">
+					<Tabs.Trigger value="general">General</Tabs.Trigger>
+					<Tabs.Trigger value="model">Model</Tabs.Trigger>
+					<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
+					<Tabs.Trigger value="about">About</Tabs.Trigger>
+				</Tabs.List>
 			</div>
-			<div class="min-w-0 flex-1">
-				{#if activeSection === 'main'}
-					<SettingsMain
-						{settings}
-						{inputDevices}
-						{lastTranscription}
-						{showSaved}
-						onsave={save}
-						onsavedflag={showSavedFlag}
-					/>
-				{:else if activeSection === 'advanced'}
-					<SettingsAdvanced
-						{settings}
-						{gpuBackend}
-						onsave={save}
-						ondownloadchange={(v) => (isDownloading = v)}
-					/>
-				{:else if activeSection === 'overlay'}
-					<SettingsOverlay {settings} {monitors} onsave={save} />
-				{:else if activeSection === 'about'}
-					<SettingsAbout hotkey={settings.hotkey} />
-				{/if}
+
+			<div
+				class="overflow-hidden"
+				class:transition-[height]={tabAnimated}
+				class:duration-200={tabAnimated}
+				class:ease-out={tabAnimated}
+				style:height={tabHeight ? `${tabHeight}px` : 'auto'}
+			>
+				<div bind:this={tabInnerEl} class="px-3 pb-3">
+					<Tabs.Content value="general">
+						<SettingsGeneral
+							{settings}
+							{inputDevices}
+							{lastTranscription}
+							{showSaved}
+							onsave={save}
+							onsavedflag={showSavedFlag}
+						/>
+					</Tabs.Content>
+
+					<Tabs.Content value="model">
+						<SettingsModel
+							{settings}
+							{gpuBackend}
+							onsave={save}
+							ondownloadchange={(v) => (isDownloading = v)}
+						/>
+					</Tabs.Content>
+
+					<Tabs.Content value="overlay">
+						<SettingsOverlay {settings} {monitors} onsave={save} />
+					</Tabs.Content>
+
+					<Tabs.Content value="about">
+						<SettingsAbout hotkey={settings.hotkey} />
+					</Tabs.Content>
+				</div>
 			</div>
-		</div>
+		</Tabs.Root>
 	{/if}
+</div>
 </div>

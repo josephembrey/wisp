@@ -1,23 +1,21 @@
 <script lang="ts">
-	import { Separator } from '$lib/components/ui/separator/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { resetApp } from '$lib/tauri';
 
 	let { hotkey }: { hotkey: string } = $props();
 </script>
 
-<div class="flex flex-col gap-4">
-	<p class="text-sm leading-relaxed text-muted-foreground">
-		Wisp is a push-to-talk dictation app. Hold a hotkey to record, release to transcribe locally
-		with Whisper, and the text goes to your clipboard or cursor.
+<div class="flex flex-col gap-3">
+	<p class="text-xs leading-relaxed text-muted-foreground">
+		Push-to-talk dictation. Hold a hotkey to record, release to transcribe locally with Whisper.
 	</p>
 
-	<Separator />
-
-	<div class="flex flex-col gap-2">
+	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-semibold tracking-wide text-foreground uppercase">Quick Start</span>
-		<ol class="space-y-2 text-xs text-muted-foreground">
+		<ol class="space-y-1 text-xs text-muted-foreground">
 			<li class="flex gap-2">
 				<span class="font-semibold text-foreground">1.</span>
-				<span>Download a model in <strong>Advanced</strong> (base is a good start)</span>
+				<span>Download a model in <strong>Model</strong> (base is a good start)</span>
 			</li>
 			<li class="flex gap-2">
 				<span class="font-semibold text-foreground">2.</span>
@@ -30,11 +28,9 @@
 		</ol>
 	</div>
 
-	<Separator />
-
-	<div class="flex flex-col gap-2">
+	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-semibold tracking-wide text-foreground uppercase">Tips</span>
-		<ul class="space-y-1.5 text-xs text-muted-foreground">
+		<ul class="space-y-1 text-xs text-muted-foreground">
 			<li class="flex items-start gap-2">
 				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
 				<span>Minimize this window — Wisp keeps running in the system tray</span>
@@ -51,8 +47,26 @@
 			</li>
 			<li class="flex items-start gap-2">
 				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-				<span>Enable GPU in Advanced for faster transcription</span>
+				<span>Enable GPU in Model for faster transcription</span>
 			</li>
 		</ul>
 	</div>
+
+	<AlertDialog.Root>
+		<AlertDialog.Trigger class="text-xs text-muted-foreground underline hover:text-foreground">
+			Reset app
+		</AlertDialog.Trigger>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Reset Wisp?</AlertDialog.Title>
+				<AlertDialog.Description>
+					This will delete all settings and downloaded models, then restart the app.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Action onclick={() => resetApp()}>Reset</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>
