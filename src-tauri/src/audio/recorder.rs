@@ -37,7 +37,7 @@ impl AudioRecorder {
         let sample_rate = config.sample_rate();
         log::info!(
             "recording: device='{}' {}Hz {}ch {:?}",
-            device_label, sample_rate.0, channels, config.sample_format()
+            device_label, sample_rate, channels, config.sample_format()
         );
         let buffer: Arc<parking_lot::Mutex<Vec<f32>>> =
             Arc::new(parking_lot::Mutex::new(Vec::new()));
