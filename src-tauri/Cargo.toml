@@ -30,6 +30,9 @@ log = "0.4"
 # Audio capture
 cpal = "0.17"
 
+# Audio file decoding
+symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "ogg", "wav", "pcm"] }
+
 # Speech-to-text
 whisper-rs = "0.15"
 
@@ -53,6 +56,9 @@ regex-lite = "0.1"
 specta = { version = "=2.0.0-rc.22", features = ["derive"] }
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+
+# File dialog
+tauri-plugin-dialog = "2"
 
 # Concurrency
 parking_lot = "0.12"

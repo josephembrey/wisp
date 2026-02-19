@@ -35,6 +35,7 @@ export const updateSettings = async (settings: import('./bindings').Settings) =>
 export const downloadModel = async (name: string) => unwrap(await commands.downloadModel(name));
 export const deleteModel = async (name: string) => unwrap(await commands.deleteModel(name));
 export const resetApp = async () => unwrap(await commands.resetApp());
+export const transcribeFile = async (path: string) => unwrap(await commands.transcribeFile(path));
 
 // Window helpers
 export const hideWindow = () => getCurrentWindow().hide();
@@ -63,3 +64,6 @@ export const onSettingsChanged = (
 
 export const onOverlayFlash = (cb: (message: string) => void): Promise<UnlistenFn> =>
 	listen<string>('overlay-flash', (e) => cb(e.payload));
+
+export const onTranscribeFileProgress = (cb: (status: string) => void): Promise<UnlistenFn> =>
+	listen<string>('transcribe-file-progress', (e) => cb(e.payload));

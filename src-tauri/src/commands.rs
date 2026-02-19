@@ -165,6 +165,40 @@ pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {
 
 #[tauri::command]
 #[specta::specta]
+pub async fn transcribe_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, WispState>,
+    path: String,
+) -> Result<String, String> {
+    log::info!("transcribe_file: {}", path);
+    let file_path = std::path::PathBuf::from(&path);
+    if !file_path.exists() {
+        return Err(format!("file not found: {}", path));
+    }
+
+    let _ = app.emit("transcribe-file-progress", "decoding");
+    let audio = audio::decode_file(&file_path)?;
+
+    let settings = state.settings.lock().clone();
+    let model_path = whisper::model_path(&state.models_dir, &settings.model);
+    if !model_path.exists() {
+        return Err(format!("model '{}' not downloaded", settings.model));
+    }
+
+    let _ = app.emit("transcribe-file-progress", "loading");
+    let engine = whisper::WhisperEngine::new(&model_path, settings.gpu)
+        .map_err(|e| format!("failed to load model: {}", e))?;
+
+    let _ = app.emit("transcribe-file-progress", "transcribing");
+    let text = engine.transcribe(&audio, &settings.language, None)?;
+
+    let _ = app.emit("transcribe-file-progress", "done");
+    log::info!("transcribe_file: {} chars", text.len());
+    Ok(text)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn quit(app: tauri::AppHandle) {
     log::info!("cmd: quit");
     app.exit(0);

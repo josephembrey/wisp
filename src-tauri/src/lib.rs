@@ -26,6 +26,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::reset_app,
             commands::get_monitors,
             commands::get_input_devices,
+            commands::transcribe_file,
             commands::quit,
         ])
         .typ::<whisper::DownloadProgress>()
@@ -46,6 +47,7 @@ pub fn run() {
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log::info!("single-instance: second instance detected, focusing main window");
             if let Some(window) = app.get_webview_window("main") {

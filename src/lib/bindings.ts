@@ -61,6 +61,14 @@ async getMonitors() : Promise<MonitorInfo[]> {
 async getInputDevices() : Promise<InputDeviceInfo[]> {
     return await TAURI_INVOKE("get_input_devices");
 },
+async transcribeFile(path: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("transcribe_file", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 }
