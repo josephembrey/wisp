@@ -205,7 +205,7 @@
 
 <div class="p-2">
 <div bind:this={contentEl} class="rounded-xl border border-border bg-card shadow-md overflow-hidden">
-	<Titlebar {status} {showSaved} downloading={downloading !== null} {flashMessage} />
+	<Titlebar {status} {showSaved} downloading={downloading !== null} {flashMessage} autostart={settings?.autostart ?? false} onautostart={(v) => save({ autostart: v })} />
 
 	{#if settings}
 		<Tabs.Root bind:value={activeTab}>
@@ -214,7 +214,7 @@
 					<Tabs.Trigger value="general">General</Tabs.Trigger>
 					<Tabs.Trigger value="model">Model</Tabs.Trigger>
 					<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
-					<Tabs.Trigger value="transcribe">Transcribe</Tabs.Trigger>
+					<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
 					<Tabs.Trigger value="about">About</Tabs.Trigger>
 				</Tabs.List>
 			</div>

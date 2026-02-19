@@ -37,6 +37,8 @@ pub struct Settings {
     pub input_device: String,
     #[serde(default)]
     pub model_loading: ModelLoading,
+    #[serde(default)]
+    pub autostart: bool,
 }
 
 fn default_language() -> String {
@@ -81,6 +83,7 @@ impl Default for Settings {
             overlay_always_show: false,
             input_device: String::new(),
             model_loading: ModelLoading::Eager,
+            autostart: false,
         }
     }
 }

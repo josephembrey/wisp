@@ -48,6 +48,15 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log::info!("single-instance: second instance detected, focusing main window");
             if let Some(window) = app.get_webview_window("main") {
@@ -107,10 +116,12 @@ pub fn run() {
             log::info!("first_run: {}", first_run);
 
             let settings = Settings::load(&data_dir);
-            log::info!("settings loaded: model={} hotkey={} gpu={} overlay_enabled={}", settings.model, settings.hotkey, settings.gpu, settings.overlay_enabled);
+            log::info!("settings loaded: model={} hotkey={} gpu={} overlay_enabled={} autostart={}", settings.model, settings.hotkey, settings.gpu, settings.overlay_enabled, settings.autostart);
             if first_run {
                 let _ = settings.save(&data_dir);
             }
+
+            sync_autostart(app, settings.autostart);
 
             let (tx, rx) = std::sync::mpsc::channel::<engine::AppEvent>();
 
@@ -193,6 +204,20 @@ fn log_builder() -> tauri_plugin_log::Builder {
         .level(level)
         .targets(targets)
         .max_file_size(5_000_000) // 5 MB per log file
+}
+
+pub(crate) fn sync_autostart<M: tauri::Manager<tauri::Wry>>(app: &M, enabled: bool) {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    let result = if enabled {
+        manager.enable()
+    } else {
+        manager.disable()
+    };
+    match result {
+        Ok(()) => log::info!("autostart: set to {}", enabled),
+        Err(e) => log::warn!("autostart: failed to set to {}: {}", enabled, e),
+    }
 }
 
 pub(crate) fn register_shortcuts(

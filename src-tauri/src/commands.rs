@@ -49,6 +49,10 @@ pub fn update_settings(
         crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
     }
 
+    if old.autostart != settings.autostart {
+        crate::sync_autostart(&app, settings.autostart);
+    }
+
     let _ = app.emit("settings-changed", &settings);
 
     Ok(())

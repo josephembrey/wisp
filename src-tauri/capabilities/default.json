@@ -16,6 +16,8 @@
 		"global-shortcut:allow-unregister",
 		"global-shortcut:allow-unregister-all",
 		"log:default",
-		"dialog:default"
+		"dialog:default",
+		"autostart:default",
+		"window-state:default"
 	]
 }
