@@ -27,7 +27,8 @@ if (-not (Test-Path $Metadata)) {
     exit 1
 }
 
-$SignTool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
+$cmd = Get-Command signtool.exe -ErrorAction SilentlyContinue
+$SignTool = if ($cmd) { $cmd.Source } else { $null }
 if (-not $SignTool) {
     $SignTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' -ErrorAction SilentlyContinue |
         Sort-Object { $_.Directory.Name } -Descending |
