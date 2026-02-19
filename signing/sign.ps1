@@ -2,9 +2,14 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-$Exe = Get-ChildItem (Join-Path $RepoRoot 'target\x86_64-pc-windows-msvc\release\wisp.exe') -ErrorAction SilentlyContinue
+$TargetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $RepoRoot 'target' }
+$candidates = @(
+    Join-Path $TargetDir 'release\wisp.exe'
+    Join-Path $TargetDir 'x86_64-pc-windows-msvc\release\wisp.exe'
+)
+$Exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1 | Get-Item
 if (-not $Exe) {
-    Write-Host "ERROR: wisp.exe not found. Run build-windows first." -ForegroundColor Red
+    Write-Host "ERROR: wisp.exe not found. Run .\win.ps1 build first." -ForegroundColor Red
     exit 1
 }
 

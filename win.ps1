@@ -24,7 +24,8 @@ $commands = @{
     check   = "$scriptDir\check.ps1"
     format  = "$scriptDir\format.ps1"
     clean   = "$scriptDir\clean.ps1"
-    sign    = "$scriptDir\sign.ps1"
+    sign       = "$scriptDir\sign.ps1"
+    'build-sign' = "$scriptDir\build-sign.ps1"
 }
 
 if (-not $Command) {

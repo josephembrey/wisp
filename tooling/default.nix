@@ -11,7 +11,6 @@
           inherit inputs;
           pkgs = import inputs.nixpkgs-devenv {
             inherit system;
-            overlays = [inputs.rust-overlay.overlays.default];
           };
           modules = [./devenv.nix];
         }
