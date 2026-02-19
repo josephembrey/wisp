@@ -48,11 +48,11 @@ fn default_min_duration() -> f64 {
 }
 
 fn default_overlay_enabled() -> bool {
-    false
+    true
 }
 
 fn default_overlay_position() -> String {
-    "top-center".to_string()
+    "top-right".to_string()
 }
 
 fn default_overlay_size() -> String {
@@ -84,15 +84,15 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             model: "base".to_string(),
-            output_mode: OutputMode::Clipboard,
+            output_mode: OutputMode::Paste,
             hotkey: "Alt+KeyQ".to_string(),
             language: "en".to_string(),
             gpu: true,
             interrupt: false,
             output_hotkey: String::new(),
             min_duration: 0.5,
-            overlay_enabled: false,
-            overlay_position: "top-center".to_string(),
+            overlay_enabled: true,
+            overlay_position: "top-right".to_string(),
             overlay_size: "medium".to_string(),
             overlay_monitor: 0,
             overlay_always_show: false,
