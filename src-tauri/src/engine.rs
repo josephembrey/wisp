@@ -21,7 +21,7 @@ pub(crate) enum AppEvent {
 // WhisperEngine contains a WhisperContext which is Send but not marked as such by whisper-rs.
 unsafe impl Send for AppEvent {}
 
-pub fn run(
+pub(crate) fn run(
     app: tauri::AppHandle,
     tx: std::sync::mpsc::Sender<AppEvent>,
     rx: std::sync::mpsc::Receiver<AppEvent>,
@@ -38,26 +38,20 @@ pub fn run(
     let mut transcription_in_flight = false;
     let mut pending_audio: Option<(Vec<f32>, Settings)> = None;
 
-    // Eagerly load the configured model at startup
     {
         let settings = state.settings.lock().clone();
         if settings.model_loading == ModelLoading::Eager {
-            let model_file = state
-                .models_dir
-                .join(format!("ggml-{}.bin", settings.model));
-            if model_file.exists() {
-                set_status(&app, &state, Status::Loading);
-                match whisper::WhisperEngine::new(&model_file, settings.gpu) {
-                    Ok(e) => {
-                        log::info!("eagerly loaded model: {}", settings.model);
-                        engine = Some(e);
-                        loaded_model = settings.model.clone();
-                        loaded_gpu = settings.gpu;
-                    }
-                    Err(e) => log::warn!("failed to eagerly load model: {}", e),
+            set_status(&app, &state, Status::Loading);
+            match load_model(&state.models_dir, &settings.model, settings.gpu) {
+                Ok(e) => {
+                    log::info!("eagerly loaded model: {}", settings.model);
+                    engine = Some(e);
+                    loaded_model = settings.model.clone();
+                    loaded_gpu = settings.gpu;
                 }
-                set_status(&app, &state, Status::Idle);
+                Err(e) => log::warn!("eager load skipped: {}", e),
             }
+            set_status(&app, &state, Status::Idle);
         }
     }
 
@@ -118,23 +112,6 @@ pub fn run(
 
                 set_status(&app, &state, Status::Processing);
 
-                let model_file = state
-                    .models_dir
-                    .join(format!("ggml-{}.bin", settings.model));
-                if !model_file.exists() {
-                    log::error!("model not downloaded: {}", settings.model);
-                    let _ = app.emit(
-                        "backend-error",
-                        format!("Model '{}' not downloaded", settings.model),
-                    );
-                    if transcription_in_flight {
-                        set_status(&app, &state, Status::Processing);
-                    } else {
-                        set_status(&app, &state, Status::Idle);
-                    }
-                    continue;
-                }
-
                 if settings.interrupt {
                     if let Some(eng) = engine.take() {
                         start_transcription(
@@ -152,21 +129,20 @@ pub fn run(
                         pending_audio = Some((audio, settings));
                     }
                 } else {
-                    if loaded_model != settings.model
+                    let needs_reload = loaded_model != settings.model
                         || loaded_gpu != settings.gpu
-                        || engine.is_none()
-                    {
+                        || engine.is_none();
+                    if needs_reload {
                         set_status(&app, &state, Status::Loading);
-                        match whisper::WhisperEngine::new(&model_file, settings.gpu) {
+                        match load_model(&state.models_dir, &settings.model, settings.gpu) {
                             Ok(e) => {
                                 engine = Some(e);
                                 loaded_model = settings.model.clone();
                                 loaded_gpu = settings.gpu;
                             }
                             Err(e) => {
-                                log::error!("failed to load model: {}", e);
-                                let _ = app
-                                    .emit("backend-error", format!("Failed to load model: {}", e));
+                                log::error!("{}", e);
+                                let _ = app.emit("backend-error", &e);
                                 set_status(&app, &state, Status::Idle);
                                 continue;
                             }
@@ -174,17 +150,10 @@ pub fn run(
                         set_status(&app, &state, Status::Processing);
                     }
 
-                    let mut did_output = false;
                     if let Some(ref eng) = engine {
                         match eng.transcribe(&audio, &settings.language, None) {
                             Ok(text) if !text.is_empty() => {
-                                if let Err(e) = output::send(&text, &settings.output_mode) {
-                                    log::error!("output error: {}", e);
-                                    let _ =
-                                        app.emit("backend-error", format!("Output error: {}", e));
-                                }
-                                let _ = app.emit("transcription", &text);
-                                did_output = true;
+                                emit_output(&app, &text, &settings.output_mode);
                             }
                             Ok(_) => {}
                             Err(e) => {
@@ -200,13 +169,6 @@ pub fn run(
                         loaded_model.clear();
                     }
 
-                    if did_output {
-                        let flash = match settings.output_mode {
-                            OutputMode::Clipboard => "Copied",
-                            OutputMode::Paste => "Typed",
-                        };
-                        let _ = app.emit("overlay-flash", flash);
-                    }
                     set_status(&app, &state, Status::Idle);
                 }
             }
@@ -236,16 +198,7 @@ pub fn run(
                 if !cancelled {
                     match result {
                         Ok(ref text) if !text.is_empty() => {
-                            if let Err(e) = output::send(text, &output_mode) {
-                                log::error!("output error: {}", e);
-                                let _ = app.emit("backend-error", format!("Output error: {}", e));
-                            }
-                            let _ = app.emit("transcription", text);
-                            let flash = match output_mode {
-                                OutputMode::Clipboard => "Copied",
-                                OutputMode::Paste => "Typed",
-                            };
-                            let _ = app.emit("overlay-flash", flash);
+                            emit_output(&app, text, &output_mode);
                         }
                         Ok(_) => {}
                         Err(ref e) => {
@@ -284,16 +237,8 @@ pub fn run(
             }
             AppEvent::ReloadModel => {
                 let settings = state.settings.lock().clone();
-                let model_file = state
-                    .models_dir
-                    .join(format!("ggml-{}.bin", settings.model));
-                if !model_file.exists() {
-                    log::warn!("model not downloaded for reload: {}", settings.model);
-                    continue;
-                }
-
                 set_status(&app, &state, Status::Loading);
-                match whisper::WhisperEngine::new(&model_file, settings.gpu) {
+                match load_model(&state.models_dir, &settings.model, settings.gpu) {
                     Ok(e) => {
                         log::info!("reloaded model: {}", settings.model);
                         engine = Some(e);
@@ -301,8 +246,8 @@ pub fn run(
                         loaded_gpu = settings.gpu;
                     }
                     Err(e) => {
-                        log::error!("failed to reload model: {}", e);
-                        let _ = app.emit("backend-error", format!("Failed to load model: {}", e));
+                        log::warn!("{}", e);
+                        let _ = app.emit("backend-error", &e);
                     }
                 }
                 set_status(&app, &state, Status::Idle);
@@ -322,23 +267,19 @@ fn start_transcription(
     models_dir: &std::path::Path,
 ) {
     if *loaded_model != settings.model || *loaded_gpu != settings.gpu {
-        let model_file = models_dir.join(format!("ggml-{}.bin", settings.model));
-        if model_file.exists() {
-            match whisper::WhisperEngine::new(&model_file, settings.gpu) {
-                Ok(e) => {
-                    eng = e;
-                    *loaded_model = settings.model.clone();
-                    *loaded_gpu = settings.gpu;
-                }
-                Err(e) => {
-                    log::error!("failed to load model for transcription: {}", e);
-                    let _ = tx.send(AppEvent::TranscriptionDone {
-                        engine: eng,
-                        result: Err(format!("Failed to load model: {}", e)),
-                        output_mode: settings.output_mode.clone(),
-                    });
-                    return;
-                }
+        match load_model(models_dir, &settings.model, settings.gpu) {
+            Ok(e) => {
+                eng = e;
+                *loaded_model = settings.model.clone();
+                *loaded_gpu = settings.gpu;
+            }
+            Err(e) => {
+                let _ = tx.send(AppEvent::TranscriptionDone {
+                    engine: eng,
+                    result: Err(e),
+                    output_mode: settings.output_mode.clone(),
+                });
+                return;
             }
         }
     }
@@ -357,6 +298,32 @@ fn start_transcription(
             output_mode,
         });
     });
+}
+
+fn load_model(
+    models_dir: &std::path::Path,
+    name: &str,
+    use_gpu: bool,
+) -> Result<whisper::WhisperEngine, String> {
+    let path = whisper::model_path(models_dir, name);
+    if !path.exists() {
+        return Err(format!("Model '{}' not downloaded", name));
+    }
+    whisper::WhisperEngine::new(&path, use_gpu)
+        .map_err(|e| format!("Failed to load model '{}': {}", name, e))
+}
+
+fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode) {
+    if let Err(e) = output::send(text, mode) {
+        log::error!("output error: {}", e);
+        let _ = app.emit("backend-error", format!("Output error: {}", e));
+    }
+    let _ = app.emit("transcription", text);
+    let flash = match mode {
+        OutputMode::Clipboard => "Copied",
+        OutputMode::Paste => "Typed",
+    };
+    let _ = app.emit("overlay-flash", flash);
 }
 
 fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {

@@ -1,18 +1,42 @@
+// DORMANT — not compiled. Re-enable by adding to hotkey/mod.rs:
+//
+//   #[cfg(target_os = "windows")]
+//   mod windows;
+//   #[cfg(target_os = "windows")]
+//   pub use windows::start_ptt_polling;
+//
+// Then call from lib.rs setup:
+//
+//   #[cfg(target_os = "windows")]
+//   hotkey::start_ptt_polling(app.handle().clone(), event_tx.clone());
+//
+// And skip the main PTT shortcut registration on Windows (output-toggle
+// still uses the plugin since it only needs press detection).
+//
+// Requires the `windows-sys` crate (currently in Cargo.toml).
+//
+// WHY THIS EXISTS
+// ---------------
+// On Windows, `tauri-plugin-global-shortcut` (backed by the `global-hotkey`
+// crate) uses `WM_HOTKEY` messages. Its release-detection spin-loop only
+// checks the *main* key, ignoring modifiers. When a modifier is released
+// before the main key, the plugin emits ghost Pressed events or misses the
+// Released entirely. This causes the UI to get stuck in "Recording" state.
+//
+// This module replaces the plugin's PTT handling with a dedicated ~125 Hz
+// polling thread that reads physical key state via `GetAsyncKeyState`,
+// giving deterministic edge detection over the full key combo.
+//
+// The bug was confirmed and this workaround tested successfully. It was
+// later disabled when the plugin appeared to work during testing, but the
+// underlying WM_HOTKEY bug in global-hotkey is unfixed upstream. Re-enable
+// this if ghost presses or stuck recording states reappear on Windows.
+
 use super::HotkeyEvent;
 use crate::settings::WispState;
 use std::sync::mpsc::Sender;
 use tauri::Manager;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
-
-/// Spawns a thread that polls physical key state at ~125 Hz to detect
-/// press/release edges for the main PTT hotkey combo.
-///
-/// On Windows the `global-hotkey` crate (used by `tauri-plugin-global-shortcut`)
-/// relies on `WM_HOTKEY` + a spin-loop that only checks the *main* key for
-/// release, ignoring modifiers.  When a modifier is released first the plugin
-/// can emit ghost `Pressed` events or miss the `Released` entirely.  This
-/// polling thread replaces that mechanism with deterministic edge detection
-/// over the full combo via `GetAsyncKeyState`.
 pub fn start_ptt_polling(app: tauri::AppHandle, tx: Sender<HotkeyEvent>) {
     std::thread::spawn(move || {
         let mut was_down = false;

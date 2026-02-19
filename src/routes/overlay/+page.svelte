@@ -62,19 +62,6 @@
 	});
 </script>
 
-<svelte:head>
-	<style>
-		html,
-		body {
-			background: transparent !important;
-			overflow: hidden;
-			pointer-events: none;
-			cursor: none;
-			user-select: none;
-		}
-	</style>
-</svelte:head>
-
 <div class="flex {align} {justify} p-3" style="width: 100vw; height: 100vh;">
 	<OverlayPill {status} {flash} {visible} {scale} />
 </div>

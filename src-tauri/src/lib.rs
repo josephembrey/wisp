@@ -1,15 +1,3 @@
-// Hotkey architecture:
-//
-// On macOS/Linux the `tauri-plugin-global-shortcut` handles both main PTT and
-// output-toggle hotkeys.  On Windows the plugin's underlying `WM_HOTKEY`
-// mechanism has a timing bug: its release-detection spin-loop only checks the
-// *main* key, ignoring modifiers, which produces ghost Pressed events when a
-// modifier is released first.  To work around this the main PTT hotkey on
-// Windows is driven by a dedicated polling thread (`hotkey::start_ptt_polling`)
-// that reads physical key state via `GetAsyncKeyState`.  The output-toggle
-// hotkey still uses the plugin on all platforms since it only needs press
-// detection (no release), so the bug does not apply.
-
 mod audio;
 mod commands;
 mod engine;
@@ -75,8 +63,6 @@ pub fn run() {
                     let output_shortcut = hotkey::to_accelerator(&settings.output_hotkey)
                         .and_then(|s| s.parse::<Shortcut>().ok());
 
-                    // DISABLED FOR TESTING: only process main hotkey via plugin on non-Windows
-                    // #[cfg(not(target_os = "windows"))]
                     if main_shortcut.as_ref() == Some(shortcut) {
                         match event.state() {
                             ShortcutState::Pressed => {
@@ -136,10 +122,6 @@ pub fn run() {
                 first_run,
             });
 
-            // DISABLED FOR TESTING: Windows polling workaround
-            // #[cfg(target_os = "windows")]
-            // hotkey::start_ptt_polling(app.handle().clone(), event_tx.clone());
-
             register_shortcuts(app.handle(), &settings.hotkey, &settings.output_hotkey);
 
             let tx_reload = tx.clone();
@@ -169,40 +151,29 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-pub fn register_shortcuts(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
+pub(crate) fn register_shortcuts(
+    app: &tauri::AppHandle,
+    main_combo: &str,
+    output_combo: &str,
+) {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
 
-    // DISABLED FOR TESTING: skip main hotkey on Windows (polling workaround)
-    // #[cfg(target_os = "windows")]
-    // let _ = main_combo;
-
-    // #[cfg(not(target_os = "windows"))]
-    if let Some(accel) = hotkey::to_accelerator(main_combo) {
+    for (label, combo) in [("main", main_combo), ("output", output_combo)] {
+        let Some(accel) = hotkey::to_accelerator(combo) else {
+            continue;
+        };
         match accel.parse::<tauri_plugin_global_shortcut::Shortcut>() {
             Ok(shortcut) => {
                 if let Err(e) = gs.register(shortcut) {
-                    log::warn!("failed to register main hotkey '{}': {}", accel, e);
+                    log::warn!("failed to register {} hotkey '{}': {}", label, accel, e);
                 } else {
-                    log::info!("registered main hotkey: {}", accel);
+                    log::info!("registered {} hotkey: {}", label, accel);
                 }
             }
-            Err(e) => log::warn!("invalid main hotkey '{}': {}", accel, e),
-        }
-    }
-
-    if let Some(accel) = hotkey::to_accelerator(output_combo) {
-        match accel.parse::<tauri_plugin_global_shortcut::Shortcut>() {
-            Ok(shortcut) => {
-                if let Err(e) = gs.register(shortcut) {
-                    log::warn!("failed to register output hotkey '{}': {}", accel, e);
-                } else {
-                    log::info!("registered output hotkey: {}", accel);
-                }
-            }
-            Err(e) => log::warn!("invalid output hotkey '{}': {}", accel, e),
+            Err(e) => log::warn!("invalid {} hotkey '{}': {}", label, accel, e),
         }
     }
 }

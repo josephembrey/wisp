@@ -6,7 +6,7 @@ pub use types::{ModelLoading, OutputMode, Status};
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct Settings {
@@ -86,11 +86,11 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn exists(data_dir: &PathBuf) -> bool {
+    pub fn exists(data_dir: &Path) -> bool {
         data_dir.join("settings.json").exists()
     }
 
-    pub fn load(data_dir: &PathBuf) -> Self {
+    pub fn load(data_dir: &Path) -> Self {
         let path = data_dir.join("settings.json");
         if path.exists() {
             let content = fs::read_to_string(&path).unwrap_or_default();
@@ -100,7 +100,7 @@ impl Settings {
         }
     }
 
-    pub fn save(&self, data_dir: &PathBuf) -> Result<(), String> {
+    pub fn save(&self, data_dir: &Path) -> Result<(), String> {
         fs::create_dir_all(data_dir).map_err(|e| e.to_string())?;
         let path = data_dir.join("settings.json");
         let content = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;

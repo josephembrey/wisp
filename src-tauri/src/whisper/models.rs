@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Emitter;
 
 const MODELS: &[(&str, u64)] = &[
@@ -18,7 +18,7 @@ fn model_url(name: &str) -> String {
     )
 }
 
-fn model_path(models_dir: &PathBuf, name: &str) -> PathBuf {
+pub fn model_path(models_dir: &Path, name: &str) -> PathBuf {
     models_dir.join(format!("ggml-{}.bin", name))
 }
 
@@ -36,7 +36,7 @@ pub struct DownloadProgress {
     pub total: u64,
 }
 
-pub fn list_models(models_dir: &PathBuf) -> Vec<ModelInfo> {
+pub fn list_models(models_dir: &Path) -> Vec<ModelInfo> {
     MODELS
         .iter()
         .map(|(name, size_mb)| ModelInfo {
@@ -49,7 +49,7 @@ pub fn list_models(models_dir: &PathBuf) -> Vec<ModelInfo> {
 
 pub async fn download_model(
     app: tauri::AppHandle,
-    models_dir: &PathBuf,
+    models_dir: &Path,
     name: &str,
 ) -> Result<(), String> {
     fs::create_dir_all(models_dir).map_err(|e| e.to_string())?;
@@ -85,7 +85,7 @@ pub async fn download_model(
     Ok(())
 }
 
-pub fn delete_model(models_dir: &PathBuf, name: &str) -> Result<(), String> {
+pub fn delete_model(models_dir: &Path, name: &str) -> Result<(), String> {
     let path = model_path(models_dir, name);
     if path.exists() {
         fs::remove_file(&path).map_err(|e| e.to_string())?;
