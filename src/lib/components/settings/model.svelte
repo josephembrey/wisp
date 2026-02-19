@@ -63,7 +63,7 @@
 		</div>
 	</SettingRow>
 
-	<SettingRow label="GPU">
+	<SettingRow label="GPU Acceleration" description="Use GPU for faster transcription">
 		<div class="flex items-center gap-3">
 			<Switch checked={settings.gpu} onCheckedChange={(v) => onsave({ gpu: v })} />
 			{#if settings.gpu && gpuBackend}
@@ -83,7 +83,7 @@
 		</div>
 	</SettingRow>
 
-	<SettingRow label="Min Duration">
+	<SettingRow label="Min Duration" description="Recordings shorter than this are discarded">
 		<div class="flex items-center gap-3">
 			<Slider
 				type="single"
