@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import {
 		getSettings,
+		getStatus,
 		onStatusChanged,
 		onOverlayFlash,
 		onSettingsChanged,
@@ -38,6 +39,7 @@
 			size = s.overlay_size;
 			alwaysShow = s.overlay_always_show;
 		});
+		getStatus().then((s) => (status = s));
 
 		const unsubs = [
 			onStatusChanged((s) => {

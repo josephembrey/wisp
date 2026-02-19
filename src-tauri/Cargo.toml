@@ -30,7 +30,7 @@ cpal = "0.17"
 whisper-rs = "0.15"
 
 # Global hotkey (press + release)
-rdev = "0.5"
+tauri-plugin-global-shortcut = "2"
 
 # Clipboard
 arboard = "3"
@@ -57,3 +57,4 @@ whisper-rs = { version = "0.15", features = ["vulkan"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 whisper-rs = { version = "0.15", features = ["vulkan"] }
+windows-sys = "0.59"

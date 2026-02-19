@@ -1,5 +1,4 @@
 use crate::audio;
-use crate::hotkey;
 use crate::settings::{Settings, Status, WispState};
 use crate::whisper;
 use tauri::Emitter;
@@ -23,19 +22,18 @@ pub fn update_settings(
     let old = state.settings.lock().clone();
     settings.save(&state.data_dir)?;
 
-    if let Some(keys) = hotkey::parse_combo(&settings.hotkey) {
-        *state.hotkey.lock() = keys;
-    } else {
-        *state.hotkey.lock() = Vec::new();
-    }
-
-    *state.output_hotkey.lock() = hotkey::parse_combo(&settings.output_hotkey).unwrap_or_default();
+    let hotkey_changed =
+        old.hotkey != settings.hotkey || old.output_hotkey != settings.output_hotkey;
 
     if old.model != settings.model || old.gpu != settings.gpu {
-        *state.settings.lock() = settings;
+        *state.settings.lock() = settings.clone();
         let _ = app.emit("reload-model", ());
     } else {
-        *state.settings.lock() = settings;
+        *state.settings.lock() = settings.clone();
+    }
+
+    if hotkey_changed {
+        crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
     }
 
     let _ = app.emit("settings-changed", ());
@@ -143,19 +141,4 @@ pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {
 #[tauri::command]
 pub fn quit(app: tauri::AppHandle) {
     app.exit(0);
-}
-
-#[tauri::command]
-pub fn hotkey_press(state: tauri::State<'_, WispState>) {
-    let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::Pressed);
-}
-
-#[tauri::command]
-pub fn hotkey_release(state: tauri::State<'_, WispState>) {
-    let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::Released);
-}
-
-#[tauri::command]
-pub fn output_toggle(state: tauri::State<'_, WispState>) {
-    let _ = state.hotkey_tx.send(crate::hotkey::HotkeyEvent::OutputToggle);
 }

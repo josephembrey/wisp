@@ -17,9 +17,6 @@
 		deleteModel,
 		isFirstRun,
 		resizeWindow as resizeWindowCmd,
-		hotkeyPress,
-		hotkeyRelease,
-		outputToggle,
 		type Settings,
 		type Status,
 		type MonitorInfo,
@@ -35,7 +32,6 @@
 	import SettingsModel from '$lib/components/settings/model.svelte';
 	import SettingsOverlay from '$lib/components/settings/overlay.svelte';
 	import SettingsAbout from '$lib/components/settings/about.svelte';
-	import { mapBrowserKey } from '$lib/keys';
 
 	let settings: Settings | null = $state(null);
 	let status: Status = $state('idle');
@@ -155,7 +151,9 @@
 		});
 
 		const unsubs = [
-			onStatusChanged((s) => (status = s)),
+			onStatusChanged((s) => {
+				status = s;
+			}),
 			onTranscription((t) => (lastTranscription = t)),
 			onError((msg) => toast.error(msg)),
 			onSettingsChanged(() => {
@@ -174,42 +172,7 @@
 		};
 	});
 
-	let pressedKeys = new Set<string>();
-	let hotkeyActive = false;
-	let outputToggleFired = false;
-
-	function handleKeydown(e: KeyboardEvent) {
-		const key = mapBrowserKey(e.code);
-		const combo = settings?.hotkey?.split('+') || [];
-		const outputCombo = settings?.output_hotkey?.split('+').filter(Boolean) || [];
-		if (combo.includes(key) || outputCombo.includes(key)) {
-			e.preventDefault();
-		}
-		pressedKeys.add(key);
-		if (!outputToggleFired && outputCombo.length > 0 && outputCombo.every((k) => pressedKeys.has(k))) {
-			outputToggleFired = true;
-			outputToggle();
-		} else if (!hotkeyActive && combo.length > 0 && combo.every((k) => pressedKeys.has(k))) {
-			hotkeyActive = true;
-			hotkeyPress();
-		}
-	}
-
-	function handleKeyup(e: KeyboardEvent) {
-		const key = mapBrowserKey(e.code);
-		if (hotkeyActive && (settings?.hotkey?.split('+') || []).includes(key)) {
-			hotkeyActive = false;
-			hotkeyRelease();
-		}
-		const outputCombo = settings?.output_hotkey?.split('+').filter(Boolean) || [];
-		if (outputToggleFired && outputCombo.includes(key)) {
-			outputToggleFired = false;
-		}
-		pressedKeys.delete(key);
-	}
 </script>
-
-<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
 <div class="p-2">
 <div bind:this={contentEl} class="rounded-xl border border-border bg-card shadow-md overflow-hidden">

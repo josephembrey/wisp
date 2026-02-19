@@ -1,3 +1,15 @@
+// Hotkey architecture:
+//
+// On macOS/Linux the `tauri-plugin-global-shortcut` handles both main PTT and
+// output-toggle hotkeys.  On Windows the plugin's underlying `WM_HOTKEY`
+// mechanism has a timing bug: its release-detection spin-loop only checks the
+// *main* key, ignoring modifiers, which produces ghost Pressed events when a
+// modifier is released first.  To work around this the main PTT hotkey on
+// Windows is driven by a dedicated polling thread (`hotkey::start_ptt_polling`)
+// that reads physical key state via `GetAsyncKeyState`.  The output-toggle
+// hotkey still uses the plugin on all platforms since it only needs press
+// detection (no release), so the bug does not apply.
+
 mod audio;
 mod commands;
 mod engine;
@@ -8,8 +20,8 @@ mod tray;
 mod whisper;
 
 use settings::{Settings, Status, WispState};
-use std::sync::Arc;
 use tauri::{Listener, Manager};
+use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,6 +32,36 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    let state = app.state::<WispState>();
+                    let settings = state.settings.lock().clone();
+
+                    let main_shortcut = hotkey::to_accelerator(&settings.hotkey)
+                        .and_then(|s| s.parse::<Shortcut>().ok());
+                    let output_shortcut = hotkey::to_accelerator(&settings.output_hotkey)
+                        .and_then(|s| s.parse::<Shortcut>().ok());
+
+                    // DISABLED FOR TESTING: only process main hotkey via plugin on non-Windows
+                    // #[cfg(not(target_os = "windows"))]
+                    if main_shortcut.as_ref() == Some(shortcut) {
+                        match event.state() {
+                            ShortcutState::Pressed => {
+                                let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::Pressed);
+                            }
+                            ShortcutState::Released => {
+                                let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::Released);
+                            }
+                        }
+                    } else if output_shortcut.as_ref() == Some(shortcut) {
+                        if event.state() == ShortcutState::Pressed {
+                            let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::OutputToggle);
+                        }
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
@@ -43,38 +85,30 @@ pub fn run() {
                 let _ = settings.save(&data_dir);
             }
 
-            let initial_keys = hotkey::parse_combo(&settings.hotkey)
-                .unwrap_or_else(|| vec![rdev::Key::Alt, rdev::Key::KeyQ]);
-            let hotkey_key = Arc::new(parking_lot::Mutex::new(initial_keys));
-            let initial_output_keys =
-                hotkey::parse_combo(&settings.output_hotkey).unwrap_or_default();
-            let output_hotkey_key = Arc::new(parking_lot::Mutex::new(initial_output_keys));
-
             let (tx, rx) = std::sync::mpsc::channel::<engine::AppEvent>();
 
-            let (hotkey_tx, hotkey_rx) = std::sync::mpsc::channel();
-            hotkey::start(
-                hotkey_key.clone(),
-                output_hotkey_key.clone(),
-                hotkey_tx.clone(),
-            );
+            let (event_tx, event_rx) = std::sync::mpsc::channel();
             let tx_fwd = tx.clone();
             std::thread::spawn(move || {
-                for e in hotkey_rx {
+                for e in event_rx {
                     let _ = tx_fwd.send(engine::AppEvent::Hotkey(e));
                 }
             });
 
             app.manage(WispState {
-                settings: parking_lot::Mutex::new(settings),
+                settings: parking_lot::Mutex::new(settings.clone()),
                 status: parking_lot::Mutex::new(Status::Idle),
                 data_dir,
                 models_dir,
-                hotkey: hotkey_key,
-                output_hotkey: output_hotkey_key,
-                hotkey_tx,
+                hotkey_tx: event_tx.clone(),
                 first_run,
             });
+
+            // DISABLED FOR TESTING: Windows polling workaround
+            // #[cfg(target_os = "windows")]
+            // hotkey::start_ptt_polling(app.handle().clone(), event_tx.clone());
+
+            register_shortcuts(app.handle(), &settings.hotkey, &settings.output_hotkey);
 
             let tx_reload = tx.clone();
             app.listen("reload-model", move |_| {
@@ -112,10 +146,45 @@ pub fn run() {
             commands::get_monitors,
             commands::get_input_devices,
             commands::quit,
-            commands::hotkey_press,
-            commands::hotkey_release,
-            commands::output_toggle,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+pub fn register_shortcuts(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    let gs = app.global_shortcut();
+    let _ = gs.unregister_all();
+
+    // DISABLED FOR TESTING: skip main hotkey on Windows (polling workaround)
+    // #[cfg(target_os = "windows")]
+    // let _ = main_combo;
+
+    // #[cfg(not(target_os = "windows"))]
+    if let Some(accel) = hotkey::to_accelerator(main_combo) {
+        match accel.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            Ok(shortcut) => {
+                if let Err(e) = gs.register(shortcut) {
+                    log::warn!("failed to register main hotkey '{}': {}", accel, e);
+                } else {
+                    log::info!("registered main hotkey: {}", accel);
+                }
+            }
+            Err(e) => log::warn!("invalid main hotkey '{}': {}", accel, e),
+        }
+    }
+
+    if let Some(accel) = hotkey::to_accelerator(output_combo) {
+        match accel.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            Ok(shortcut) => {
+                if let Err(e) = gs.register(shortcut) {
+                    log::warn!("failed to register output hotkey '{}': {}", accel, e);
+                } else {
+                    log::info!("registered output hotkey: {}", accel);
+                }
+            }
+            Err(e) => log::warn!("invalid output hotkey '{}': {}", accel, e),
+        }
+    }
 }

@@ -31,6 +31,7 @@ pub fn run(
     let mut loaded_model = String::new();
     let mut loaded_gpu = false;
     let mut recorder: Option<audio::AudioRecorder> = None;
+    let mut hotkey_latched = false;
 
     let abort_flag = Arc::new(AtomicBool::new(false));
     let mut cancelled = false;
@@ -63,10 +64,15 @@ pub fn run(
     for event in rx {
         match event {
             AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed) => {
+                if hotkey_latched {
+                    log::debug!("ignored duplicate Pressed while latched");
+                    continue;
+                }
                 if recorder.is_some() {
                     continue;
                 }
 
+                hotkey_latched = true;
                 let settings = state.settings.lock().clone();
 
                 if settings.interrupt && transcription_in_flight {
@@ -82,17 +88,17 @@ pub fn run(
                     Err(e) => {
                         log::error!("failed to start recording: {}", e);
                         let _ = app.emit("backend-error", format!("Mic error: {}", e));
+                        hotkey_latched = false;
                     }
                 }
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::Released) => {
+                hotkey_latched = false;
                 let Some(rec) = recorder.take() else {
                     continue;
                 };
 
-                set_status(&app, &state, Status::Processing);
                 let audio = rec.stop();
-
                 let settings = state.settings.lock().clone();
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
@@ -102,11 +108,15 @@ pub fn run(
                         min_samples
                     );
                     let _ = app.emit("overlay-flash", "Cancelled");
-                    if !transcription_in_flight {
+                    if transcription_in_flight {
+                        set_status(&app, &state, Status::Processing);
+                    } else {
                         set_status(&app, &state, Status::Idle);
                     }
                     continue;
                 }
+
+                set_status(&app, &state, Status::Processing);
 
                 let model_file = state
                     .models_dir
@@ -117,7 +127,9 @@ pub fn run(
                         "backend-error",
                         format!("Model '{}' not downloaded", settings.model),
                     );
-                    if !transcription_in_flight {
+                    if transcription_in_flight {
+                        set_status(&app, &state, Status::Processing);
+                    } else {
                         set_status(&app, &state, Status::Idle);
                     }
                     continue;
@@ -348,6 +360,7 @@ fn start_transcription(
 }
 
 fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {
+    log::debug!("set_status -> {:?}", status);
     *state.status.lock() = status.clone();
     let _ = app.emit("status-changed", &status);
 }
