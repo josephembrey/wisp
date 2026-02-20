@@ -2,7 +2,7 @@ use crate::audio;
 use crate::history;
 use crate::settings::{Settings, Status, WispState};
 use crate::whisper;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[tauri::command]
 #[specta::specta]
@@ -226,6 +226,14 @@ pub fn clear_history(state: tauri::State<'_, WispState>) {
 pub fn delete_history_entry(state: tauri::State<'_, WispState>, id: u64) {
     log::info!("cmd: delete_history_entry id={}", id);
     history::delete_entry(&state.data_dir, id);
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn show_log_dir(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    log::info!("cmd: show_log_dir -> {}", dir.display());
+    open::that(&dir).map_err(|e| format!("failed to open {}: {}", dir.display(), e))
 }
 
 #[tauri::command]

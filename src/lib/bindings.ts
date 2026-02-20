@@ -78,6 +78,14 @@ async clearHistory() : Promise<void> {
 async deleteHistoryEntry(id: number) : Promise<void> {
     await TAURI_INVOKE("delete_history_entry", { id });
 },
+async showLogDir() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("show_log_dir") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 }

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { resetApp } from '$lib/tauri';
+	import { resetApp, showLogDir } from '$lib/tauri';
+
+	const isDev = import.meta.env.DEV;
 
 	let {
 		hotkey
@@ -56,10 +58,11 @@
 		</ul>
 	</div>
 
-	<AlertDialog.Root>
-		<AlertDialog.Trigger class="text-xs text-muted-foreground underline hover:text-foreground">
-			Reset app
-		</AlertDialog.Trigger>
+	<div class="flex items-center gap-3">
+		<AlertDialog.Root>
+			<AlertDialog.Trigger class="text-xs text-muted-foreground underline hover:text-foreground">
+				Reset app
+			</AlertDialog.Trigger>
 		<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title>Reset Wisp?</AlertDialog.Title>
@@ -73,4 +76,14 @@
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>
+
+		{#if isDev}
+			<button
+				class="text-xs text-muted-foreground underline hover:text-foreground"
+				onclick={() => showLogDir()}
+			>
+				Show logs
+			</button>
+		{/if}
+	</div>
 </div>

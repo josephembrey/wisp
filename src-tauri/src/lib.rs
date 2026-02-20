@@ -31,6 +31,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::get_history,
             commands::clear_history,
             commands::delete_history_entry,
+            commands::show_log_dir,
             commands::quit,
         ])
         .typ::<whisper::DownloadProgress>()
