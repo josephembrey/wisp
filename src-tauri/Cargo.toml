@@ -11,6 +11,12 @@ default-run = "wisp"
 
 [features]
 verbose-log = []
+gen-bindings = []
+
+[[bin]]
+name = "generate_bindings"
+path = "src/bin/generate_bindings.rs"
+required-features = ["gen-bindings"]
 
 [lib]
 name = "app_lib"
