@@ -41,7 +41,7 @@
 	$effect(() => {
 		if (!ready) return;
 		if (visible) {
-			win.show();
+			win.maximize().then(() => win.show());
 		} else {
 			win.hide();
 		}

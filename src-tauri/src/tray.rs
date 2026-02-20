@@ -55,7 +55,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
     let overlay =
         WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
             .title("Wisp Status")
-            .maximized(true)
+            .inner_size(1.0, 1.0)
             .decorations(false)
             .transparent(true)
             .shadow(false)
