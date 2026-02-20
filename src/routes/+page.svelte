@@ -99,6 +99,10 @@
 
 	async function save(updates: Partial<Settings>) {
 		if (!settings) return;
+		const dominated = Object.entries(updates).every(
+			([k, v]) => (settings as Record<string, unknown>)[k] === v
+		);
+		if (dominated) return;
 		const keys = Object.keys(updates);
 		log.info(`[page] save: ${keys.join(', ')}`);
 		settings = { ...settings, ...updates };

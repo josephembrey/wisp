@@ -73,11 +73,9 @@
 				<Tooltip.Trigger asChild>
 					{#snippet child({ props })}
 						<div {...props} class="inline-flex items-center">
-							<Switch
-								checked={autostart}
-								onCheckedChange={(v) => onautostart?.(v)}
-								class="scale-75"
-							/>
+							<div class="cursor-pointer" onclick={() => onautostart?.(!autostart)}>
+								<Switch checked={autostart} class="pointer-events-none scale-75" />
+							</div>
 						</div>
 					{/snippet}
 				</Tooltip.Trigger>

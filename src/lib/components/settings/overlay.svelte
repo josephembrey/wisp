@@ -18,11 +18,8 @@
 
 <div class="flex flex-col gap-3">
 	<SettingRow label="Enabled">
-		<div class="flex items-center gap-3">
-			<Switch
-				checked={settings.overlay_enabled}
-				onCheckedChange={(v) => onsave({ overlay_enabled: v })}
-			/>
+		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ overlay_enabled: !settings.overlay_enabled })}>
+			<Switch checked={settings.overlay_enabled} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.overlay_enabled ? 'Shows status pill' : 'Overlay hidden'}
 			</span>
@@ -30,11 +27,8 @@
 	</SettingRow>
 
 	<SettingRow label="Visibility">
-		<div class="flex items-center gap-3">
-			<Switch
-				checked={settings.overlay_always_show}
-				onCheckedChange={(v) => onsave({ overlay_always_show: v })}
-			/>
+		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ overlay_always_show: !settings.overlay_always_show })}>
+			<Switch checked={settings.overlay_always_show} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.overlay_always_show ? 'Always visible' : 'Only when active'}
 			</span>

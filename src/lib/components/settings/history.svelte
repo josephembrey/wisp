@@ -79,11 +79,8 @@
 
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between gap-2">
-		<div class="flex items-center gap-2">
-			<Switch
-				checked={settings.history_enabled ?? true}
-				onCheckedChange={(v) => onsave({ history_enabled: v })}
-			/>
+		<div class="flex cursor-pointer items-center gap-2" role="switch" aria-checked={settings.history_enabled ?? true} onclick={() => onsave({ history_enabled: !(settings.history_enabled ?? true) })}>
+			<Switch checked={settings.history_enabled ?? true} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">Save history</span>
 		</div>
 		<div class="flex items-center gap-1.5 transition-opacity {settings.history_enabled ? '' : 'pointer-events-none opacity-40'}">

@@ -64,8 +64,8 @@
 	</SettingRow>
 
 	<SettingRow label="GPU Acceleration" description="Use GPU for faster transcription">
-		<div class="flex items-center gap-3">
-			<Switch checked={settings.gpu} onCheckedChange={(v) => onsave({ gpu: v })} />
+		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ gpu: !settings.gpu })}>
+			<Switch checked={settings.gpu} class="pointer-events-none" />
 			{#if settings.gpu && gpuBackend}
 				<Badge variant="outline">{gpuBackend}</Badge>
 			{:else}
@@ -75,8 +75,8 @@
 	</SettingRow>
 
 	<SettingRow label="Interrupt">
-		<div class="flex items-center gap-3">
-			<Switch checked={settings.interrupt} onCheckedChange={(v) => onsave({ interrupt: v })} />
+		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ interrupt: !settings.interrupt })}>
+			<Switch checked={settings.interrupt} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.interrupt ? 'Re-record during transcription' : 'Wait for transcription to finish'}
 			</span>
