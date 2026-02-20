@@ -18,7 +18,7 @@
 
 <div class="flex flex-col gap-3">
 	<SettingRow label="Enabled">
-		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ overlay_enabled: !settings.overlay_enabled })}>
+		<div class="flex cursor-pointer items-center gap-3" role="switch" tabindex="0" aria-checked={settings.overlay_enabled} onclick={() => onsave({ overlay_enabled: !settings.overlay_enabled })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ overlay_enabled: !settings.overlay_enabled }); } }}>
 			<Switch checked={settings.overlay_enabled} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.overlay_enabled ? 'Shows status pill' : 'Overlay hidden'}
@@ -27,7 +27,7 @@
 	</SettingRow>
 
 	<SettingRow label="Visibility">
-		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ overlay_always_show: !settings.overlay_always_show })}>
+		<div class="flex cursor-pointer items-center gap-3" role="switch" tabindex="0" aria-checked={settings.overlay_always_show} onclick={() => onsave({ overlay_always_show: !settings.overlay_always_show })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ overlay_always_show: !settings.overlay_always_show }); } }}>
 			<Switch checked={settings.overlay_always_show} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.overlay_always_show ? 'Always visible' : 'Only when active'}

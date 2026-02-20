@@ -64,7 +64,7 @@
 	</SettingRow>
 
 	<SettingRow label="GPU Acceleration" description="Use GPU for faster transcription">
-		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ gpu: !settings.gpu })}>
+		<div class="flex cursor-pointer items-center gap-3" role="switch" tabindex="0" aria-checked={settings.gpu} onclick={() => onsave({ gpu: !settings.gpu })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ gpu: !settings.gpu }); } }}>
 			<Switch checked={settings.gpu} class="pointer-events-none" />
 			{#if settings.gpu && gpuBackend}
 				<Badge variant="outline">{gpuBackend}</Badge>
@@ -75,7 +75,7 @@
 	</SettingRow>
 
 	<SettingRow label="Interrupt">
-		<div class="flex cursor-pointer items-center gap-3" onclick={() => onsave({ interrupt: !settings.interrupt })}>
+		<div class="flex cursor-pointer items-center gap-3" role="switch" tabindex="0" aria-checked={settings.interrupt} onclick={() => onsave({ interrupt: !settings.interrupt })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ interrupt: !settings.interrupt }); } }}>
 			<Switch checked={settings.interrupt} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.interrupt ? 'Re-record during transcription' : 'Wait for transcription to finish'}

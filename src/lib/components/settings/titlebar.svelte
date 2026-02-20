@@ -73,7 +73,7 @@
 				<Tooltip.Trigger asChild>
 					{#snippet child({ props })}
 						<div {...props} class="inline-flex items-center">
-							<div class="cursor-pointer" onclick={() => onautostart?.(!autostart)}>
+							<div class="cursor-pointer" role="switch" tabindex="0" aria-checked={autostart} onclick={() => onautostart?.(!autostart)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onautostart?.(!autostart); } }}>
 								<Switch checked={autostart} class="pointer-events-none scale-75" />
 							</div>
 						</div>

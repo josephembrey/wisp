@@ -79,7 +79,7 @@
 
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between gap-2">
-		<div class="flex cursor-pointer items-center gap-2" role="switch" aria-checked={settings.history_enabled ?? true} onclick={() => onsave({ history_enabled: !(settings.history_enabled ?? true) })}>
+		<div class="flex cursor-pointer items-center gap-2" role="switch" tabindex="0" aria-checked={settings.history_enabled ?? true} onclick={() => onsave({ history_enabled: !(settings.history_enabled ?? true) })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ history_enabled: !(settings.history_enabled ?? true) }); } }}>
 			<Switch checked={settings.history_enabled ?? true} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">Save history</span>
 		</div>
