@@ -208,7 +208,8 @@ fn log_builder() -> tauri_plugin_log::Builder {
     tauri_plugin_log::Builder::default()
         .level(level)
         .targets(targets)
-        .max_file_size(5_000_000) // 5 MB per log file
+        .max_file_size(1_000_000)
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(5))
 }
 
 pub(crate) fn sync_autostart<M: tauri::Manager<tauri::Wry>>(app: &M, enabled: bool) {
