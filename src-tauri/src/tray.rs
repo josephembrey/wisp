@@ -55,14 +55,14 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
     let overlay =
         WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
             .title("Wisp Status")
-            .inner_size(1.0, 1.0)
+            .maximized(true)
             .decorations(false)
             .transparent(true)
             .shadow(false)
             .always_on_top(true)
             .focused(false)
             .skip_taskbar(true)
-            .visible(false)
+            .visible(true)
             .resizable(false)
             .build()?;
     log::info!("overlay: window created");

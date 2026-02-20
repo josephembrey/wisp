@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import {
 		getSettings,
 		getStatus,
@@ -17,7 +16,6 @@
 	let position = $state('top-center');
 	let size = $state('medium');
 	let alwaysShow = $state(false);
-	let ready = $state(false);
 	let flashTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	const justify = $derived(
@@ -36,34 +34,23 @@
 		flash !== '' || status !== 'idle' || alwaysShow
 	);
 
-	const win = getCurrentWebviewWindow();
-
-	$effect(() => {
-		if (!ready) return;
-		if (visible) {
-			win.maximize().then(() => win.show());
-		} else {
-			win.hide();
-		}
-	});
-
 	onMount(() => {
 		log.info('[overlay] mounted');
 
-		Promise.all([
-			getSettings().then((s) => {
+		getSettings()
+			.then((s) => {
 				log.info(`[overlay] settings loaded, position=${s.overlay_position}`);
 				position = s.overlay_position;
 				size = s.overlay_size;
 				alwaysShow = s.overlay_always_show;
-			}),
-			getStatus().then((s) => {
+			})
+			.catch((e) => log.error(`[overlay] getSettings failed: ${e}`));
+		getStatus()
+			.then((s) => {
 				log.info(`[overlay] status: ${s}`);
 				status = s;
 			})
-		])
-			.then(() => { ready = true; })
-			.catch((e) => log.error(`[overlay] init failed: ${e}`));
+			.catch((e) => log.error(`[overlay] getStatus failed: ${e}`));
 
 		const unsubs = [
 			onStatusChanged((s) => {
