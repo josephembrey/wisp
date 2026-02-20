@@ -6,7 +6,7 @@ Push-to-talk whisper dictation desktop app.
 
 Hold a global hotkey to record from your mic. On release, audio is transcribed locally with
 whisper and the text is sent to your clipboard or pasted at your cursor. Also supports
-drag-and-drop file transcription for audio and video files.
+drag-and-drop file transcription for audio files.
 
 Runs as a system tray icon — no main window. A configurable overlay pill shows recording/processing
 state. Settings accessible from the tray menu.
@@ -31,7 +31,7 @@ state. Settings accessible from the tray menu.
 
 - **Frontend:** SvelteKit 2 (Svelte 5 runes syntax), Tailwind CSS v4, TypeScript
 - **Backend:** Tauri v2 (Rust)
-- **Audio:** cpal (mic capture), symphonia (audio/video file decoding)
+- **Audio:** cpal (mic capture), symphonia (audio file decoding)
 - **Transcription:** whisper-rs (whisper.cpp bindings)
 - **Hotkey:** tauri-plugin-global-shortcut (+ Windows polling workaround via GetAsyncKeyState)
 - **Output:** arboard (clipboard), enigo (type text at cursor without touching clipboard)

@@ -13,7 +13,7 @@ tray menu.
 
 - **Local transcription** — all processing happens on-device, nothing leaves your machine
 - **Push-to-talk** — hold a configurable hotkey to record, release to transcribe
-- **File transcription** — drag-and-drop audio/video files to transcribe
+- **File transcription** — drag-and-drop audio files to transcribe
 - **Multiple models** — tiny through large, downloaded on demand
 - **GPU acceleration** — Vulkan on Windows/Linux, Metal on macOS
 - **Output modes** — copy to clipboard or type at cursor
@@ -46,7 +46,7 @@ See `.\win.ps1` for the full list of Windows commands (build, check, format, sig
 
 - **Frontend:** SvelteKit 2 (Svelte 5), Tailwind CSS v4, TypeScript
 - **Backend:** Tauri v2 (Rust)
-- **Audio:** cpal (mic capture), symphonia (audio/video file decoding)
+- **Audio:** cpal (mic capture), symphonia (audio file decoding)
 - **Transcription:** whisper-rs (whisper.cpp bindings)
 - **Hotkeys:** tauri-plugin-global-shortcut
 - **Output:** arboard (clipboard), enigo (paste-at-cursor)
