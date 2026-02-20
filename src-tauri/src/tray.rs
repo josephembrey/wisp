@@ -58,6 +58,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
             .maximized(true)
             .decorations(false)
             .transparent(true)
+            .background_color(tauri::window::Color(0, 0, 0, 0))
             .shadow(false)
             .always_on_top(true)
             .focused(false)
