@@ -7,14 +7,17 @@
     paths = with pkgs; [vulkan-loader vulkan-headers shaderc.bin];
   };
 in {
+  imports = lib.optionals isDarwin [./macos.nix];
+
+  # Shared packages (build-time tools safe to use from Nix on all platforms)
   packages = with pkgs;
     [
-      cmake
-      pkg-config
       libclang.lib
-      openssl
     ]
     ++ lib.optionals isLinux [
+      cmake
+      pkg-config
+      openssl
       alsa-lib
       gtk3
       webkitgtk_4_1
@@ -23,12 +26,6 @@ in {
       xorg.libXtst
       xdotool
       vulkanSdk
-    ]
-    ++ lib.optionals isDarwin [
-      darwin.apple_sdk.frameworks.AppKit
-      darwin.apple_sdk.frameworks.CoreAudio
-      darwin.apple_sdk.frameworks.AudioToolbox
-      darwin.apple_sdk.frameworks.Metal
     ];
 
   languages = {
