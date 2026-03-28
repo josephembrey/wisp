@@ -1,0 +1,60 @@
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-added-large-files" },
+  { id = "check-json", exclude = '\.claude/' },
+  { id = "check-merge-conflict" },
+  { id = "check-toml" },
+  { id = "check-yaml", exclude = '\.claude/' },
+  { id = "end-of-file-fixer", exclude = '\.claude/' },
+  { id = "trailing-whitespace", exclude = '\.claude/' },
+]
+
+[[repos]]
+repo = "https://github.com/commitizen-tools/commitizen"
+rev = "v4.13.8"
+hooks = [
+  { id = "commitizen" },
+]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "alejandra"
+name = "alejandra"
+language = "system"
+entry = "alejandra"
+types = ["nix"]
+
+[[repos.hooks]]
+id = "rustfmt"
+name = "rustfmt"
+language = "system"
+entry = "cargo fmt --manifest-path src-tauri/Cargo.toml --"
+types = ["rust"]
+pass_filenames = true
+
+[[repos.hooks]]
+id = "clippy"
+name = "clippy"
+language = "system"
+entry = "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings"
+types = ["rust"]
+pass_filenames = false
+
+[[repos.hooks]]
+id = "prettier"
+name = "prettier"
+language = "system"
+entry = "bunx prettier --write --ignore-unknown --ignore-path tools/.prettierignore"
+types_or = ["javascript", "ts", "svelte", "css", "html", "json", "markdown"]
+exclude = '\.claude/skills/'
+
+[[repos.hooks]]
+id = "eslint"
+name = "eslint"
+language = "system"
+entry = "bunx eslint --fix"
+types_or = ["javascript", "ts", "svelte"]
+exclude = '\.claude/|bindings\.ts$'

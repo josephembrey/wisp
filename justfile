@@ -1,83 +1,77 @@
-# Wisp — push-to-talk whisper dictation
+# Short target dir on Windows to avoid MAX_PATH failures
+export CARGO_TARGET_DIR := if os() == "windows" { "C:/wisp" } else { "src-tauri/target" }
 
-# On Windows, use a short cargo target dir to avoid MAX_PATH failures
-# (whisper.cpp Vulkan shader builds create deeply nested paths)
-export CARGO_TARGET_DIR := env_var_or_default("CARGO_TARGET_DIR", if os() == "windows" { "C:/wt" } else { "src-tauri/target" })
+set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 
-manifest := "src-tauri/Cargo.toml"
-
-# List available commands
+# Show all available recipes
 default:
     @just --list
 
-# Run in development mode
-dev: _ensure-deps
-    bun tauri dev
+# Generate TypeScript bindings
+bindings:
+    cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings --features gen-bindings
 
-# Build for production
-build: _ensure-deps bindings
+# Production build
+build: bindings
     bun tauri build
 
-# Build with verbose logging enabled
-build-debug: _ensure-deps bindings
+# Production build with verbose logging
+build-debug: bindings
     bun tauri build -- --features verbose-log
 
-# Build and sign for production (Windows)
-[windows]
-build-sign: build sign
-
-# Build with verbose logging and sign (Windows)
-[windows]
-build-sign-debug: build-debug sign
-
-# Generate TypeScript bindings from Rust types
-bindings:
-    cargo run --manifest-path {{manifest}} --bin generate_bindings --features gen-bindings
-
-# Run all checks (cargo, svelte, lint)
-check: check-rust check-svelte check-lint
-
-# Check Rust compilation
-check-rust:
-    cargo check --manifest-path {{manifest}}
-
-# Check SvelteKit types
-check-svelte:
+# Type-check rust and svelte
+check:
+    cargo check --manifest-path src-tauri/Cargo.toml
     bun run check
 
-# Run prettier and eslint
-check-lint:
-    bun run prettier --check .
-    bun run eslint .
-
-# Auto-format all code
-format:
-    bun run format
-    cargo fmt --manifest-path {{manifest}}
-
-# Clean build artifacts
+# Remove all build artifacts
+[unix]
 clean:
-    cargo clean --manifest-path {{manifest}}
-    rm -rf .svelte-kit build src-tauri/gen/schemas
+    cargo clean --manifest-path src-tauri/Cargo.toml
+    rm -rf .svelte-kit build src-tauri/gen/schemas node_modules
 
-# Clean everything including node_modules
-clean-all: clean
-    rm -rf node_modules
-
-# Sign the built executable (Windows)
+# Remove all build artifacts
 [windows]
-sign:
-    powershell -NoProfile -File signing/sign.ps1
+clean:
+    cargo clean --manifest-path src-tauri/Cargo.toml
+    @('.svelte-kit', 'build', 'src-tauri\gen\schemas', 'node_modules') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
 
-# Install development dependencies (Windows)
+# Run in development mode
+dev:
+    bun tauri dev
+
+# Install dependencies
+[unix]
+install:
+    bun install
+
+# Install dependencies (system + node)
 [windows]
-install *scope:
-    powershell -NoProfile -File tooling/windows/install.ps1 {{scope}}
+install:
+    powershell -NoProfile -File tools/win/install.ps1
+    bun install
 
 # Run pre-commit hooks on all files
+[unix]
 pre:
-    prek run --all-files
+    prek run --config tools/prek.toml --all-files
 
-[private]
-_ensure-deps:
-    @[ -d node_modules ] || bun install
+# Run pre-commit hooks on all files (skip nix hooks)
+[windows]
+pre:
+    prek run --config tools/prek.toml --all-files --skip alejandra
+
+# Sign the built executable
+[windows]
+sign:
+    powershell -NoProfile -File tools/win/sign.ps1
+
+# Sign the built executable (TODO)
+[macos]
+sign:
+    @echo "macOS signing not yet implemented"
+
+# Sign the built executable (not applicable)
+[linux]
+sign:
+    @echo "Linux signing not required"
