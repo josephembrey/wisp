@@ -1,5 +1,5 @@
 # Short target dir on Windows to avoid MAX_PATH failures
-export CARGO_TARGET_DIR := if os() == "windows" { "C:/wisp" } else { "src-tauri/target" }
+export CARGO_TARGET_DIR := if os() == "windows" { "C:/wisp" } else { justfile_directory() / "src-tauri" / "target" }
 
 set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 
@@ -41,8 +41,14 @@ dev:
     bun tauri dev
 
 # Install dependencies
-[unix]
+[linux]
 install:
+    bun install
+
+# Install dependencies (+ Xcode CLT if missing)
+[macos]
+install:
+    @if ! xcode-select -p &> /dev/null 2>&1; then echo "Installing Xcode CLT..."; xcode-select --install; fi
     bun install
 
 # Install dependencies (system + node)
@@ -60,6 +66,10 @@ pre:
 [windows]
 pre:
     prek run --config tools/prek.toml --all-files --skip alejandra
+
+# Reloads the direnv environment
+reload:
+    direnv reload
 
 # Sign the built executable
 [windows]
