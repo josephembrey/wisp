@@ -7,7 +7,7 @@ export default defineConfig({
 	build: {
 		rollupOptions: {
 			onwarn(warning, defaultHandler) {
-				// Suppress unused import warning for auto-generated bindings
+				// Suppress unused import in auto-generated bindings (see also eslint.config.js)
 				if (
 					warning.code === 'UNUSED_EXTERNAL_IMPORT' &&
 					warning.exporter === '@tauri-apps/api/core'

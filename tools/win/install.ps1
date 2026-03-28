@@ -23,7 +23,9 @@ if (-not ((Test-Path $vsw) -and (& $vsw -products * -requires Microsoft.VisualSt
 wg LLVM.LLVM
 wg KhronosGroup.VulkanSDK
 wg Oven-sh.Bun
-wg Casey.Just
+# Skip Just — it's the running process, so winget can't replace the locked exe.
+# Upgrade manually: winget upgrade Casey.Just
+if (-not (Get-Command just -EA SilentlyContinue)) { wg Casey.Just }
 wg direnv.direnv
 wg j178.Prek
 
