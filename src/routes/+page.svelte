@@ -2,12 +2,11 @@
 	import {
 		getSettings,
 		updateSettings,
-		getStatus,
-		onStatusChanged,
+		getOverlayState,
+		onOverlayState,
 		onTranscription,
 		onError,
 		onSettingsChanged,
-		onOverlayFlash,
 		onDownloadProgress,
 		getGpuBackend,
 		getMonitors,
@@ -18,7 +17,7 @@
 		isFirstRun,
 		resizeWindow as resizeWindowCmd,
 		type Settings,
-		type Status,
+		type OverlayState,
 		type MonitorInfo,
 		type InputDeviceInfo,
 		type ModelInfo,
@@ -37,7 +36,8 @@
 	import SettingsHistory from '$lib/components/settings/history.svelte';
 
 	let settings: Settings | null = $state(null);
-	let status: Status = $state('idle');
+	let overlay: OverlayState = $state({ icon: 'dot', label: 'Idle', ttl_ms: null });
+	let overlayTtlTimeout: ReturnType<typeof setTimeout> | undefined;
 	let lastTranscription: string = $state('');
 	let contentEl: HTMLDivElement | undefined = $state();
 	let tabInnerEl: HTMLDivElement | undefined = $state();
@@ -49,9 +49,7 @@
 	let downloadProgress: DownloadProgress | null = $state(null);
 	let activeTab: string = $state('general');
 	let showSaved: boolean = $state(false);
-	let flashMessage: string = $state('');
 	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
-	let flashTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	let lastHeight = 0;
 	let tabHeight: number = $state(0);
@@ -156,7 +154,7 @@
 
 		Promise.all([
 			getSettings().then((s) => (settings = s)),
-			getStatus().then((s) => (status = s)),
+			getOverlayState().then((s) => (overlay = s)),
 			getGpuBackend().then((b) => (gpuBackend = b)),
 			getMonitors().then((m) => (monitors = m)),
 			getInputDevices().then((d) => (inputDevices = d)),
@@ -176,9 +174,15 @@
 			.catch((e) => log.error(`[page] isFirstRun failed: ${e}`));
 
 		const unsubs = [
-			onStatusChanged((s) => {
-				log.info(`[page] event: status-changed -> ${s}`);
-				status = s;
+			onOverlayState((s) => {
+				log.info(`[page] event: overlay-state -> ${s.icon} ${s.label}`);
+				clearTimeout(overlayTtlTimeout);
+				overlay = s;
+				if (s.ttl_ms != null) {
+					overlayTtlTimeout = setTimeout(() => {
+						getOverlayState().then((real) => (overlay = real));
+					}, s.ttl_ms);
+				}
 			}),
 			onTranscription((t) => {
 				log.info(`[page] event: transcription ${t.length} chars`);
@@ -192,12 +196,6 @@
 				log.info('[page] event: settings-changed');
 				settings = s;
 			}),
-			onOverlayFlash((msg) => {
-				log.info(`[page] event: overlay-flash: ${msg}`);
-				clearTimeout(flashTimeout);
-				flashMessage = msg;
-				flashTimeout = setTimeout(() => (flashMessage = ''), 1000);
-			}),
 			onDownloadProgress((p) => (downloadProgress = p))
 		];
 
@@ -205,84 +203,76 @@
 			unsubs.forEach((p) => p.then((fn) => fn()));
 		};
 	});
+
 </script>
 
 <div class="p-2">
-	<div
-		bind:this={contentEl}
-		class="overflow-hidden rounded-xl border border-border bg-card shadow-md"
-	>
-		<Titlebar
-			{status}
-			{showSaved}
-			downloading={downloading !== null}
-			{flashMessage}
-			autostart={settings?.autostart ?? false}
-			onautostart={(v) => save({ autostart: v })}
-		/>
+<div bind:this={contentEl} class="rounded-xl border border-border bg-card shadow-md overflow-hidden">
+	<Titlebar {overlay} {showSaved} downloading={downloading !== null} autostart={settings?.autostart ?? false} onautostart={(v) => save({ autostart: v })} />
 
-		{#if settings}
-			<Tabs.Root bind:value={activeTab}>
-				<div class="px-3 pb-2">
-					<Tabs.List class="w-full">
-						<Tabs.Trigger value="general">General</Tabs.Trigger>
-						<Tabs.Trigger value="model">Model</Tabs.Trigger>
-						<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
-						<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
-						<Tabs.Trigger value="history">History</Tabs.Trigger>
-						<Tabs.Trigger value="about">About</Tabs.Trigger>
-					</Tabs.List>
+	{#if settings}
+		<Tabs.Root bind:value={activeTab}>
+			<div class="px-3 pb-2">
+				<Tabs.List class="w-full">
+					<Tabs.Trigger value="general">General</Tabs.Trigger>
+					<Tabs.Trigger value="model">Model</Tabs.Trigger>
+					<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
+					<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
+					<Tabs.Trigger value="history">History</Tabs.Trigger>
+					<Tabs.Trigger value="about">About</Tabs.Trigger>
+				</Tabs.List>
+			</div>
+
+			<div
+				class="overflow-hidden"
+				class:transition-[height]={tabAnimated}
+				class:duration-200={tabAnimated}
+				class:ease-out={tabAnimated}
+				style:height={tabHeight ? `${tabHeight}px` : 'auto'}
+			>
+				<div bind:this={tabInnerEl} class="px-3 pb-3">
+					<Tabs.Content value="general">
+						<SettingsGeneral
+							{settings}
+							{inputDevices}
+							{lastTranscription}
+							{showSaved}
+							onsave={save}
+							onsavedflag={showSavedFlag}
+						/>
+					</Tabs.Content>
+
+					<Tabs.Content value="model">
+						<SettingsModel
+							{settings}
+							{gpuBackend}
+							{models}
+							{downloading}
+							progress={downloadProgress}
+							onsave={save}
+							ondownload={handleDownload}
+							ondelete={handleDeleteModel}
+						/>
+					</Tabs.Content>
+
+					<Tabs.Content value="overlay">
+						<SettingsOverlay {settings} {monitors} onsave={save} />
+					</Tabs.Content>
+
+					<Tabs.Content value="transcribe">
+						<SettingsTranscribe {settings} />
+					</Tabs.Content>
+
+					<Tabs.Content value="history">
+						<SettingsHistory {settings} onsave={save} />
+					</Tabs.Content>
+
+					<Tabs.Content value="about">
+						<SettingsAbout hotkey={settings.hotkey} />
+					</Tabs.Content>
 				</div>
-
-				<div
-					class="overflow-hidden"
-					class:transition-[height]={tabAnimated}
-					class:duration-200={tabAnimated}
-					class:ease-out={tabAnimated}
-					style:height={tabHeight ? `${tabHeight}px` : 'auto'}
-				>
-					<div bind:this={tabInnerEl} class="px-3 pb-3">
-						<Tabs.Content value="general">
-							<SettingsGeneral
-								{settings}
-								{inputDevices}
-								{lastTranscription}
-								onsave={save}
-								onsavedflag={showSavedFlag}
-							/>
-						</Tabs.Content>
-
-						<Tabs.Content value="model">
-							<SettingsModel
-								{settings}
-								{gpuBackend}
-								{models}
-								{downloading}
-								progress={downloadProgress}
-								onsave={save}
-								ondownload={handleDownload}
-								ondelete={handleDeleteModel}
-							/>
-						</Tabs.Content>
-
-						<Tabs.Content value="overlay">
-							<SettingsOverlay {settings} {monitors} onsave={save} />
-						</Tabs.Content>
-
-						<Tabs.Content value="transcribe">
-							<SettingsTranscribe {settings} />
-						</Tabs.Content>
-
-						<Tabs.Content value="history">
-							<SettingsHistory {settings} onsave={save} />
-						</Tabs.Content>
-
-						<Tabs.Content value="about">
-							<SettingsAbout hotkey={settings.hotkey} />
-						</Tabs.Content>
-					</div>
-				</div>
-			</Tabs.Root>
-		{/if}
-	</div>
+			</div>
+		</Tabs.Root>
+	{/if}
+</div>
 </div>

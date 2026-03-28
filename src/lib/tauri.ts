@@ -4,7 +4,8 @@ import { commands, type Result } from './bindings';
 
 export type {
 	Settings,
-	Status,
+	OverlayState,
+	OverlayIcon,
 	ModelInfo,
 	InputDeviceInfo,
 	MonitorInfo,
@@ -23,7 +24,7 @@ function unwrap<T>(result: Result<T, string>): T {
 // Commands (pass-through for simple getters, unwrap for fallible actions)
 export const isFirstRun = commands.isFirstRun;
 export const getSettings = commands.getSettings;
-export const getStatus = commands.getStatus;
+export const getOverlayState = commands.getOverlayState;
 export const getModels = commands.getModels;
 export const getGpuBackend = commands.getGpuBackend;
 export const getMonitors = commands.getMonitors;
@@ -47,10 +48,10 @@ export const hideWindow = () => getCurrentWindow().hide();
 export const minimizeWindow = () => getCurrentWindow().minimize();
 
 // Event listeners
-export const onStatusChanged = (
-	cb: (status: import('./bindings').Status) => void
+export const onOverlayState = (
+	cb: (state: import('./bindings').OverlayState) => void
 ): Promise<UnlistenFn> =>
-	listen<import('./bindings').Status>('status-changed', (e) => cb(e.payload));
+	listen<import('./bindings').OverlayState>('overlay-state', (e) => cb(e.payload));
 
 export const onDownloadProgress = (
 	cb: (progress: import('./bindings').DownloadProgress) => void
@@ -67,9 +68,6 @@ export const onSettingsChanged = (
 	cb: (settings: import('./bindings').Settings) => void
 ): Promise<UnlistenFn> =>
 	listen<import('./bindings').Settings>('settings-changed', (e) => cb(e.payload));
-
-export const onOverlayFlash = (cb: (message: string) => void): Promise<UnlistenFn> =>
-	listen<string>('overlay-flash', (e) => cb(e.payload));
 
 export const onTranscribeFileProgress = (cb: (status: string) => void): Promise<UnlistenFn> =>
 	listen<string>('transcribe-file-progress', (e) => cb(e.payload));

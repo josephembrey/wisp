@@ -2,7 +2,7 @@ mod state;
 mod types;
 
 pub use state::WispState;
-pub use types::{ModelLoading, OutputMode, Status};
+pub use types::{ModelLoading, OutputMode, OverlayIcon, OverlayState};
 
 use serde::{Deserialize, Serialize};
 use std::fs;

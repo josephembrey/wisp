@@ -3,54 +3,44 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { quit, hideWindow, minimizeWindow, type Status } from '$lib/tauri';
+	import { quit, hideWindow, minimizeWindow, type OverlayState, type OverlayIcon } from '$lib/tauri';
 	import { toggleMode, mode } from 'mode-watcher';
 
 	let {
-		status,
+		overlay,
 		showSaved = false,
 		downloading = false,
-		flashMessage = '',
 		autostart = false,
 		onautostart
 	}: {
-		status: Status;
+		overlay: OverlayState;
 		showSaved?: boolean;
 		downloading?: boolean;
-		flashMessage?: string;
 		autostart?: boolean;
 		onautostart?: (enabled: boolean) => void;
 	} = $props();
 
-	const statusColor: Record<Status, string> = {
-		idle: 'default',
-		loading: 'outline',
-		recording: 'destructive',
-		processing: 'secondary'
-	};
-
-	const statusLabel: Record<Status, string> = {
-		idle: 'Idle',
-		loading: 'Loading Model',
-		recording: 'Recording',
-		processing: 'Processing'
+	const iconVariant: Record<OverlayIcon, string> = {
+		dot: 'default',
+		pulse: 'destructive',
+		spinner: 'secondary',
+		check: 'outline',
+		x: 'outline'
 	};
 
 	let badgeLabel = $derived(
-		flashMessage
-			? flashMessage
-			: showSaved
-				? 'Saved'
-				: downloading && status === 'idle'
-					? 'Downloading'
-					: statusLabel[status]
+		showSaved
+			? 'Saved'
+			: downloading && overlay.icon === 'dot'
+				? 'Downloading'
+				: overlay.label
 	);
 	let badgeVariant = $derived(
-		flashMessage || showSaved
+		showSaved
 			? 'outline'
-			: downloading && status === 'idle'
+			: downloading && overlay.icon === 'dot'
 				? 'outline'
-				: statusColor[status]
+				: iconVariant[overlay.icon]
 	);
 </script>
 

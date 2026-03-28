@@ -2,7 +2,7 @@ use crate::audio;
 use crate::history;
 use crate::hotkey;
 use crate::output;
-use crate::settings::{ModelLoading, OutputMode, Settings, Status, WispState};
+use crate::settings::{ModelLoading, OutputMode, OverlayIcon, OverlayState, Settings, WispState};
 use crate::whisper;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,7 +42,7 @@ pub(crate) fn run(
     {
         let settings = state.settings.lock().clone();
         if settings.model_loading == ModelLoading::Eager {
-            set_status(&app, &state, Status::Loading);
+            set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Loading".into(), ttl_ms: None });
             match load_model(&state.models_dir, &settings.model, settings.gpu) {
                 Ok(e) => {
                     log::info!("eagerly loaded model: {}", settings.model);
@@ -52,7 +52,7 @@ pub(crate) fn run(
                 }
                 Err(e) => log::warn!("eager load skipped: {}", e),
             }
-            set_status(&app, &state, Status::Idle);
+            set_overlay(&app, &state, OverlayState::default());
         }
     }
 
@@ -78,7 +78,7 @@ pub(crate) fn run(
                 match audio::AudioRecorder::start(&settings.input_device) {
                     Ok(rec) => {
                         recorder = Some(rec);
-                        set_status(&app, &state, Status::Recording);
+                        set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Pulse, label: "Recording".into(), ttl_ms: None });
                     }
                     Err(e) => {
                         log::error!("failed to start recording: {}", e);
@@ -95,11 +95,7 @@ pub(crate) fn run(
 
                 let audio = rec.stop();
                 let duration_ms = (audio.len() as f64 / 16.0) as u64;
-                log::info!(
-                    "recording stopped: {} samples ({}ms)",
-                    audio.len(),
-                    duration_ms
-                );
+                log::info!("recording stopped: {} samples ({}ms)", audio.len(), duration_ms);
                 let settings = state.settings.lock().clone();
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
@@ -108,16 +104,11 @@ pub(crate) fn run(
                         audio.len(),
                         min_samples
                     );
-                    let _ = app.emit("overlay-flash", "Cancelled");
-                    if transcription_in_flight {
-                        set_status(&app, &state, Status::Processing);
-                    } else {
-                        set_status(&app, &state, Status::Idle);
-                    }
+                    set_overlay(&app, &state, OverlayState { icon: OverlayIcon::X, label: "Cancelled".into(), ttl_ms: Some(1000) });
                     continue;
                 }
 
-                set_status(&app, &state, Status::Processing);
+                set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Processing".into(), ttl_ms: None });
 
                 if settings.interrupt {
                     if let Some(eng) = engine.take() {
@@ -140,7 +131,7 @@ pub(crate) fn run(
                         || loaded_gpu != settings.gpu
                         || engine.is_none();
                     if needs_reload {
-                        set_status(&app, &state, Status::Loading);
+                        set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Loading".into(), ttl_ms: None });
                         match load_model(&state.models_dir, &settings.model, settings.gpu) {
                             Ok(e) => {
                                 engine = Some(e);
@@ -150,11 +141,11 @@ pub(crate) fn run(
                             Err(e) => {
                                 log::error!("{}", e);
                                 let _ = app.emit("backend-error", &e);
-                                set_status(&app, &state, Status::Idle);
+                                set_overlay(&app, &state, OverlayState::default());
                                 continue;
                             }
                         }
-                        set_status(&app, &state, Status::Processing);
+                        set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Processing".into(), ttl_ms: None });
                     }
 
                     if let Some(ref eng) = engine {
@@ -176,7 +167,10 @@ pub(crate) fn run(
                         loaded_model.clear();
                     }
 
-                    set_status(&app, &state, Status::Idle);
+                    // Don't emit idle overlay here — emit_output sent a timed state
+                    // ("Copied"/"Typed") and its TTL will handle the return to idle.
+                    // The mutex is updated to idle so getOverlayState() returns the right thing.
+                    *state.overlay.lock() = OverlayState::default();
                 }
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
@@ -186,19 +180,15 @@ pub(crate) fn run(
                     OutputMode::Clipboard => OutputMode::Paste,
                     OutputMode::Paste => OutputMode::Clipboard,
                 };
-                log::info!(
-                    "output mode toggled: {:?} -> {:?}",
-                    old_mode,
-                    settings.output_mode
-                );
-                let flash = match settings.output_mode {
+                log::info!("output mode toggled: {:?} -> {:?}", old_mode, settings.output_mode);
+                let label = match settings.output_mode {
                     OutputMode::Clipboard => "Clipboard",
                     OutputMode::Paste => "Paste",
                 };
                 let _ = settings.save(&state.data_dir);
                 *state.settings.lock() = settings.clone();
                 let _ = app.emit("settings-changed", &settings);
-                let _ = app.emit("overlay-flash", flash);
+                set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Check, label: label.into(), ttl_ms: Some(1000) });
             }
             AppEvent::TranscriptionDone {
                 engine: returned_engine,
@@ -244,13 +234,13 @@ pub(crate) fn run(
                 } else {
                     engine = Some(returned_engine);
                     if recorder.is_none() {
-                        set_status(&app, &state, Status::Idle);
+                        set_overlay(&app, &state, OverlayState::default());
                     }
                 }
             }
             AppEvent::ReloadModel => {
                 let settings = state.settings.lock().clone();
-                set_status(&app, &state, Status::Loading);
+                set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Loading".into(), ttl_ms: None });
                 match load_model(&state.models_dir, &settings.model, settings.gpu) {
                     Ok(e) => {
                         log::info!("reloaded model: {}", settings.model);
@@ -263,13 +253,12 @@ pub(crate) fn run(
                         let _ = app.emit("backend-error", &e);
                     }
                 }
-                set_status(&app, &state, Status::Idle);
+                set_overlay(&app, &state, OverlayState::default());
             }
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn start_transcription(
     mut eng: whisper::WhisperEngine,
     audio: Vec<f32>,
@@ -335,11 +324,11 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
         let _ = app.emit("backend-error", format!("Output error: {}", e));
     }
     let _ = app.emit("transcription", text);
-    let flash = match mode {
+    let label = match mode {
         OutputMode::Clipboard => "Copied",
         OutputMode::Paste => "Typed",
     };
-    let _ = app.emit("overlay-flash", flash);
+    set_overlay(app, state, OverlayState { icon: OverlayIcon::Check, label: label.into(), ttl_ms: Some(1000) });
 
     let settings = state.settings.lock();
     if settings.history_enabled {
@@ -348,8 +337,10 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
     }
 }
 
-fn set_status(app: &tauri::AppHandle, state: &WispState, status: Status) {
-    log::debug!("set_status -> {:?}", status);
-    *state.status.lock() = status.clone();
-    let _ = app.emit("status-changed", &status);
+fn set_overlay(app: &tauri::AppHandle, state: &WispState, overlay: OverlayState) {
+    log::debug!("set_overlay -> {:?} {}", overlay.icon, overlay.label);
+    if overlay.ttl_ms.is_none() {
+        *state.overlay.lock() = overlay.clone();
+    }
+    let _ = app.emit("overlay-state", &overlay);
 }

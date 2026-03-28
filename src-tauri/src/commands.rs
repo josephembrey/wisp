@@ -1,6 +1,6 @@
 use crate::audio;
 use crate::history;
-use crate::settings::{Settings, Status, WispState};
+use crate::settings::{OverlayState, Settings, WispState};
 use crate::whisper;
 use tauri::{Emitter, Manager};
 
@@ -70,8 +70,8 @@ pub fn update_settings(
 
 #[tauri::command]
 #[specta::specta]
-pub fn get_status(state: tauri::State<'_, WispState>) -> Status {
-    state.status.lock().clone()
+pub fn get_overlay_state(state: tauri::State<'_, WispState>) -> OverlayState {
+    state.overlay.lock().clone()
 }
 
 #[tauri::command]

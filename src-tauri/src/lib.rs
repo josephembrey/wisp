@@ -8,7 +8,7 @@ mod settings;
 mod tray;
 mod whisper;
 
-use settings::{Settings, Status, WispState};
+use settings::{OverlayState, Settings, WispState};
 use tauri::{Listener, Manager};
 use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
@@ -18,7 +18,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::is_first_run,
             commands::get_settings,
             commands::update_settings,
-            commands::get_status,
+            commands::get_overlay_state,
             commands::get_models,
             commands::download_model,
             commands::delete_model,
@@ -150,7 +150,7 @@ pub fn run() {
 
             app.manage(WispState {
                 settings: parking_lot::Mutex::new(settings.clone()),
-                status: parking_lot::Mutex::new(Status::Idle),
+                overlay: parking_lot::Mutex::new(OverlayState::default()),
                 data_dir,
                 models_dir,
                 hotkey_tx: event_tx.clone(),
