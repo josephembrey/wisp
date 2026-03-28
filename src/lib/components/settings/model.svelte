@@ -64,7 +64,19 @@
 	</SettingRow>
 
 	<SettingRow label="GPU Acceleration" description="Use GPU for faster transcription">
-		<div class="flex cursor-pointer items-center gap-3" role="switch" tabindex="0" aria-checked={settings.gpu} onclick={() => onsave({ gpu: !settings.gpu })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ gpu: !settings.gpu }); } }}>
+		<div
+			class="flex cursor-pointer items-center gap-3"
+			role="switch"
+			tabindex="0"
+			aria-checked={settings.gpu}
+			onclick={() => onsave({ gpu: !settings.gpu })}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onsave({ gpu: !settings.gpu });
+				}
+			}}
+		>
 			<Switch checked={settings.gpu} class="pointer-events-none" />
 			{#if settings.gpu && gpuBackend}
 				<Badge variant="outline">{gpuBackend}</Badge>
@@ -75,7 +87,19 @@
 	</SettingRow>
 
 	<SettingRow label="Interrupt">
-		<div class="flex cursor-pointer items-center gap-3" role="switch" tabindex="0" aria-checked={settings.interrupt} onclick={() => onsave({ interrupt: !settings.interrupt })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ interrupt: !settings.interrupt }); } }}>
+		<div
+			class="flex cursor-pointer items-center gap-3"
+			role="switch"
+			tabindex="0"
+			aria-checked={settings.interrupt}
+			onclick={() => onsave({ interrupt: !settings.interrupt })}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onsave({ interrupt: !settings.interrupt });
+				}
+			}}
+		>
 			<Switch checked={settings.interrupt} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">
 				{settings.interrupt ? 'Re-record during transcription' : 'Wait for transcription to finish'}
@@ -95,14 +119,14 @@
 				onValueChange={(v: number) => onsave({ min_duration: v })}
 			/>
 			<span class="w-10 text-right text-xs text-muted-foreground tabular-nums">
-				{settings.min_duration.toFixed(1)}s
+				{(settings.min_duration ?? 0).toFixed(1)}s
 			</span>
 		</div>
 	</SettingRow>
 
 	<SettingRow label="Output Mode Hotkey">
 		<HotkeyCapture
-			hotkey={settings.output_hotkey}
+			hotkey={settings.output_hotkey ?? ''}
 			onsave={(combo) => onsave({ output_hotkey: combo })}
 		/>
 	</SettingRow>

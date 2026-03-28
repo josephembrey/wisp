@@ -15,7 +15,11 @@ impl WhisperEngine {
         // Read model into memory first to avoid file descriptor invalidation
         // during Vulkan backend initialization inside whisper_init.
         let buffer = std::fs::read(path).map_err(|e| format!("read model file: {}", e))?;
-        log::info!("whisper model: read {} bytes from {}", buffer.len(), path.display());
+        log::info!(
+            "whisper model: read {} bytes from {}",
+            buffer.len(),
+            path.display()
+        );
         let ctx = WhisperContext::new_from_buffer_with_params(&buffer, params)
             .map_err(|e| format!("{:?}", e))?;
 
@@ -100,7 +104,11 @@ impl WhisperEngine {
                 }
                 Err(e) => {
                     last_err = format!("{:?}", e);
-                    log::warn!("whisper: encode attempt {} failed: {}", attempt + 1, last_err);
+                    log::warn!(
+                        "whisper: encode attempt {} failed: {}",
+                        attempt + 1,
+                        last_err
+                    );
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
             }

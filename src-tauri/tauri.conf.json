@@ -13,10 +13,10 @@
 		"withGlobalTauri": true,
 		"windows": [
 			{
-			"label": "main",
-			"title": "Wisp Settings",
-			"width": 360,
-			"height": 460,
+				"label": "main",
+				"title": "Wisp Settings",
+				"width": 360,
+				"height": 460,
 				"resizable": false,
 				"visible": false,
 				"decorations": false,

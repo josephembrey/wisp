@@ -10,14 +10,12 @@
 		settings,
 		inputDevices,
 		lastTranscription,
-		showSaved,
 		onsave,
 		onsavedflag
 	}: {
 		settings: Settings;
 		inputDevices: InputDeviceInfo[];
 		lastTranscription: string;
-		showSaved: boolean;
 		onsave: (updates: Partial<Settings>) => void;
 		onsavedflag: (show: boolean, timeout?: number) => void;
 	} = $props();

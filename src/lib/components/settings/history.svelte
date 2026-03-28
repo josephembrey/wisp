@@ -79,11 +79,27 @@
 
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between gap-2">
-		<div class="flex cursor-pointer items-center gap-2" role="switch" tabindex="0" aria-checked={settings.history_enabled ?? true} onclick={() => onsave({ history_enabled: !(settings.history_enabled ?? true) })} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onsave({ history_enabled: !(settings.history_enabled ?? true) }); } }}>
+		<div
+			class="flex cursor-pointer items-center gap-2"
+			role="switch"
+			tabindex="0"
+			aria-checked={settings.history_enabled ?? true}
+			onclick={() => onsave({ history_enabled: !(settings.history_enabled ?? true) })}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onsave({ history_enabled: !(settings.history_enabled ?? true) });
+				}
+			}}
+		>
 			<Switch checked={settings.history_enabled ?? true} class="pointer-events-none" />
 			<span class="text-xs text-muted-foreground">Save history</span>
 		</div>
-		<div class="flex items-center gap-1.5 transition-opacity {settings.history_enabled ? '' : 'pointer-events-none opacity-40'}">
+		<div
+			class="flex items-center gap-1.5 transition-opacity {settings.history_enabled
+				? ''
+				: 'pointer-events-none opacity-40'}"
+		>
 			<span class="text-xs text-muted-foreground">Keep</span>
 			<input
 				type="number"
@@ -115,8 +131,8 @@
 						>
 							<div class="flex items-center gap-1.5">
 								<span
-									class="shrink-0 rounded px-1 py-0.5 text-[10px] font-medium leading-none uppercase {entry.source ===
-								'mic'
+									class="shrink-0 rounded px-1 py-0.5 text-[10px] leading-none font-medium uppercase {entry.source ===
+									'mic'
 										? 'bg-primary/10 text-primary'
 										: 'bg-secondary text-secondary-foreground'}"
 								>
@@ -128,16 +144,41 @@
 								{entry.text}
 							</p>
 						</button>
-						<div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+						<div
+							class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+						>
 							<button
 								class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
 								onclick={() => copyText(entry)}
 								title="Copy"
 							>
 								{#if copiedId === entry.id}
-									<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
+									>
 								{:else}
-									<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><rect width="14" height="14" x="8" y="8" rx="2" /><path
+											d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+										/></svg
+									>
 								{/if}
 							</button>
 							<button
@@ -145,7 +186,18 @@
 								onclick={() => handleDelete(entry.id)}
 								title="Delete"
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg
+								>
 							</button>
 						</div>
 					</div>
@@ -154,7 +206,9 @@
 		</div>
 
 		<AlertDialog.Root>
-			<AlertDialog.Trigger class="self-start text-xs text-muted-foreground underline hover:text-foreground">
+			<AlertDialog.Trigger
+				class="self-start text-xs text-muted-foreground underline hover:text-foreground"
+			>
 				Clear all history
 			</AlertDialog.Trigger>
 			<AlertDialog.Content>

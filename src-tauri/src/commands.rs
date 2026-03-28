@@ -23,7 +23,12 @@ pub fn update_settings(
     state: tauri::State<'_, WispState>,
     settings: Settings,
 ) -> Result<(), String> {
-    log::info!("cmd: update_settings (model={} hotkey={} gpu={})", settings.model, settings.hotkey, settings.gpu);
+    log::info!(
+        "cmd: update_settings (model={} hotkey={} gpu={})",
+        settings.model,
+        settings.hotkey,
+        settings.gpu
+    );
     let old = state.settings.lock().clone();
     settings.save(&state.data_dir)?;
 
@@ -34,7 +39,10 @@ pub fn update_settings(
     if model_changed {
         log::info!(
             "settings: model changed {}(gpu={}) -> {}(gpu={})",
-            old.model, old.gpu, settings.model, settings.gpu
+            old.model,
+            old.gpu,
+            settings.model,
+            settings.gpu
         );
         *state.settings.lock() = settings.clone();
         let _ = app.emit("reload-model", ());
@@ -45,7 +53,8 @@ pub fn update_settings(
     if hotkey_changed {
         log::info!(
             "settings: hotkeys changed main='{}' output='{}'",
-            settings.hotkey, settings.output_hotkey
+            settings.hotkey,
+            settings.output_hotkey
         );
         crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
     }

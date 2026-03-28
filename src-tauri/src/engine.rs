@@ -95,7 +95,11 @@ pub(crate) fn run(
 
                 let audio = rec.stop();
                 let duration_ms = (audio.len() as f64 / 16.0) as u64;
-                log::info!("recording stopped: {} samples ({}ms)", audio.len(), duration_ms);
+                log::info!(
+                    "recording stopped: {} samples ({}ms)",
+                    audio.len(),
+                    duration_ms
+                );
                 let settings = state.settings.lock().clone();
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
@@ -182,7 +186,11 @@ pub(crate) fn run(
                     OutputMode::Clipboard => OutputMode::Paste,
                     OutputMode::Paste => OutputMode::Clipboard,
                 };
-                log::info!("output mode toggled: {:?} -> {:?}", old_mode, settings.output_mode);
+                log::info!(
+                    "output mode toggled: {:?} -> {:?}",
+                    old_mode,
+                    settings.output_mode
+                );
                 let flash = match settings.output_mode {
                     OutputMode::Clipboard => "Clipboard",
                     OutputMode::Paste => "Paste",
@@ -261,6 +269,7 @@ pub(crate) fn run(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn start_transcription(
     mut eng: whisper::WhisperEngine,
     audio: Vec<f32>,

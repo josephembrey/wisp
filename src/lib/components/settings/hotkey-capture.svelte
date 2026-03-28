@@ -24,7 +24,7 @@
 		capturedKeys.add(mapBrowserKey(e.code));
 	}
 
-	function handleKeyup(_e: KeyboardEvent) {
+	function handleKeyup() {
 		if (!capturing || capturedKeys.size === 0) return;
 		const combo = Array.from(capturedKeys).join('+');
 		capturing = false;
@@ -42,7 +42,7 @@
 		<span class="text-xs text-muted-foreground">Release to save, Esc to cancel</span>
 	{:else if hotkey}
 		<div class="flex flex-wrap items-center gap-1">
-			{#each hotkey.split('+') as key, i}
+			{#each hotkey.split('+') as key, i (key)}
 				{#if i > 0}
 					<span class="text-xs text-muted-foreground">+</span>
 				{/if}

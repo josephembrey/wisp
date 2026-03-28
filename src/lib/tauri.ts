@@ -49,7 +49,8 @@ export const minimizeWindow = () => getCurrentWindow().minimize();
 // Event listeners
 export const onStatusChanged = (
 	cb: (status: import('./bindings').Status) => void
-): Promise<UnlistenFn> => listen<import('./bindings').Status>('status-changed', (e) => cb(e.payload));
+): Promise<UnlistenFn> =>
+	listen<import('./bindings').Status>('status-changed', (e) => cb(e.payload));
 
 export const onDownloadProgress = (
 	cb: (progress: import('./bindings').DownloadProgress) => void

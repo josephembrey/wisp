@@ -49,9 +49,7 @@
 			filters: [
 				{
 					name: 'Audio',
-					extensions: [
-						'wav', 'mp3', 'flac', 'ogg', 'oga', 'm4a', 'aac', 'wma', 'opus', 'webm'
-					]
+					extensions: ['wav', 'mp3', 'flac', 'ogg', 'oga', 'm4a', 'aac', 'wma', 'opus', 'webm']
 				}
 			]
 		});
@@ -87,7 +85,7 @@
 			if (busy) return;
 			if (event.payload.type === 'over') {
 				dragOver = true;
-			} else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
+			} else if (event.payload.type === 'leave') {
 				dragOver = false;
 			} else if (event.payload.type === 'drop') {
 				dragOver = false;
@@ -117,13 +115,31 @@
 		disabled={busy}
 	>
 		{#if busy}
-			<svg class="h-8 w-8 animate-spin text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-				<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+			<svg
+				class="h-8 w-8 animate-spin text-muted-foreground"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+			>
+				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+				></circle>
+				<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+				></path>
 			</svg>
 			<span class="text-xs text-muted-foreground">{statusLabel[status]}</span>
 		{:else}
-			<svg class="h-8 w-8 text-muted-foreground/50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+			<svg
+				class="h-8 w-8 text-muted-foreground/50"
+				xmlns="http://www.w3.org/2000/svg"
+				width="24"
+				height="24"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
 				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 				<polyline points="17 8 12 3 7 8" />
 				<line x1="12" y1="3" x2="12" y2="15" />
@@ -159,6 +175,8 @@
 	{/if}
 
 	<p class="text-xs text-muted-foreground">
-		Using model <strong>{settings.model}</strong> &middot; {settings.language === 'auto' ? 'auto-detect' : settings.language}
+		Using model <strong>{settings.model}</strong> &middot; {settings.language === 'auto'
+			? 'auto-detect'
+			: settings.language}
 	</p>
 </div>

@@ -52,20 +52,19 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
     log::info!("tray: tray icon built");
 
     log::info!("overlay: creating overlay window");
-    let overlay =
-        WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
-            .title("Wisp Status")
-            .maximized(true)
-            .decorations(false)
-            .transparent(true)
-            .background_color(tauri::window::Color(0, 0, 0, 0))
-            .shadow(false)
-            .always_on_top(true)
-            .focused(false)
-            .skip_taskbar(true)
-            .visible(true)
-            .resizable(false)
-            .build()?;
+    let overlay = WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
+        .title("Wisp Status")
+        .maximized(true)
+        .decorations(false)
+        .transparent(true)
+        .background_color(tauri::window::Color(0, 0, 0, 0))
+        .shadow(false)
+        .always_on_top(true)
+        .focused(false)
+        .skip_taskbar(true)
+        .visible(true)
+        .resizable(false)
+        .build()?;
     log::info!("overlay: window created");
 
     match overlay.set_ignore_cursor_events(true) {

@@ -63,19 +63,19 @@
 			<AlertDialog.Trigger class="text-xs text-muted-foreground underline hover:text-foreground">
 				Reset app
 			</AlertDialog.Trigger>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>Reset Wisp?</AlertDialog.Title>
-				<AlertDialog.Description>
-					This will delete all settings and downloaded models, then restart the app.
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-				<AlertDialog.Action onclick={() => resetApp()}>Reset</AlertDialog.Action>
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Root>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Reset Wisp?</AlertDialog.Title>
+					<AlertDialog.Description>
+						This will delete all settings and downloaded models, then restart the app.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Action onclick={() => resetApp()}>Reset</AlertDialog.Action>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
 
 		{#if isDev}
 			<button

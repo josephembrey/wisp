@@ -8,7 +8,11 @@ export default defineConfig({
 		rollupOptions: {
 			onwarn(warning, defaultHandler) {
 				// Suppress unused import warning for auto-generated bindings
-				if (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.exporter === '@tauri-apps/api/core') return;
+				if (
+					warning.code === 'UNUSED_EXTERNAL_IMPORT' &&
+					warning.exporter === '@tauri-apps/api/core'
+				)
+					return;
 				defaultHandler(warning);
 			}
 		}

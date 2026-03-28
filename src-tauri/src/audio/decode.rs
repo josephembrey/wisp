@@ -22,21 +22,27 @@ pub fn decode_file(path: &Path) -> Result<Vec<f32>, String> {
     }
 
     let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
         .map_err(|e| format!("unsupported audio format: {}", e))?;
 
     let mut format = probed.format;
 
-    let track = format
-        .default_track()
-        .ok_or("no audio track found")?;
+    let track = format.default_track().ok_or("no audio track found")?;
 
     let channels = track
         .codec_params
         .channels
         .map(|c| c.count() as u16)
         .unwrap_or(1);
-    let sample_rate = track.codec_params.sample_rate.unwrap_or(WHISPER_SAMPLE_RATE);
+    let sample_rate = track
+        .codec_params
+        .sample_rate
+        .unwrap_or(WHISPER_SAMPLE_RATE);
     let track_id = track.id;
 
     let mut decoder = symphonia::default::get_codecs()

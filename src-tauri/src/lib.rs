@@ -39,8 +39,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 }
 
 pub fn ts_export_config() -> specta_typescript::Typescript {
-    specta_typescript::Typescript::default()
-        .bigint(specta_typescript::BigIntExportBehavior::Number)
+    specta_typescript::Typescript::default().bigint(specta_typescript::BigIntExportBehavior::Number)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -100,15 +99,17 @@ pub fn run() {
                             let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::OutputToggle);
                         }
                     } else {
-                        log::warn!("hotkey: unrecognized shortcut {:?} {:?}", shortcut, event.state());
+                        log::warn!(
+                            "hotkey: unrecognized shortcut {:?} {:?}",
+                            shortcut,
+                            event.state()
+                        );
                     }
                 })
                 .build(),
         )
         .setup(|app| {
-            app.handle().plugin(
-                log_builder().build(),
-            )?;
+            app.handle().plugin(log_builder().build())?;
 
             log::info!("=== wisp starting ===");
             log::info!("version: {}", app.package_info().version);
@@ -123,7 +124,14 @@ pub fn run() {
             log::info!("first_run: {}", first_run);
 
             let settings = Settings::load(&data_dir);
-            log::info!("settings loaded: model={} hotkey={} gpu={} overlay_enabled={} autostart={}", settings.model, settings.hotkey, settings.gpu, settings.overlay_enabled, settings.autostart);
+            log::info!(
+                "settings loaded: model={} hotkey={} gpu={} overlay_enabled={} autostart={}",
+                settings.model,
+                settings.hotkey,
+                settings.gpu,
+                settings.overlay_enabled,
+                settings.autostart
+            );
             if first_run {
                 let _ = settings.save(&data_dir);
             }
@@ -228,11 +236,7 @@ pub(crate) fn sync_autostart<M: tauri::Manager<tauri::Wry>>(app: &M, enabled: bo
     }
 }
 
-pub(crate) fn register_shortcuts(
-    app: &tauri::AppHandle,
-    main_combo: &str,
-    output_combo: &str,
-) {
+pub(crate) fn register_shortcuts(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
     let gs = app.global_shortcut();

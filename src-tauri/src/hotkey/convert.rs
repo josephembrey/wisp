@@ -74,9 +74,6 @@ mod tests {
             to_accelerator("Control+Alt+KeyA"),
             Some("Control+Alt+A".to_string())
         );
-        assert_eq!(
-            to_accelerator("Shift+KeyB"),
-            Some("Shift+B".to_string())
-        );
+        assert_eq!(to_accelerator("Shift+KeyB"), Some("Shift+B".to_string()));
     }
 }

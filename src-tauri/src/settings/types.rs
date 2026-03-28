@@ -8,18 +8,13 @@ pub enum OutputMode {
     Paste,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelLoading {
+    #[default]
     Eager,
     Lazy,
     PerUse,
-}
-
-impl Default for ModelLoading {
-    fn default() -> Self {
-        Self::Eager
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
