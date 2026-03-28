@@ -203,76 +203,84 @@
 			unsubs.forEach((p) => p.then((fn) => fn()));
 		};
 	});
-
 </script>
 
 <div class="p-2">
-<div bind:this={contentEl} class="rounded-xl border border-border bg-card shadow-md overflow-hidden">
-	<Titlebar {overlay} {showSaved} downloading={downloading !== null} autostart={settings?.autostart ?? false} onautostart={(v) => save({ autostart: v })} />
+	<div
+		bind:this={contentEl}
+		class="overflow-hidden rounded-xl border border-border bg-card shadow-md"
+	>
+		<Titlebar
+			{overlay}
+			{showSaved}
+			downloading={downloading !== null}
+			autostart={settings?.autostart ?? false}
+			onautostart={(v) => save({ autostart: v })}
+		/>
 
-	{#if settings}
-		<Tabs.Root bind:value={activeTab}>
-			<div class="px-3 pb-2">
-				<Tabs.List class="w-full">
-					<Tabs.Trigger value="general">General</Tabs.Trigger>
-					<Tabs.Trigger value="model">Model</Tabs.Trigger>
-					<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
-					<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
-					<Tabs.Trigger value="history">History</Tabs.Trigger>
-					<Tabs.Trigger value="about">About</Tabs.Trigger>
-				</Tabs.List>
-			</div>
-
-			<div
-				class="overflow-hidden"
-				class:transition-[height]={tabAnimated}
-				class:duration-200={tabAnimated}
-				class:ease-out={tabAnimated}
-				style:height={tabHeight ? `${tabHeight}px` : 'auto'}
-			>
-				<div bind:this={tabInnerEl} class="px-3 pb-3">
-					<Tabs.Content value="general">
-						<SettingsGeneral
-							{settings}
-							{inputDevices}
-							{lastTranscription}
-							{showSaved}
-							onsave={save}
-							onsavedflag={showSavedFlag}
-						/>
-					</Tabs.Content>
-
-					<Tabs.Content value="model">
-						<SettingsModel
-							{settings}
-							{gpuBackend}
-							{models}
-							{downloading}
-							progress={downloadProgress}
-							onsave={save}
-							ondownload={handleDownload}
-							ondelete={handleDeleteModel}
-						/>
-					</Tabs.Content>
-
-					<Tabs.Content value="overlay">
-						<SettingsOverlay {settings} {monitors} onsave={save} />
-					</Tabs.Content>
-
-					<Tabs.Content value="transcribe">
-						<SettingsTranscribe {settings} />
-					</Tabs.Content>
-
-					<Tabs.Content value="history">
-						<SettingsHistory {settings} onsave={save} />
-					</Tabs.Content>
-
-					<Tabs.Content value="about">
-						<SettingsAbout hotkey={settings.hotkey} />
-					</Tabs.Content>
+		{#if settings}
+			<Tabs.Root bind:value={activeTab}>
+				<div class="px-3 pb-2">
+					<Tabs.List class="w-full">
+						<Tabs.Trigger value="general">General</Tabs.Trigger>
+						<Tabs.Trigger value="model">Model</Tabs.Trigger>
+						<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
+						<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
+						<Tabs.Trigger value="history">History</Tabs.Trigger>
+						<Tabs.Trigger value="about">About</Tabs.Trigger>
+					</Tabs.List>
 				</div>
-			</div>
-		</Tabs.Root>
-	{/if}
-</div>
+
+				<div
+					class="overflow-hidden"
+					class:transition-[height]={tabAnimated}
+					class:duration-200={tabAnimated}
+					class:ease-out={tabAnimated}
+					style:height={tabHeight ? `${tabHeight}px` : 'auto'}
+				>
+					<div bind:this={tabInnerEl} class="px-3 pb-3">
+						<Tabs.Content value="general">
+							<SettingsGeneral
+								{settings}
+								{inputDevices}
+								{lastTranscription}
+								{showSaved}
+								onsave={save}
+								onsavedflag={showSavedFlag}
+							/>
+						</Tabs.Content>
+
+						<Tabs.Content value="model">
+							<SettingsModel
+								{settings}
+								{gpuBackend}
+								{models}
+								{downloading}
+								progress={downloadProgress}
+								onsave={save}
+								ondownload={handleDownload}
+								ondelete={handleDeleteModel}
+							/>
+						</Tabs.Content>
+
+						<Tabs.Content value="overlay">
+							<SettingsOverlay {settings} {monitors} onsave={save} />
+						</Tabs.Content>
+
+						<Tabs.Content value="transcribe">
+							<SettingsTranscribe {settings} />
+						</Tabs.Content>
+
+						<Tabs.Content value="history">
+							<SettingsHistory {settings} onsave={save} />
+						</Tabs.Content>
+
+						<Tabs.Content value="about">
+							<SettingsAbout hotkey={settings.hotkey} />
+						</Tabs.Content>
+					</div>
+				</div>
+			</Tabs.Root>
+		{/if}
+	</div>
 </div>

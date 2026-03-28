@@ -1,12 +1,12 @@
 {
-    "recommendations": [
-        "skellock.just",
-        "jnoortheen.nix-ide",
-        "svelte.svelte-vscode",
-        "bradlc.vscode-tailwindcss",
-        "dbaeumer.vscode-eslint",
-        "mkhl.direnv",
-        "tamasfe.even-better-toml",
-        "esbenp.prettier-vscode"
-    ]
+	"recommendations": [
+		"skellock.just",
+		"jnoortheen.nix-ide",
+		"svelte.svelte-vscode",
+		"bradlc.vscode-tailwindcss",
+		"dbaeumer.vscode-eslint",
+		"mkhl.direnv",
+		"tamasfe.even-better-toml",
+		"esbenp.prettier-vscode"
+	]
 }

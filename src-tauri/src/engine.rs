@@ -42,7 +42,15 @@ pub(crate) fn run(
     {
         let settings = state.settings.lock().clone();
         if settings.model_loading == ModelLoading::Eager {
-            set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Loading".into(), ttl_ms: None });
+            set_overlay(
+                &app,
+                &state,
+                OverlayState {
+                    icon: OverlayIcon::Spinner,
+                    label: "Loading".into(),
+                    ttl_ms: None,
+                },
+            );
             match load_model(&state.models_dir, &settings.model, settings.gpu) {
                 Ok(e) => {
                     log::info!("eagerly loaded model: {}", settings.model);
@@ -78,7 +86,15 @@ pub(crate) fn run(
                 match audio::AudioRecorder::start(&settings.input_device) {
                     Ok(rec) => {
                         recorder = Some(rec);
-                        set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Pulse, label: "Recording".into(), ttl_ms: None });
+                        set_overlay(
+                            &app,
+                            &state,
+                            OverlayState {
+                                icon: OverlayIcon::Pulse,
+                                label: "Recording".into(),
+                                ttl_ms: None,
+                            },
+                        );
                     }
                     Err(e) => {
                         log::error!("failed to start recording: {}", e);
@@ -95,7 +111,11 @@ pub(crate) fn run(
 
                 let audio = rec.stop();
                 let duration_ms = (audio.len() as f64 / 16.0) as u64;
-                log::info!("recording stopped: {} samples ({}ms)", audio.len(), duration_ms);
+                log::info!(
+                    "recording stopped: {} samples ({}ms)",
+                    audio.len(),
+                    duration_ms
+                );
                 let settings = state.settings.lock().clone();
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
@@ -104,11 +124,27 @@ pub(crate) fn run(
                         audio.len(),
                         min_samples
                     );
-                    set_overlay(&app, &state, OverlayState { icon: OverlayIcon::X, label: "Cancelled".into(), ttl_ms: Some(1000) });
+                    set_overlay(
+                        &app,
+                        &state,
+                        OverlayState {
+                            icon: OverlayIcon::X,
+                            label: "Cancelled".into(),
+                            ttl_ms: Some(1000),
+                        },
+                    );
                     continue;
                 }
 
-                set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Processing".into(), ttl_ms: None });
+                set_overlay(
+                    &app,
+                    &state,
+                    OverlayState {
+                        icon: OverlayIcon::Spinner,
+                        label: "Processing".into(),
+                        ttl_ms: None,
+                    },
+                );
 
                 if settings.interrupt {
                     if let Some(eng) = engine.take() {
@@ -131,7 +167,15 @@ pub(crate) fn run(
                         || loaded_gpu != settings.gpu
                         || engine.is_none();
                     if needs_reload {
-                        set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Loading".into(), ttl_ms: None });
+                        set_overlay(
+                            &app,
+                            &state,
+                            OverlayState {
+                                icon: OverlayIcon::Spinner,
+                                label: "Loading".into(),
+                                ttl_ms: None,
+                            },
+                        );
                         match load_model(&state.models_dir, &settings.model, settings.gpu) {
                             Ok(e) => {
                                 engine = Some(e);
@@ -145,7 +189,15 @@ pub(crate) fn run(
                                 continue;
                             }
                         }
-                        set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Processing".into(), ttl_ms: None });
+                        set_overlay(
+                            &app,
+                            &state,
+                            OverlayState {
+                                icon: OverlayIcon::Spinner,
+                                label: "Processing".into(),
+                                ttl_ms: None,
+                            },
+                        );
                     }
 
                     if let Some(ref eng) = engine {
@@ -180,7 +232,11 @@ pub(crate) fn run(
                     OutputMode::Clipboard => OutputMode::Paste,
                     OutputMode::Paste => OutputMode::Clipboard,
                 };
-                log::info!("output mode toggled: {:?} -> {:?}", old_mode, settings.output_mode);
+                log::info!(
+                    "output mode toggled: {:?} -> {:?}",
+                    old_mode,
+                    settings.output_mode
+                );
                 let label = match settings.output_mode {
                     OutputMode::Clipboard => "Clipboard",
                     OutputMode::Paste => "Paste",
@@ -188,7 +244,15 @@ pub(crate) fn run(
                 let _ = settings.save(&state.data_dir);
                 *state.settings.lock() = settings.clone();
                 let _ = app.emit("settings-changed", &settings);
-                set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Check, label: label.into(), ttl_ms: Some(1000) });
+                set_overlay(
+                    &app,
+                    &state,
+                    OverlayState {
+                        icon: OverlayIcon::Check,
+                        label: label.into(),
+                        ttl_ms: Some(1000),
+                    },
+                );
             }
             AppEvent::TranscriptionDone {
                 engine: returned_engine,
@@ -240,7 +304,15 @@ pub(crate) fn run(
             }
             AppEvent::ReloadModel => {
                 let settings = state.settings.lock().clone();
-                set_overlay(&app, &state, OverlayState { icon: OverlayIcon::Spinner, label: "Loading".into(), ttl_ms: None });
+                set_overlay(
+                    &app,
+                    &state,
+                    OverlayState {
+                        icon: OverlayIcon::Spinner,
+                        label: "Loading".into(),
+                        ttl_ms: None,
+                    },
+                );
                 match load_model(&state.models_dir, &settings.model, settings.gpu) {
                     Ok(e) => {
                         log::info!("reloaded model: {}", settings.model);
@@ -328,7 +400,15 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
         OutputMode::Clipboard => "Copied",
         OutputMode::Paste => "Typed",
     };
-    set_overlay(app, state, OverlayState { icon: OverlayIcon::Check, label: label.into(), ttl_ms: Some(1000) });
+    set_overlay(
+        app,
+        state,
+        OverlayState {
+            icon: OverlayIcon::Check,
+            label: label.into(),
+            ttl_ms: Some(1000),
+        },
+    );
 
     let settings = state.settings.lock();
     if settings.history_enabled {

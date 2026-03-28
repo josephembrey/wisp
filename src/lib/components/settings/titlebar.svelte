@@ -3,7 +3,13 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { quit, hideWindow, minimizeWindow, type OverlayState, type OverlayIcon } from '$lib/tauri';
+	import {
+		quit,
+		hideWindow,
+		minimizeWindow,
+		type OverlayState,
+		type OverlayIcon
+	} from '$lib/tauri';
 	import { toggleMode, mode } from 'mode-watcher';
 
 	let {
@@ -29,11 +35,7 @@
 	};
 
 	let badgeLabel = $derived(
-		showSaved
-			? 'Saved'
-			: downloading && overlay.icon === 'dot'
-				? 'Downloading'
-				: overlay.label
+		showSaved ? 'Saved' : downloading && overlay.icon === 'dot' ? 'Downloading' : overlay.label
 	);
 	let badgeVariant = $derived(
 		showSaved

@@ -42,5 +42,4 @@ in
       ]);
 
     env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
-
   }
