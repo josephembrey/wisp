@@ -331,6 +331,7 @@ pub(crate) fn run(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn start_transcription(
     mut eng: whisper::WhisperEngine,
     audio: Vec<f32>,
