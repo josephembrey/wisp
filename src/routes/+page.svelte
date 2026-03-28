@@ -244,7 +244,6 @@
 								{settings}
 								{inputDevices}
 								{lastTranscription}
-								{showSaved}
 								onsave={save}
 								onsavedflag={showSavedFlag}
 							/>
