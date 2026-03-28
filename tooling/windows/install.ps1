@@ -29,19 +29,19 @@ if (-not (Test-Command 'winget')) {
 
 Write-Host "`n=== Wisp Windows dependency installer ===" -ForegroundColor Cyan
 
-# --- Enable long paths (whisper.cpp Vulkan build exceeds MAX_PATH) ---
+# --- Enable long paths (whisper.cpp Vulkan builds exceed MAX_PATH) ---
 $longPathKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
 $longPathEnabled = (Get-ItemProperty -Path $longPathKey -Name 'LongPathsEnabled' -ErrorAction SilentlyContinue).LongPathsEnabled
 if ($longPathEnabled -eq 1) {
     Write-Host "`n[Long paths] Already enabled - skipping." -ForegroundColor Green
 } else {
-    Write-Host "`n[Long paths] Enabling Win32 long path support (required for whisper.cpp build)..." -ForegroundColor Yellow
+    Write-Host "`n[Long paths] Enabling Win32 long path support (needed for native builds)..." -ForegroundColor Yellow
     try {
         Set-ItemProperty -Path $longPathKey -Name 'LongPathsEnabled' -Value 1 -Type DWord
         Write-Host "[Long paths] Enabled. A reboot may be needed for full effect." -ForegroundColor Yellow
     } catch {
         Write-Host "[Long paths] Failed - run this script as Administrator to enable." -ForegroundColor Red
-        Write-Host "  Without long paths, the whisper.cpp Vulkan build will fail." -ForegroundColor Red
+        Write-Host "  Without long paths, Vulkan shader builds may fail." -ForegroundColor Red
     }
 }
 
@@ -167,10 +167,9 @@ Write-Host @"
 Verify tools:
   rustup --version
   cargo --version
-  cmake --version
   clang --version
   bun --version
 
 Then from the repo root:
-  bun tauri dev
+  just dev
 "@

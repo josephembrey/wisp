@@ -17,10 +17,10 @@ pub fn to_accelerator(combo: &str) -> Option<String> {
 
 fn convert_key(key: &str) -> Option<String> {
     let mapped = match key {
-        "Alt" | "RightAlt" | "AltRight" => "Alt",
-        "ControlLeft" | "ControlRight" => "Control",
-        "ShiftLeft" | "ShiftRight" => "Shift",
-        "MetaLeft" | "MetaRight" => "Super",
+        "Alt" | "AltLeft" | "RightAlt" | "AltRight" => "Alt",
+        "Control" | "ControlLeft" | "ControlRight" => "Control",
+        "Shift" | "ShiftLeft" | "ShiftRight" => "Shift",
+        "Meta" | "MetaLeft" | "MetaRight" | "Super" => "Super",
         "Space" => "Space",
         "CapsLock" => "CapsLock",
         k if k.starts_with("Key") => return Some(k[3..].to_string()),
@@ -66,5 +66,17 @@ mod tests {
     #[test]
     fn number_key() {
         assert_eq!(to_accelerator("Alt+Num5"), Some("Alt+5".to_string()));
+    }
+
+    #[test]
+    fn bare_modifiers() {
+        assert_eq!(
+            to_accelerator("Control+Alt+KeyA"),
+            Some("Control+Alt+A".to_string())
+        );
+        assert_eq!(
+            to_accelerator("Shift+KeyB"),
+            Some("Shift+B".to_string())
+        );
     }
 }

@@ -3,8 +3,11 @@
 
 $script:root = Resolve-Path "$PSScriptRoot\..\.."
 
-# Short target dir to avoid MSBuild FileTracker MAX_PATH failures
-# (whisper.cpp Vulkan shader build creates deeply nested paths)
-if (-not $env:CARGO_TARGET_DIR) {
-    $env:CARGO_TARGET_DIR = 'C:\wisp-target'
-}
+# Short target dir to avoid MAX_PATH failures
+# (whisper.cpp Vulkan shader builds create deeply nested paths)
+$env:CARGO_TARGET_DIR = 'C:\wt'
+
+# Refresh PATH from registry so recently-installed tools are available
+# without requiring a terminal restart.
+$env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+            [System.Environment]::GetEnvironmentVariable('Path', 'User')
