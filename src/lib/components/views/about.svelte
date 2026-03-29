@@ -2,68 +2,76 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { resetApp, showLogDir } from '$lib/tauri';
 	import { app } from '$lib/state.svelte';
+	import DownloadIcon from '@lucide/svelte/icons/download';
+	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
 	const isDev = import.meta.env.DEV;
 </script>
 
 <div class="flex flex-col gap-3">
-	<p class="text-xs leading-relaxed text-muted-foreground">
-		Push-to-talk dictation. Hold a hotkey to record, release to transcribe locally with Whisper.
+	<!-- Tagline -->
+	<p class="text-xs text-muted-foreground">
+		Local push-to-talk dictation. Everything stays on your machine.
 	</p>
 
-	<div class="flex flex-col gap-1.5">
-		<span class="text-xs font-semibold tracking-wide text-foreground uppercase">Quick Start</span>
-		<ol class="space-y-1 text-xs text-muted-foreground">
-			<li class="flex gap-2">
-				<span class="font-semibold text-foreground">1.</span>
-				<span>
-					Download a model in
-					<button
-						class="font-semibold text-foreground underline hover:text-primary"
-						onclick={() => (app.activeTab = 'model')}
-					>
-						Model
-					</button>
-				</span>
-			</li>
-			<li class="flex gap-2">
-				<span class="font-semibold text-foreground">2.</span>
-				<span>
-					Hold
-					<kbd class="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-foreground">
-						{(app.settings?.hotkey ?? '').replace(/\+/g, ' + ')}
-					</kbd>
-					to record
-				</span>
-			</li>
-			<li class="flex gap-2">
-				<span class="font-semibold text-foreground">3.</span>
-				<span>Release to transcribe</span>
-			</li>
-		</ol>
-	</div>
+	<!-- Action cards -->
+	<button
+		class="flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-muted-foreground/50"
+		onclick={() => (app.activeTab = 'model')}
+	>
+		<div
+			class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+		>
+			<DownloadIcon size={14} />
+		</div>
+		<div class="flex-1">
+			<div class="text-xs font-medium text-foreground">Download a model</div>
+			<div class="text-[10px] text-muted-foreground/60">Pick a Whisper model to get started</div>
+		</div>
+		<ChevronRightIcon size={14} class="text-muted-foreground/40" />
+	</button>
 
-	<div class="flex flex-col gap-1.5">
-		<span class="text-xs font-semibold tracking-wide text-foreground uppercase">Tips</span>
-		<ul class="space-y-1 text-xs text-muted-foreground">
-			<li class="flex items-start gap-2">
-				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-				<span>Minimize this window, Wisp keeps running in the tray</span>
-			</li>
-			<li class="flex items-start gap-2">
-				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-				<span>Larger models are slower but more accurate</span>
-			</li>
-			<li class="flex items-start gap-2">
-				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-				<span>Enable GPU in Model for faster transcription</span>
-			</li>
-		</ul>
-	</div>
+	<button
+		class="flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-muted-foreground/50"
+		onclick={() => (app.activeTab = 'general')}
+	>
+		<div
+			class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+		>
+			<KeyboardIcon size={14} />
+		</div>
+		<div class="flex-1">
+			<div class="text-xs font-medium text-foreground">Your hotkey</div>
+			<div class="text-[10px] text-muted-foreground/60">Hold to record, release to transcribe</div>
+		</div>
+		<kbd class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+			{(app.settings?.hotkey ?? '').replace(/\+/g, ' + ')}
+		</kbd>
+	</button>
 
+	<!-- Tips -->
+	<ul class="space-y-1 text-[10px] text-muted-foreground/60">
+		<li class="flex items-start gap-1.5">
+			<span class="mt-1.5 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground/40"></span>
+			<span>Larger models are slower but more accurate</span>
+		</li>
+		<li class="flex items-start gap-1.5">
+			<span class="mt-1.5 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground/40"></span>
+			<span>Enable GPU in Model for faster transcription</span>
+		</li>
+		<li class="flex items-start gap-1.5">
+			<span class="mt-1.5 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground/40"></span>
+			<span>Wisp keeps running in the tray when minimized</span>
+		</li>
+	</ul>
+
+	<!-- Reset -->
 	<div class="flex items-center gap-3">
 		<AlertDialog.Root>
-			<AlertDialog.Trigger class="text-xs text-muted-foreground underline hover:text-foreground">
+			<AlertDialog.Trigger
+				class="text-[10px] text-muted-foreground/40 underline hover:text-muted-foreground"
+			>
 				Reset app
 			</AlertDialog.Trigger>
 			<AlertDialog.Content>
@@ -82,7 +90,7 @@
 
 		{#if isDev}
 			<button
-				class="text-xs text-muted-foreground underline hover:text-foreground"
+				class="text-[10px] text-muted-foreground/40 underline hover:text-muted-foreground"
 				onclick={() => showLogDir()}
 			>
 				Show logs
