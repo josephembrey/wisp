@@ -11,7 +11,7 @@
 		type Settings,
 		type OverlayIcon
 	} from '$lib/tauri';
-	import { createOverlayStack } from '$lib/overlay-stack.svelte';
+	import { overlay } from '$lib/overlay.svelte';
 
 	const styles: Record<OverlayIcon, { color: string; iconColor: string }> = {
 		dot: { color: 'var(--overlay-text-muted)', iconColor: 'var(--overlay-idle)' },
@@ -21,20 +21,18 @@
 		x: { color: 'var(--overlay-processing)', iconColor: 'var(--overlay-processing)' }
 	};
 
-	const overlayStack = createOverlayStack();
-
 	let alwaysShow = $state(false);
 	let position = $state('top-right');
 	let size = $state('md');
-	let overlay = $derived(overlayStack.current);
+	let current = $derived(overlay.current);
 
-	const style = $derived(styles[overlay.icon]);
+	const style = $derived(styles[current.icon]);
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
 	const justify = $derived(
 		{ left: 'justify-start', right: 'justify-end' }[position.split('-')[1]] ?? 'justify-center'
 	);
 	const scale = $derived({ small: 'scale-75', large: 'scale-150' }[size] ?? '');
-	const visible = $derived(overlay.icon !== 'dot' || alwaysShow);
+	const visible = $derived(current.icon !== 'dot' || alwaysShow);
 
 	function applySettings(s: Settings) {
 		alwaysShow = s.overlay_always_show ?? false;
@@ -47,7 +45,7 @@
 			.then(applySettings)
 			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
 
-		const unsubs = [onOverlayState((s) => overlayStack.push(s)), onSettingsChanged(applySettings)];
+		const unsubs = [onOverlayState((s) => overlay.push(s)), onSettingsChanged(applySettings)];
 		return () => unsubs.forEach((p) => p.then((fn) => fn()));
 	});
 </script>
@@ -58,9 +56,9 @@
 		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
-		{#if overlay.icon === 'dot' || overlay.icon === 'pulse'}
+		{#if current.icon === 'dot' || current.icon === 'pulse'}
 			<span class="relative flex h-2.5 w-2.5">
-				{#if overlay.icon === 'pulse'}
+				{#if current.icon === 'pulse'}
 					<span
 						class="absolute inline-flex h-full w-full animate-ping rounded-full"
 						style:background={style.iconColor}
@@ -71,9 +69,9 @@
 					style:background={style.iconColor}
 				></span>
 			</span>
-		{:else if overlay.icon === 'spinner'}
+		{:else if current.icon === 'spinner'}
 			<Loader2Icon size={14} class="animate-spin" color={style.iconColor} />
-		{:else if overlay.icon === 'x'}
+		{:else if current.icon === 'x'}
 			<XIcon size={12} color={style.iconColor} strokeWidth={2.5} />
 		{:else}
 			<CheckIcon size={12} color={style.iconColor} strokeWidth={2.5} />
@@ -83,7 +81,7 @@
 			class="text-xs font-medium whitespace-nowrap transition-colors duration-300"
 			style:color={style.color}
 		>
-			{overlay.label}
+			{current.label}
 		</span>
 	</div>
 </div>

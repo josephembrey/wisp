@@ -5,6 +5,7 @@
 
 	import HotkeyCapture from '$lib/components/hotkey-capture.svelte';
 	import { app } from '$lib/state.svelte';
+	import { overlay } from '$lib/overlay.svelte';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 </script>
 
@@ -73,7 +74,7 @@
 					class="inline-flex h-5 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
 					onclick={() => {
 						navigator.clipboard.writeText(app.lastTranscription);
-						app.notify('Copied', 'check', 750);
+						overlay.notify('Copied', 'check', 750);
 					}}
 				>
 					<CopyIcon size={12} />

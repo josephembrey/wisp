@@ -5,6 +5,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { quit, hideWindow, minimizeWindow, type OverlayIcon } from '$lib/tauri';
 	import { app } from '$lib/state.svelte';
+	import { overlay } from '$lib/overlay.svelte';
 	import { toggleMode, mode } from 'mode-watcher';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
@@ -20,8 +21,8 @@
 		x: 'outline'
 	};
 
-	let badgeLabel = $derived(app.overlay.label);
-	let badgeVariant = $derived(iconVariant[app.overlay.icon]);
+	let badgeLabel = $derived(overlay.current.label);
+	let badgeVariant = $derived(iconVariant[overlay.current.icon]);
 </script>
 
 <div class="flex h-8 shrink-0 items-center justify-between px-3" data-tauri-drag-region>

@@ -16,13 +16,12 @@ import {
 	onSettingsChanged,
 	onDownloadProgress,
 	type Settings,
-	type OverlayIcon,
 	type MonitorInfo,
 	type InputDeviceInfo,
 	type ModelInfo,
 	type DownloadProgress
 } from '$lib/tauri';
-import { createOverlayStack } from '$lib/overlay-stack.svelte';
+import { overlay } from '$lib/overlay.svelte';
 
 // App state (reactive via Svelte 5 runes)
 let settings: Settings | null = $state(null);
@@ -33,13 +32,6 @@ let inputDevices: InputDeviceInfo[] = $state([]);
 let downloadProgress: DownloadProgress | null = $state(null);
 let lastTranscription: string = $state('');
 let activeTab: string = $state('general');
-
-const overlayStack = createOverlayStack();
-
-// Frontend notification gateway
-function notify(label: string, icon: OverlayIcon, ttl_ms: number) {
-	overlayStack.push({ icon, label, ttl_ms });
-}
 
 // Actions
 async function save(updates: Partial<Settings>) {
@@ -100,7 +92,7 @@ function init(): () => void {
 		.catch((e) => logError(`[init] first-run check failed: ${e}`));
 
 	const unsubs = [
-		onOverlayState((s) => overlayStack.push(s)),
+		onOverlayState((s) => overlay.push(s)),
 		onTranscription((t) => (lastTranscription = t)),
 		onError((msg) => {
 			logError(`[backend] ${msg}`);
@@ -119,9 +111,6 @@ function init(): () => void {
 export const app = {
 	get settings() {
 		return settings;
-	},
-	get overlay() {
-		return overlayStack.current;
 	},
 	get models() {
 		return models;
@@ -148,7 +137,6 @@ export const app = {
 		activeTab = v;
 	},
 	save,
-	notify,
 	downloadModel,
 	deleteModel,
 	init
