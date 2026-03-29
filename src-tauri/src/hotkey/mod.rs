@@ -30,8 +30,6 @@ pub fn register(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
 }
 
 // DORMANT — Windows-specific PTT polling workaround.
-// See windows.rs for details. Re-enable if ghost presses
-// or stuck recording states reappear on Windows.
-#[cfg(target_os = "windows")]
-#[allow(dead_code)]
-mod windows;
+// See windows.rs for details and re-enablement instructions.
+// Uncomment the line below + add "Win32_UI_Input" feature to windows-sys in Cargo.toml.
+// mod windows;
