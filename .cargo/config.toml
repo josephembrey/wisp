@@ -1,6 +1,0 @@
-# Use clang as linker to avoid GCC's collect2 hitting posix_spawn ARG_MAX on WSL2
-[target.x86_64-unknown-linux-gnu]
-linker = "clang"
-
-[target.x86_64-pc-windows-msvc]
-rustflags = []
