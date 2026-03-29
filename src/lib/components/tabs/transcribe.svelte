@@ -3,7 +3,7 @@
 	import { open } from '@tauri-apps/plugin-dialog';
 	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import { toast } from 'svelte-sonner';
-	import { log } from '$lib/log';
+	import { info, error as logError } from '@tauri-apps/plugin-log';
 	import { transcribeFile, onTranscribeFileProgress } from '$lib/tauri';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { app } from '$lib/state.svelte';
@@ -31,13 +31,13 @@
 	async function handleFile(path: string) {
 		filePath = path;
 		result = '';
-		log.info(`[transcribe] file: ${path}`);
+		info(`[transcribe] file: ${path}`);
 		try {
 			const text = await transcribeFile(path);
 			result = text;
-			log.info(`[transcribe] done: ${text.length} chars`);
+			info(`[transcribe] done: ${text.length} chars`);
 		} catch (e) {
-			log.error(`[transcribe] failed: ${e}`);
+			logError(`[transcribe] failed: ${e}`);
 			toast.error(`Transcription failed: ${e}`);
 		} finally {
 			status = 'idle';

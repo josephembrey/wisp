@@ -9,7 +9,7 @@
 		type HistoryEntry
 	} from '$lib/tauri';
 	import { onMount } from 'svelte';
-	import { log } from '$lib/log';
+	import { error as logError } from '@tauri-apps/plugin-log';
 	import { app } from '$lib/state.svelte';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import CopyIcon from '@lucide/svelte/icons/copy';
@@ -24,7 +24,7 @@
 		try {
 			entries = await getHistory();
 		} catch (e) {
-			log.error(`[history] failed to load: ${e}`);
+			logError(`[history] failed to load: ${e}`);
 		}
 	}
 
@@ -33,7 +33,7 @@
 			await deleteHistoryEntry(id);
 			entries = entries.filter((e) => e.id !== id);
 		} catch (e) {
-			log.error(`[history] delete failed: ${e}`);
+			logError(`[history] delete failed: ${e}`);
 		}
 	}
 
@@ -42,7 +42,7 @@
 			await clearHistory();
 			entries = [];
 		} catch (e) {
-			log.error(`[history] clear failed: ${e}`);
+			logError(`[history] clear failed: ${e}`);
 		}
 	}
 

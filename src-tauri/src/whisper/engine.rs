@@ -31,7 +31,7 @@ impl WhisperEngine {
     }
 
     fn warmup(&self) {
-        log::info!("whisper: running warmup encode");
+        log::debug!("whisper: running warmup encode");
         let silence = vec![0.0f32; 16000]; // 1s of silence
         let mut state = match self.ctx.create_state() {
             Ok(s) => s,
@@ -48,7 +48,7 @@ impl WhisperEngine {
         params.set_print_timestamps(false);
         params.set_no_timestamps(true);
         match state.full(params, &silence) {
-            Ok(_) => log::info!("whisper: warmup complete"),
+            Ok(_) => log::debug!("whisper: warmup complete"),
             Err(e) => log::warn!("whisper warmup: encode failed: {:?}", e),
         }
     }

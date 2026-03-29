@@ -17,9 +17,9 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
-                log::info!("tray: settings menu clicked");
+                log::debug!("tray: settings menu clicked");
                 if let Some(window) = app.get_webview_window("main") {
-                    log::info!("tray: showing main window");
+                    log::debug!("tray: showing main window");
                     let _ = window.show();
                     let _ = window.set_focus();
                 } else {
@@ -27,7 +27,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
                 }
             }
             "quit" => {
-                log::info!("tray: quit");
+                log::debug!("tray: quit");
                 app.exit(0);
             }
             _ => {}
@@ -39,7 +39,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
                 ..
             } = event
             {
-                log::info!("tray: left-clicked, showing main window");
+                log::debug!("tray: left-clicked, showing main window");
                 if let Some(window) = tray.app_handle().get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();

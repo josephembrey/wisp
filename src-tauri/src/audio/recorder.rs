@@ -24,7 +24,7 @@ impl AudioRecorder {
                 .find(|d| d.name().map(|n| n == device_name).unwrap_or(false))
                 .ok_or_else(|| format!("input device '{}' not found, using default", device_name))
                 .or_else(|e| {
-                    log::warn!("{}", e);
+                    log::warn!("input device error: {}", e);
                     host.default_input_device()
                         .ok_or("no input device found".to_string())
                 })?

@@ -67,9 +67,9 @@
 						<Button
 							size="sm"
 							onclick={() => app.downloadModel(selectedModel.name)}
-							disabled={app.downloading !== null}
+							disabled={app.downloadProgress !== null}
 						>
-							{app.downloading === selectedModel.name ? 'Downloading...' : 'Download'}
+							{app.downloadProgress?.model === selectedModel.name ? 'Downloading...' : 'Download'}
 						</Button>
 					{:else}
 						<Button
@@ -85,7 +85,7 @@
 				{/if}
 			</div>
 
-			{#if app.downloading && app.downloadProgress && app.downloadProgress.total > 0}
+			{#if app.downloadProgress && app.downloadProgress.total > 0}
 				{@const pct = Math.round(
 					(app.downloadProgress.downloaded / app.downloadProgress.total) * 100
 				)}
