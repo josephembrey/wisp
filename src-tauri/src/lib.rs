@@ -8,7 +8,7 @@ mod settings;
 mod tray;
 mod whisper;
 
-use settings::{OverlayIcon, OverlayState, Settings, WispState};
+use settings::{OverlayState, OverlayStatus, Settings, WispState};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
@@ -36,7 +36,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<whisper::DownloadProgress>()
         .typ::<history::HistoryEntry>()
         .typ::<OverlayState>()
-        .typ::<OverlayIcon>()
+        .typ::<OverlayStatus>()
 }
 
 pub fn ts_export_config() -> specta_typescript::Typescript {

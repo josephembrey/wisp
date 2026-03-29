@@ -4,29 +4,30 @@
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { error as logError } from '@tauri-apps/plugin-log';
-	import { getSettings, onSettingsChanged, type Settings, type OverlayIcon } from '$lib/tauri';
+	import { getSettings, onSettingsChanged, type Settings, type OverlayStatus } from '$lib/tauri';
 	import { overlay } from '$lib/overlay.svelte';
 
-	const styles: Record<OverlayIcon, { color: string; iconColor: string }> = {
-		dot: { color: 'var(--overlay-text-muted)', iconColor: 'var(--overlay-idle)' },
-		pulse: { color: 'var(--overlay-text)', iconColor: 'var(--overlay-recording)' },
-		spinner: { color: 'var(--overlay-text)', iconColor: 'var(--overlay-processing)' },
-		check: { color: 'var(--overlay-success)', iconColor: 'var(--overlay-success)' },
-		x: { color: 'var(--overlay-processing)', iconColor: 'var(--overlay-processing)' }
+	const colors: Record<OverlayStatus, { textColor: string; iconColor: string }> = {
+		idle: { textColor: 'var(--overlay-text-muted)', iconColor: 'var(--overlay-idle)' },
+		recording: { textColor: 'var(--overlay-text)', iconColor: 'var(--overlay-recording)' },
+		processing: { textColor: 'var(--overlay-text)', iconColor: 'var(--overlay-processing)' },
+		loading: { textColor: 'var(--overlay-text)', iconColor: 'var(--overlay-processing)' },
+		success: { textColor: 'var(--overlay-success)', iconColor: 'var(--overlay-success)' },
+		cancelled: { textColor: 'var(--overlay-processing)', iconColor: 'var(--overlay-processing)' }
 	};
 
 	let alwaysShow = $state(false);
 	let position = $state('top-right');
 	let size = $state('md');
 	let current = $derived(overlay.current);
+	let color = $derived(colors[current.status]);
 
-	const style = $derived(styles[current.icon]);
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
 	const justify = $derived(
 		{ left: 'justify-start', right: 'justify-end' }[position.split('-')[1]] ?? 'justify-center'
 	);
 	const scale = $derived({ small: 'scale-75', large: 'scale-150' }[size] ?? '');
-	const visible = $derived(current.icon !== 'dot' || alwaysShow);
+	const visible = $derived(current.status !== 'idle' || alwaysShow);
 
 	function applySettings(s: Settings) {
 		alwaysShow = s.overlay_always_show ?? false;
@@ -50,30 +51,30 @@
 		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
-		{#if current.icon === 'dot' || current.icon === 'pulse'}
+		{#if current.status === 'idle' || current.status === 'recording'}
 			<span class="relative flex h-2.5 w-2.5">
-				{#if current.icon === 'pulse'}
+				{#if current.status === 'recording'}
 					<span
 						class="absolute inline-flex h-full w-full animate-ping rounded-full"
-						style:background={style.iconColor}
+						style:background={color.iconColor}
 					></span>
 				{/if}
 				<span
 					class="relative inline-flex h-2.5 w-2.5 rounded-full"
-					style:background={style.iconColor}
+					style:background={color.iconColor}
 				></span>
 			</span>
-		{:else if current.icon === 'spinner'}
-			<Loader2Icon size={14} class="animate-spin" color={style.iconColor} />
-		{:else if current.icon === 'x'}
-			<XIcon size={12} color={style.iconColor} strokeWidth={2.5} />
+		{:else if current.status === 'processing' || current.status === 'loading'}
+			<Loader2Icon size={14} class="animate-spin" color={color.iconColor} />
+		{:else if current.status === 'cancelled'}
+			<XIcon size={12} color={color.iconColor} strokeWidth={2.5} />
 		{:else}
-			<CheckIcon size={12} color={style.iconColor} strokeWidth={2.5} />
+			<CheckIcon size={12} color={color.iconColor} strokeWidth={2.5} />
 		{/if}
 
 		<span
 			class="text-xs font-medium whitespace-nowrap transition-colors duration-300"
-			style:color={style.color}
+			style:color={color.textColor}
 		>
 			{current.label}
 		</span>

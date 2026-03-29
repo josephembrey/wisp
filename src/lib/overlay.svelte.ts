@@ -1,6 +1,6 @@
-import { onOverlayState, type OverlayState, type OverlayIcon } from '$lib/tauri';
+import { onOverlayState, type OverlayState, type OverlayStatus } from '$lib/tauri';
 
-const IDLE: OverlayState = { icon: 'dot', label: 'Idle', ttl_ms: null };
+const IDLE: OverlayState = { status: 'idle', label: 'Idle', ttl_ms: null };
 
 // Overlay notification stack — shared between settings window and overlay window.
 // Two-slot design: persistent base state + optional timed transient.
@@ -20,8 +20,8 @@ function push(s: OverlayState) {
 	}
 }
 
-function notify(label: string, icon: OverlayIcon, ttl_ms: number) {
-	push({ icon, label, ttl_ms });
+function notify(label: string, status: OverlayStatus, ttl_ms: number) {
+	push({ status, label, ttl_ms });
 }
 
 // Subscribe to backend overlay events

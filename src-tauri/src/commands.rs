@@ -1,7 +1,7 @@
 use crate::audio;
 use crate::engine;
 use crate::history;
-use crate::settings::{OverlayIcon, OverlayState, Settings, WispState};
+use crate::settings::{OverlayState, OverlayStatus, Settings, WispState};
 use crate::whisper;
 use tauri::{Emitter, Manager};
 
@@ -69,7 +69,7 @@ pub fn update_settings(
     engine::set_overlay(
         &app,
         OverlayState {
-            icon: OverlayIcon::Check,
+            status: OverlayStatus::Success,
             label: "Saved".into(),
             ttl_ms: Some(750),
         },
@@ -107,7 +107,7 @@ pub fn delete_model(
     engine::set_overlay(
         &app,
         OverlayState {
-            icon: OverlayIcon::Check,
+            status: OverlayStatus::Success,
             label: "Deleted".into(),
             ttl_ms: Some(750),
         },

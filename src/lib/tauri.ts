@@ -5,7 +5,7 @@ import { commands, type Result } from './bindings';
 export type {
 	Settings,
 	OverlayState,
-	OverlayIcon,
+	OverlayStatus,
 	ModelInfo,
 	InputDeviceInfo,
 	MonitorInfo,

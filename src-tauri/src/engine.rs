@@ -2,7 +2,7 @@ use crate::audio;
 use crate::history;
 use crate::hotkey;
 use crate::output;
-use crate::settings::{ModelLoading, OutputMode, OverlayIcon, OverlayState, Settings, WispState};
+use crate::settings::{ModelLoading, OutputMode, OverlayState, OverlayStatus, Settings, WispState};
 use crate::whisper;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -45,7 +45,7 @@ pub(crate) fn run(
             set_overlay(
                 &app,
                 OverlayState {
-                    icon: OverlayIcon::Spinner,
+                    status: OverlayStatus::Loading,
                     label: "Loading".into(),
                     ttl_ms: None,
                 },
@@ -88,7 +88,7 @@ pub(crate) fn run(
                         set_overlay(
                             &app,
                             OverlayState {
-                                icon: OverlayIcon::Pulse,
+                                status: OverlayStatus::Recording,
                                 label: "Recording".into(),
                                 ttl_ms: None,
                             },
@@ -125,7 +125,7 @@ pub(crate) fn run(
                     set_overlay(
                         &app,
                         OverlayState {
-                            icon: OverlayIcon::X,
+                            status: OverlayStatus::Cancelled,
                             label: "Cancelled".into(),
                             ttl_ms: Some(1000),
                         },
@@ -136,7 +136,7 @@ pub(crate) fn run(
                 set_overlay(
                     &app,
                     OverlayState {
-                        icon: OverlayIcon::Spinner,
+                        status: OverlayStatus::Processing,
                         label: "Processing".into(),
                         ttl_ms: None,
                     },
@@ -166,7 +166,7 @@ pub(crate) fn run(
                         set_overlay(
                             &app,
                             OverlayState {
-                                icon: OverlayIcon::Spinner,
+                                status: OverlayStatus::Loading,
                                 label: "Loading".into(),
                                 ttl_ms: None,
                             },
@@ -187,7 +187,7 @@ pub(crate) fn run(
                         set_overlay(
                             &app,
                             OverlayState {
-                                icon: OverlayIcon::Spinner,
+                                status: OverlayStatus::Processing,
                                 label: "Processing".into(),
                                 ttl_ms: None,
                             },
@@ -239,7 +239,7 @@ pub(crate) fn run(
                 set_overlay(
                     &app,
                     OverlayState {
-                        icon: OverlayIcon::Check,
+                        status: OverlayStatus::Success,
                         label: label.into(),
                         ttl_ms: Some(1000),
                     },
@@ -298,7 +298,7 @@ pub(crate) fn run(
                 set_overlay(
                     &app,
                     OverlayState {
-                        icon: OverlayIcon::Spinner,
+                        status: OverlayStatus::Loading,
                         label: "Loading".into(),
                         ttl_ms: None,
                     },
@@ -401,7 +401,7 @@ fn handle_transcription(app: &tauri::AppHandle, text: &str, mode: &OutputMode, s
     set_overlay(
         app,
         OverlayState {
-            icon: OverlayIcon::Check,
+            status: OverlayStatus::Success,
             label: label.into(),
             ttl_ms: Some(1000),
         },

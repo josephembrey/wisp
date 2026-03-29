@@ -74,7 +74,7 @@
 					class="inline-flex h-5 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
 					onclick={() => {
 						navigator.clipboard.writeText(app.lastTranscription);
-						overlay.notify('Copied', 'check', 750);
+						overlay.notify('Copied', 'success', 750);
 					}}
 				>
 					<CopyIcon size={12} />

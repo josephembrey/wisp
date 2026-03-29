@@ -3,7 +3,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { quit, hideWindow, minimizeWindow, type OverlayIcon } from '$lib/tauri';
+	import { quit, hideWindow, minimizeWindow, type OverlayStatus } from '$lib/tauri';
 	import { app } from '$lib/state.svelte';
 	import { overlay } from '$lib/overlay.svelte';
 	import { toggleMode, mode } from 'mode-watcher';
@@ -13,16 +13,17 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import PowerIcon from '@lucide/svelte/icons/power';
 
-	const iconVariant: Record<OverlayIcon, string> = {
-		dot: 'default',
-		pulse: 'destructive',
-		spinner: 'secondary',
-		check: 'outline',
-		x: 'outline'
+	const badgeVariants: Record<OverlayStatus, string> = {
+		idle: 'default',
+		recording: 'destructive',
+		processing: 'secondary',
+		loading: 'secondary',
+		success: 'outline',
+		cancelled: 'outline'
 	};
 
 	let badgeLabel = $derived(overlay.current.label);
-	let badgeVariant = $derived(iconVariant[overlay.current.icon]);
+	let badgeVariant = $derived(badgeVariants[overlay.current.status]);
 </script>
 
 <div class="flex h-8 shrink-0 items-center justify-between px-3" data-tauri-drag-region>
