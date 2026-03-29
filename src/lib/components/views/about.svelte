@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { Kbd } from '$lib/components/ui/kbd/index.js';
 	import { resetApp, showLogDir } from '$lib/tauri';
 	import { app } from '$lib/state.svelte';
 	import DownloadIcon from '@lucide/svelte/icons/download';
@@ -45,23 +46,23 @@
 			<div class="text-xs font-medium text-foreground">Your hotkey</div>
 			<div class="text-[10px] text-muted-foreground/60">Hold to record, release to transcribe</div>
 		</div>
-		<kbd class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+		<Kbd class="px-2 py-1 text-sm">
 			{(app.settings?.hotkey ?? '').replace(/\+/g, ' + ')}
-		</kbd>
+		</Kbd>
 	</button>
 
 	<!-- Tips -->
-	<ul class="space-y-1 text-[10px] text-muted-foreground/60">
-		<li class="flex items-start gap-1.5">
-			<span class="mt-1.5 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground/40"></span>
+	<ul class="space-y-1 text-xs text-muted-foreground">
+		<li class="flex items-start gap-2">
+			<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
 			<span>Larger models are slower but more accurate</span>
 		</li>
-		<li class="flex items-start gap-1.5">
-			<span class="mt-1.5 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground/40"></span>
+		<li class="flex items-start gap-2">
+			<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
 			<span>Enable GPU in Model for faster transcription</span>
 		</li>
-		<li class="flex items-start gap-1.5">
-			<span class="mt-1.5 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground/40"></span>
+		<li class="flex items-start gap-2">
+			<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
 			<span>Wisp keeps running in the tray when minimized</span>
 		</li>
 	</ul>
