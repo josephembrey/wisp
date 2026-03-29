@@ -1,10 +1,7 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { quit, hideWindow, minimizeWindow, type OverlayStatus } from '$lib/tauri';
-	import { app } from '$lib/state.svelte';
 	import { overlay } from '$lib/overlay.svelte';
 	import { toggleMode, mode } from 'mode-watcher';
 	import SunIcon from '@lucide/svelte/icons/sun';
@@ -13,17 +10,23 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import PowerIcon from '@lucide/svelte/icons/power';
 
-	const badgeVariants: Record<OverlayStatus, string> = {
-		idle: 'default',
-		recording: 'destructive',
-		processing: 'secondary',
-		loading: 'secondary',
-		success: 'outline',
-		cancelled: 'outline'
+	const badge: Record<OverlayStatus, { label: string; variant: string }> = {
+		idle: { label: 'Idle', variant: 'default' },
+		recording: { label: 'Recording', variant: 'destructive' },
+		processing: { label: 'Processing', variant: 'secondary' },
+		loading: { label: 'Loading', variant: 'secondary' },
+		saved: { label: 'Saved', variant: 'outline' },
+		copied: { label: 'Copied', variant: 'outline' },
+		typed: { label: 'Typed', variant: 'outline' },
+		deleted: { label: 'Deleted', variant: 'outline' },
+		cancelled: { label: 'Cancelled', variant: 'outline' }
 	};
 
-	let badgeLabel = $derived(overlay.current.label);
-	let badgeVariant = $derived(badgeVariants[overlay.current.status]);
+	let badgeLabel = $derived(badge[overlay.current.status].label);
+	let badgeVariant = $derived(badge[overlay.current.status].variant);
+
+	const btn =
+		'inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground';
 </script>
 
 <div class="flex h-8 shrink-0 items-center justify-between px-3" data-tauri-drag-region>
@@ -36,112 +39,42 @@
 			{badgeLabel}
 		</Badge>
 	</div>
-	<Tooltip.Provider delayDuration={400}>
-		<div class="flex items-center gap-0.5">
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<div {...props} class="inline-flex items-center">
-							<div
-								class="cursor-pointer"
-								role="switch"
-								tabindex="0"
-								aria-checked={app.settings?.autostart ?? false}
-								onclick={() => app.save({ autostart: !(app.settings?.autostart ?? false) })}
-								onkeydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										e.preventDefault();
-										app.save({ autostart: !(app.settings?.autostart ?? false) });
-									}
-								}}
-							>
-								<Switch
-									checked={app.settings?.autostart ?? false}
-									class="pointer-events-none scale-75"
-								/>
-							</div>
-						</div>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content><p>Toggle Autostart</p></Tooltip.Content>
-			</Tooltip.Root>
 
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<button
-							{...props}
-							class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-							onclick={() => toggleMode()}
-						>
-							{#if mode.current === 'dark'}
-								<SunIcon size={12} />
-							{:else}
-								<MoonIcon size={12} />
-							{/if}
-						</button>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content><p>Toggle theme</p></Tooltip.Content>
-			</Tooltip.Root>
+	<div class="flex items-center gap-0.5">
+		<button class={btn} onclick={() => toggleMode()}>
+			{#if mode.current === 'dark'}
+				<SunIcon size={12} />
+			{:else}
+				<MoonIcon size={12} />
+			{/if}
+		</button>
 
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<button
-							{...props}
-							class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-							onclick={() => minimizeWindow()}
-						>
-							<MinusIcon size={12} />
-						</button>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content><p>Minimize</p></Tooltip.Content>
-			</Tooltip.Root>
+		<button class={btn} onclick={() => minimizeWindow()}>
+			<MinusIcon size={12} />
+		</button>
 
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<button
-							{...props}
-							class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-							onclick={() => hideWindow()}
-						>
-							<XIcon size={12} />
-						</button>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content><p>Hide to tray</p></Tooltip.Content>
-			</Tooltip.Root>
+		<button class={btn} onclick={() => hideWindow()}>
+			<XIcon size={12} />
+		</button>
 
-			<AlertDialog.Root>
-				<Tooltip.Root>
-					<Tooltip.Trigger>
-						{#snippet child({ props })}
-							<AlertDialog.Trigger
-								{...props}
-								class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
-							>
-								<PowerIcon size={12} />
-							</AlertDialog.Trigger>
-						{/snippet}
-					</Tooltip.Trigger>
-					<Tooltip.Content><p>Quit</p></Tooltip.Content>
-				</Tooltip.Root>
-				<AlertDialog.Content>
-					<AlertDialog.Header>
-						<AlertDialog.Title>Quit Wisp?</AlertDialog.Title>
-						<AlertDialog.Description>
-							This will stop the hotkey listener and close the app.
-						</AlertDialog.Description>
-					</AlertDialog.Header>
-					<AlertDialog.Footer>
-						<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-						<AlertDialog.Action onclick={() => quit()}>Quit</AlertDialog.Action>
-					</AlertDialog.Footer>
-				</AlertDialog.Content>
-			</AlertDialog.Root>
-		</div>
-	</Tooltip.Provider>
+		<AlertDialog.Root>
+			<AlertDialog.Trigger
+				class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
+			>
+				<PowerIcon size={12} />
+			</AlertDialog.Trigger>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Quit Wisp?</AlertDialog.Title>
+					<AlertDialog.Description>
+						This will stop the hotkey listener and close the app.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Action onclick={() => quit()}>Quit</AlertDialog.Action>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
+	</div>
 </div>

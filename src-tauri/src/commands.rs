@@ -69,8 +69,7 @@ pub fn update_settings(
     engine::set_overlay(
         &app,
         OverlayState {
-            status: OverlayStatus::Success,
-            label: "Saved".into(),
+            status: OverlayStatus::Saved,
             ttl_ms: Some(750),
         },
     );
@@ -107,8 +106,7 @@ pub fn delete_model(
     engine::set_overlay(
         &app,
         OverlayState {
-            status: OverlayStatus::Success,
-            label: "Deleted".into(),
+            status: OverlayStatus::Deleted,
             ttl_ms: Some(750),
         },
     );

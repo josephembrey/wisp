@@ -46,7 +46,6 @@ pub(crate) fn run(
                 &app,
                 OverlayState {
                     status: OverlayStatus::Loading,
-                    label: "Loading".into(),
                     ttl_ms: None,
                 },
             );
@@ -89,7 +88,6 @@ pub(crate) fn run(
                             &app,
                             OverlayState {
                                 status: OverlayStatus::Recording,
-                                label: "Recording".into(),
                                 ttl_ms: None,
                             },
                         );
@@ -126,7 +124,6 @@ pub(crate) fn run(
                         &app,
                         OverlayState {
                             status: OverlayStatus::Cancelled,
-                            label: "Cancelled".into(),
                             ttl_ms: Some(1000),
                         },
                     );
@@ -137,7 +134,6 @@ pub(crate) fn run(
                     &app,
                     OverlayState {
                         status: OverlayStatus::Processing,
-                        label: "Processing".into(),
                         ttl_ms: None,
                     },
                 );
@@ -167,7 +163,6 @@ pub(crate) fn run(
                             &app,
                             OverlayState {
                                 status: OverlayStatus::Loading,
-                                label: "Loading".into(),
                                 ttl_ms: None,
                             },
                         );
@@ -188,7 +183,6 @@ pub(crate) fn run(
                             &app,
                             OverlayState {
                                 status: OverlayStatus::Processing,
-                                label: "Processing".into(),
                                 ttl_ms: None,
                             },
                         );
@@ -229,18 +223,13 @@ pub(crate) fn run(
                     old_mode,
                     settings.output_mode
                 );
-                let label = match settings.output_mode {
-                    OutputMode::Clipboard => "Clipboard",
-                    OutputMode::Paste => "Paste",
-                };
                 let _ = settings.save(&state.data_dir);
                 *state.settings.lock() = settings.clone();
                 let _ = app.emit("settings-changed", &settings);
                 set_overlay(
                     &app,
                     OverlayState {
-                        status: OverlayStatus::Success,
-                        label: label.into(),
+                        status: OverlayStatus::Saved,
                         ttl_ms: Some(1000),
                     },
                 );
@@ -299,7 +288,6 @@ pub(crate) fn run(
                     &app,
                     OverlayState {
                         status: OverlayStatus::Loading,
-                        label: "Loading".into(),
                         ttl_ms: None,
                     },
                 );
@@ -394,15 +382,14 @@ fn handle_transcription(app: &tauri::AppHandle, text: &str, mode: &OutputMode, s
     let _ = app.emit("transcription", text);
 
     // 3. Show confirmation overlay
-    let label = match mode {
-        OutputMode::Clipboard => "Copied",
-        OutputMode::Paste => "Typed",
+    let status = match mode {
+        OutputMode::Clipboard => OverlayStatus::Copied,
+        OutputMode::Paste => OverlayStatus::Typed,
     };
     set_overlay(
         app,
         OverlayState {
-            status: OverlayStatus::Success,
-            label: label.into(),
+            status,
             ttl_ms: Some(1000),
         },
     );

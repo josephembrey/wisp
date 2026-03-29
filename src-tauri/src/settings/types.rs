@@ -24,14 +24,16 @@ pub enum OverlayStatus {
     Recording,
     Processing,
     Loading,
-    Success,
+    Saved,
+    Copied,
+    Typed,
+    Deleted,
     Cancelled,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct OverlayState {
     pub status: OverlayStatus,
-    pub label: String,
     pub ttl_ms: Option<u32>,
 }
 
@@ -39,7 +41,6 @@ impl Default for OverlayState {
     fn default() -> Self {
         Self {
             status: OverlayStatus::Idle,
-            label: "Idle".into(),
             ttl_ms: None,
         }
     }

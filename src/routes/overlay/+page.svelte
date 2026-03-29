@@ -49,7 +49,7 @@
 					style:background="var(--overlay-idle)"
 				></span>
 			</span>
-			<span class="overlay-label" style:color="var(--overlay-text-muted)">{current.label}</span>
+			<span class="overlay-label" style:color="var(--overlay-text-muted)">Idle</span>
 
 			<!-- recording: pulsing red dot -->
 		{:else if current.status === 'recording'}
@@ -63,22 +63,32 @@
 					style:background="var(--overlay-recording)"
 				></span>
 			</span>
-			<span class="overlay-label" style:color="var(--overlay-text)">{current.label}</span>
+			<span class="overlay-label" style:color="var(--overlay-text)">Recording</span>
 
 			<!-- processing/loading: amber spinner -->
 		{:else if current.status === 'processing' || current.status === 'loading'}
 			<Loader2Icon size={14} class="animate-spin" color="var(--overlay-processing)" />
-			<span class="overlay-label" style:color="var(--overlay-text)">{current.label}</span>
+			<span class="overlay-label" style:color="var(--overlay-text)">
+				{current.status === 'loading' ? 'Loading' : 'Processing'}
+			</span>
 
 			<!-- cancelled: amber x -->
 		{:else if current.status === 'cancelled'}
 			<XIcon size={12} color="var(--overlay-processing)" strokeWidth={2.5} />
-			<span class="overlay-label" style:color="var(--overlay-processing)">{current.label}</span>
+			<span class="overlay-label" style:color="var(--overlay-processing)">Cancelled</span>
 
-			<!-- success: green check -->
+			<!-- saved/copied/typed/deleted: green check -->
 		{:else}
 			<CheckIcon size={12} color="var(--overlay-success)" strokeWidth={2.5} />
-			<span class="overlay-label" style:color="var(--overlay-success)">{current.label}</span>
+			<span class="overlay-label" style:color="var(--overlay-success)">
+				{current.status === 'saved'
+					? 'Saved'
+					: current.status === 'copied'
+						? 'Copied'
+						: current.status === 'typed'
+							? 'Typed'
+							: 'Deleted'}
+			</span>
 		{/if}
 	</div>
 </div>

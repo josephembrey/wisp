@@ -3,6 +3,7 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 
+	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import HotkeyCapture from '$lib/components/hotkey-capture.svelte';
 	import { app } from '$lib/state.svelte';
 	import { overlay } from '$lib/overlay.svelte';
@@ -66,6 +67,15 @@
 		/>
 	</div>
 
+	<div class="flex flex-col gap-1.5">
+		<span class="text-xs font-medium text-muted-foreground">Autostart</span>
+		<SettingSwitch
+			checked={app.settings!.autostart ?? false}
+			label={app.settings!.autostart ? 'Starts with system' : 'Manual start'}
+			onchange={(v) => app.save({ autostart: v })}
+		/>
+	</div>
+
 	{#if app.lastTranscription}
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center justify-between">
@@ -74,7 +84,7 @@
 					class="inline-flex h-5 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
 					onclick={() => {
 						navigator.clipboard.writeText(app.lastTranscription);
-						overlay.notify('Copied', 'success', 750);
+						overlay.notify('copied', 750);
 					}}
 				>
 					<CopyIcon size={12} />
