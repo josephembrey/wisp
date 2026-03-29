@@ -10,7 +10,6 @@ import {
 	downloadModel as downloadModelCmd,
 	deleteModel as deleteModelCmd,
 	isFirstRun,
-	onOverlayState,
 	onTranscription,
 	onError,
 	onSettingsChanged,
@@ -21,7 +20,6 @@ import {
 	type ModelInfo,
 	type DownloadProgress
 } from '$lib/tauri';
-import { overlay } from '$lib/overlay.svelte';
 
 // App state (reactive via Svelte 5 runes)
 let settings: Settings | null = $state(null);
@@ -92,7 +90,6 @@ function init(): () => void {
 		.catch((e) => logError(`[init] first-run check failed: ${e}`));
 
 	const unsubs = [
-		onOverlayState((s) => overlay.push(s)),
 		onTranscription((t) => (lastTranscription = t)),
 		onError((msg) => {
 			logError(`[backend] ${msg}`);

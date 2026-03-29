@@ -4,13 +4,7 @@
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { error as logError } from '@tauri-apps/plugin-log';
-	import {
-		getSettings,
-		onOverlayState,
-		onSettingsChanged,
-		type Settings,
-		type OverlayIcon
-	} from '$lib/tauri';
+	import { getSettings, onSettingsChanged, type Settings, type OverlayIcon } from '$lib/tauri';
 	import { overlay } from '$lib/overlay.svelte';
 
 	const styles: Record<OverlayIcon, { color: string; iconColor: string }> = {
@@ -45,8 +39,8 @@
 			.then(applySettings)
 			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
 
-		const unsubs = [onOverlayState((s) => overlay.push(s)), onSettingsChanged(applySettings)];
-		return () => unsubs.forEach((p) => p.then((fn) => fn()));
+		const unsub = onSettingsChanged(applySettings);
+		return () => unsub.then((fn) => fn());
 	});
 </script>
 

@@ -1,4 +1,4 @@
-import type { OverlayState, OverlayIcon } from '$lib/tauri';
+import { onOverlayState, type OverlayState, type OverlayIcon } from '$lib/tauri';
 
 const IDLE: OverlayState = { icon: 'dot', label: 'Idle', ttl_ms: null };
 
@@ -8,7 +8,7 @@ let base: OverlayState = $state(IDLE);
 let transient: OverlayState | null = $state(null);
 let timeout: ReturnType<typeof setTimeout> | undefined;
 
-export function pushOverlay(s: OverlayState) {
+function push(s: OverlayState) {
 	if (s.ttl_ms != null) {
 		clearTimeout(timeout);
 		transient = s;
@@ -20,14 +20,17 @@ export function pushOverlay(s: OverlayState) {
 	}
 }
 
-export function notify(label: string, icon: OverlayIcon, ttl_ms: number) {
-	pushOverlay({ icon, label, ttl_ms });
+function notify(label: string, icon: OverlayIcon, ttl_ms: number) {
+	push({ icon, label, ttl_ms });
 }
+
+// Subscribe to backend overlay events
+onOverlayState((s) => push(s));
 
 export const overlay = {
 	get current(): OverlayState {
 		return transient ?? base;
 	},
-	push: pushOverlay,
+	push,
 	notify
 };
