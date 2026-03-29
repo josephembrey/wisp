@@ -16,15 +16,13 @@ import {
 	onSettingsChanged,
 	onDownloadProgress,
 	type Settings,
-	type OverlayState,
 	type OverlayIcon,
 	type MonitorInfo,
 	type InputDeviceInfo,
 	type ModelInfo,
 	type DownloadProgress
 } from '$lib/tauri';
-
-const IDLE: OverlayState = { icon: 'dot', label: 'Idle', ttl_ms: null };
+import { createOverlayStack } from '$lib/overlay-stack.svelte';
 
 // App state (reactive via Svelte 5 runes)
 let settings: Settings | null = $state(null);
@@ -36,33 +34,11 @@ let downloadProgress: DownloadProgress | null = $state(null);
 let lastTranscription: string = $state('');
 let activeTab: string = $state('general');
 
-// Overlay notification stack
-// base = persistent state (recording, processing, idle)
-// transient = timed state with auto-expiry (saved, copied, cancelled)
-// app.overlay returns transient if active, else base
-let overlayBase: OverlayState = $state(IDLE);
-let overlayTransient: OverlayState | null = $state(null);
-let transientTimeout: ReturnType<typeof setTimeout> | undefined;
-
-function pushOverlay(s: OverlayState) {
-	if (s.ttl_ms != null) {
-		// Timed state: push onto transient slot, auto-expire
-		clearTimeout(transientTimeout);
-		overlayTransient = s;
-		transientTimeout = setTimeout(() => {
-			overlayTransient = null;
-		}, s.ttl_ms);
-	} else {
-		// Persistent state: update base, clear any transient
-		clearTimeout(transientTimeout);
-		overlayBase = s;
-		overlayTransient = null;
-	}
-}
+const overlayStack = createOverlayStack();
 
 // Frontend notification gateway
 function notify(label: string, icon: OverlayIcon, ttl_ms: number) {
-	pushOverlay({ icon, label, ttl_ms });
+	overlayStack.push({ icon, label, ttl_ms });
 }
 
 // Actions
@@ -124,7 +100,7 @@ function init(): () => void {
 		.catch((e) => logError(`[init] first-run check failed: ${e}`));
 
 	const unsubs = [
-		onOverlayState((s) => pushOverlay(s)),
+		onOverlayState((s) => overlayStack.push(s)),
 		onTranscription((t) => (lastTranscription = t)),
 		onError((msg) => {
 			logError(`[backend] ${msg}`);
@@ -144,8 +120,8 @@ export const app = {
 	get settings() {
 		return settings;
 	},
-	get overlay(): OverlayState {
-		return overlayTransient ?? overlayBase;
+	get overlay() {
+		return overlayStack.current;
 	},
 	get models() {
 		return models;

@@ -9,9 +9,9 @@
 		onOverlayState,
 		onSettingsChanged,
 		type Settings,
-		type OverlayState,
 		type OverlayIcon
 	} from '$lib/tauri';
+	import { createOverlayStack } from '$lib/overlay-stack.svelte';
 
 	const styles: Record<OverlayIcon, { color: string; iconColor: string }> = {
 		dot: { color: 'var(--overlay-text-muted)', iconColor: 'var(--overlay-idle)' },
@@ -21,25 +21,12 @@
 		x: { color: 'var(--overlay-processing)', iconColor: 'var(--overlay-processing)' }
 	};
 
+	const overlayStack = createOverlayStack();
+
 	let alwaysShow = $state(false);
 	let position = $state('top-right');
 	let size = $state('md');
-	let overlayBase = $state<OverlayState>({ icon: 'dot', label: 'Idle', ttl_ms: null });
-	let overlayTransient = $state<OverlayState | null>(null);
-	let transientTimeout: ReturnType<typeof setTimeout> | undefined;
-	let overlay = $derived(overlayTransient ?? overlayBase);
-
-	function pushOverlay(s: OverlayState) {
-		if (s.ttl_ms != null) {
-			clearTimeout(transientTimeout);
-			overlayTransient = s;
-			transientTimeout = setTimeout(() => (overlayTransient = null), s.ttl_ms);
-		} else {
-			clearTimeout(transientTimeout);
-			overlayBase = s;
-			overlayTransient = null;
-		}
-	}
+	let overlay = $derived(overlayStack.current);
 
 	const style = $derived(styles[overlay.icon]);
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
@@ -60,7 +47,7 @@
 			.then(applySettings)
 			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
 
-		const unsubs = [onOverlayState((s) => pushOverlay(s)), onSettingsChanged(applySettings)];
+		const unsubs = [onOverlayState((s) => overlayStack.push(s)), onSettingsChanged(applySettings)];
 		return () => unsubs.forEach((p) => p.then((fn) => fn()));
 	});
 </script>
