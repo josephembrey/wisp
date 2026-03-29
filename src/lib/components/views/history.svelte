@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import {
 		getHistory,
@@ -20,6 +21,13 @@
 	let copiedId: number | null = $state(null);
 	let copiedTimeout: ReturnType<typeof setTimeout> | undefined;
 
+	// Source badge styles
+	const sourceBadge: Record<string, string> = {
+		mic: 'bg-primary/10 text-primary',
+		file: 'bg-secondary text-secondary-foreground'
+	};
+
+	// Actions
 	async function refresh() {
 		try {
 			entries = await getHistory();
@@ -63,6 +71,7 @@
 		return new Date(timestamp * 1000).toLocaleDateString();
 	}
 
+	// Lifecycle
 	onMount(() => {
 		refresh();
 		const unsub = onHistoryChanged(() => refresh());
@@ -70,8 +79,13 @@
 			unsub.then((fn) => fn());
 		};
 	});
+
+	// Shared styles
+	const actionBtn =
+		'inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground';
 </script>
 
+<!-- Settings row -->
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between gap-2">
 		<SettingSwitch
@@ -102,62 +116,80 @@
 		</div>
 	</div>
 
+	<!-- Empty state -->
 	{#if entries.length === 0}
-		<p class="py-6 text-center text-xs text-muted-foreground">No transcription history yet.</p>
-	{:else}
-		<div class="flex max-h-64 flex-col gap-1 overflow-y-auto pr-1">
-			{#each entries as entry (entry.id)}
-				<div class="group rounded-md border border-border bg-background p-2">
-					<div class="flex items-start justify-between gap-2">
-						<button
-							class="min-w-0 flex-1 text-left"
-							onclick={() => (expandedId = expandedId === entry.id ? null : entry.id)}
-						>
-							<div class="flex items-center gap-1.5">
-								<span
-									class="shrink-0 rounded px-1 py-0.5 text-[10px] leading-none font-medium uppercase {entry.source ===
-									'mic'
-										? 'bg-primary/10 text-primary'
-										: 'bg-secondary text-secondary-foreground'}"
-								>
-									{entry.source}
-								</span>
-								<span class="text-[10px] text-muted-foreground">{timeAgo(entry.timestamp)}</span>
-							</div>
-							<p class="mt-1 text-xs text-foreground" class:line-clamp-1={expandedId !== entry.id}>
-								{entry.text}
-							</p>
-						</button>
-						<div
-							class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-						>
-							<button
-								class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-								onclick={() => copyText(entry)}
-								title="Copy"
-							>
-								{#if copiedId === entry.id}
-									<CheckIcon size={12} />
-								{:else}
-									<CopyIcon size={12} />
-								{/if}
-							</button>
-							<button
-								class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
-								onclick={() => handleDelete(entry.id)}
-								title="Delete"
-							>
-								<XIcon size={12} />
-							</button>
-						</div>
-					</div>
-				</div>
-			{/each}
+		<div class="flex flex-col items-center gap-1 py-8 text-center">
+			<p class="text-xs text-muted-foreground">No transcription history yet.</p>
+			<p class="text-[10px] text-muted-foreground/60">
+				Hold your hotkey to record, history will appear here.
+			</p>
 		</div>
 
+		<!-- Entry list -->
+	{:else}
+		<ScrollArea class="max-h-64">
+			<div class="flex flex-col gap-1 pr-1">
+				{#each entries as entry (entry.id)}
+					<div class="group rounded-md border border-border bg-background p-2">
+						<div class="flex items-start justify-between gap-2">
+							<!-- Entry content (click to expand) -->
+							<button
+								class="min-w-0 flex-1 text-left"
+								onclick={() => (expandedId = expandedId === entry.id ? null : entry.id)}
+							>
+								<div class="flex items-center gap-1.5">
+									<span
+										class="shrink-0 rounded px-1 py-0.5 text-[10px] leading-none font-medium uppercase {sourceBadge[
+											entry.source
+										] ?? sourceBadge.file}"
+									>
+										{entry.source}
+									</span>
+									<span class="text-[10px] text-muted-foreground">
+										{timeAgo(entry.timestamp)}
+									</span>
+								</div>
+								<p
+									class="mt-1 text-xs text-foreground"
+									class:line-clamp-1={expandedId !== entry.id}
+								>
+									{entry.text}
+								</p>
+							</button>
+
+							<!-- Hover actions -->
+							<div
+								class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+							>
+								<button
+									class="{actionBtn} hover:bg-accent hover:text-foreground"
+									onclick={() => copyText(entry)}
+									title="Copy"
+								>
+									{#if copiedId === entry.id}
+										<CheckIcon size={12} />
+									{:else}
+										<CopyIcon size={12} />
+									{/if}
+								</button>
+								<button
+									class="{actionBtn} hover:bg-destructive hover:text-white"
+									onclick={() => handleDelete(entry.id)}
+									title="Delete"
+								>
+									<XIcon size={12} />
+								</button>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</ScrollArea>
+
+		<!-- Clear all (destructive, understated) -->
 		<AlertDialog.Root>
 			<AlertDialog.Trigger
-				class="self-start text-xs text-muted-foreground underline hover:text-foreground"
+				class="self-start text-[10px] text-muted-foreground/40 underline hover:text-muted-foreground"
 			>
 				Clear all history
 			</AlertDialog.Trigger>
