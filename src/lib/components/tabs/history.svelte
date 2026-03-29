@@ -1,24 +1,19 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import {
 		getHistory,
 		clearHistory,
 		deleteHistoryEntry,
 		onHistoryChanged,
-		type HistoryEntry,
-		type Settings
+		type HistoryEntry
 	} from '$lib/tauri';
 	import { onMount } from 'svelte';
 	import { log } from '$lib/log';
-
-	let {
-		settings,
-		onsave
-	}: {
-		settings: Settings;
-		onsave: (updates: Partial<Settings>) => void;
-	} = $props();
+	import { app } from '$lib/state.svelte';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import CopyIcon from '@lucide/svelte/icons/copy';
+	import XIcon from '@lucide/svelte/icons/x';
 
 	let entries: HistoryEntry[] = $state([]);
 	let expandedId: number | null = $state(null);
@@ -79,24 +74,13 @@
 
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between gap-2">
+		<SettingSwitch
+			checked={app.settings!.history_enabled ?? true}
+			label="Save history"
+			onchange={(v) => app.save({ history_enabled: v })}
+		/>
 		<div
-			class="flex cursor-pointer items-center gap-2"
-			role="switch"
-			tabindex="0"
-			aria-checked={settings.history_enabled ?? true}
-			onclick={() => onsave({ history_enabled: !(settings.history_enabled ?? true) })}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					onsave({ history_enabled: !(settings.history_enabled ?? true) });
-				}
-			}}
-		>
-			<Switch checked={settings.history_enabled ?? true} class="pointer-events-none" />
-			<span class="text-xs text-muted-foreground">Save history</span>
-		</div>
-		<div
-			class="flex items-center gap-1.5 transition-opacity {settings.history_enabled
+			class="flex items-center gap-1.5 transition-opacity {app.settings!.history_enabled
 				? ''
 				: 'pointer-events-none opacity-40'}"
 		>
@@ -106,11 +90,11 @@
 				min="10"
 				max="10000"
 				step="10"
-				disabled={!settings.history_enabled}
-				value={settings.history_retention ?? 100}
+				disabled={!app.settings!.history_enabled}
+				value={app.settings!.history_retention ?? 100}
 				onchange={(e) => {
 					const v = parseInt(e.currentTarget.value);
-					if (!isNaN(v) && v >= 10) onsave({ history_retention: v });
+					if (!isNaN(v) && v >= 10) app.save({ history_retention: v });
 				}}
 				class="h-6 w-16 rounded-md border border-input bg-background px-1.5 text-xs"
 			/>
@@ -153,32 +137,9 @@
 								title="Copy"
 							>
 								{#if copiedId === entry.id}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
-									>
+									<CheckIcon size={12} />
 								{:else}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										><rect width="14" height="14" x="8" y="8" rx="2" /><path
-											d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
-										/></svg
-									>
+									<CopyIcon size={12} />
 								{/if}
 							</button>
 							<button
@@ -186,18 +147,7 @@
 								onclick={() => handleDelete(entry.id)}
 								title="Delete"
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="12"
-									height="12"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg
-								>
+								<XIcon size={12} />
 							</button>
 						</div>
 					</div>

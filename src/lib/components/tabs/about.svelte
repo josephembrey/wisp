@@ -1,14 +1,9 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { resetApp, showLogDir } from '$lib/tauri';
+	import { app } from '$lib/state.svelte';
 
 	const isDev = import.meta.env.DEV;
-
-	let {
-		hotkey
-	}: {
-		hotkey: string;
-	} = $props();
 </script>
 
 <div class="flex flex-col gap-3">
@@ -21,11 +16,25 @@
 		<ol class="space-y-1 text-xs text-muted-foreground">
 			<li class="flex gap-2">
 				<span class="font-semibold text-foreground">1.</span>
-				<span>Download a model in <strong>Model</strong> (base is a good start)</span>
+				<span>
+					Download a model in
+					<button
+						class="font-semibold text-foreground underline hover:text-primary"
+						onclick={() => (app.activeTab = 'model')}
+					>
+						Model
+					</button>
+				</span>
 			</li>
 			<li class="flex gap-2">
 				<span class="font-semibold text-foreground">2.</span>
-				<span>Hold <strong>{hotkey.replace(/\+/g, ' + ')}</strong> to record</span>
+				<span>
+					Hold
+					<kbd class="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-foreground">
+						{(app.settings?.hotkey ?? '').replace(/\+/g, ' + ')}
+					</kbd>
+					to record
+				</span>
 			</li>
 			<li class="flex gap-2">
 				<span class="font-semibold text-foreground">3.</span>
@@ -39,13 +48,7 @@
 		<ul class="space-y-1 text-xs text-muted-foreground">
 			<li class="flex items-start gap-2">
 				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-				<span>Minimize this window — Wisp keeps running in the system tray</span>
-			</li>
-			<li class="flex items-start gap-2">
-				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>
-				<span
-					><strong>Clipboard</strong> copies text, <strong>Type</strong> pastes at your cursor</span
-				>
+				<span>Minimize this window, Wisp keeps running in the tray</span>
 			</li>
 			<li class="flex items-start gap-2">
 				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground"></span>

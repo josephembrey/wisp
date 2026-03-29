@@ -1,225 +1,51 @@
 <script lang="ts">
-	import {
-		getSettings,
-		updateSettings,
-		getOverlayState,
-		onOverlayState,
-		onTranscription,
-		onError,
-		onSettingsChanged,
-		onDownloadProgress,
-		getGpuBackend,
-		getMonitors,
-		getInputDevices,
-		getModels,
-		downloadModel,
-		deleteModel,
-		isFirstRun,
-		resizeWindow as resizeWindowCmd,
-		type Settings,
-		type OverlayState,
-		type MonitorInfo,
-		type InputDeviceInfo,
-		type ModelInfo,
-		type DownloadProgress
-	} from '$lib/tauri';
-	import { onMount, tick } from 'svelte';
-	import { toast } from 'svelte-sonner';
-	import { log } from '$lib/log';
+	import { resizeWindow as resizeWindowCmd } from '$lib/tauri';
+	import { app } from '$lib/state.svelte';
+	import { onMount } from 'svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import Titlebar from '$lib/components/settings/titlebar.svelte';
-	import SettingsGeneral from '$lib/components/settings/general.svelte';
-	import SettingsModel from '$lib/components/settings/model.svelte';
-	import SettingsOverlay from '$lib/components/settings/overlay.svelte';
-	import SettingsAbout from '$lib/components/settings/about.svelte';
-	import SettingsTranscribe from '$lib/components/settings/transcribe.svelte';
-	import SettingsHistory from '$lib/components/settings/history.svelte';
+	import Titlebar from '$lib/components/titlebar.svelte';
+	import TabGeneral from '$lib/components/tabs/general.svelte';
+	import TabModel from '$lib/components/tabs/model.svelte';
+	import TabOverlay from '$lib/components/tabs/overlay.svelte';
+	import TabAbout from '$lib/components/tabs/about.svelte';
+	import TabTranscribe from '$lib/components/tabs/transcribe.svelte';
+	import TabHistory from '$lib/components/tabs/history.svelte';
 
-	let settings: Settings | null = $state(null);
-	let overlay: OverlayState = $state({ icon: 'dot', label: 'Idle', ttl_ms: null });
-	let overlayTtlTimeout: ReturnType<typeof setTimeout> | undefined;
-	let lastTranscription: string = $state('');
-	let contentEl: HTMLDivElement | undefined = $state();
-	let tabInnerEl: HTMLDivElement | undefined = $state();
-	let gpuBackend: string = $state('');
-	let monitors: MonitorInfo[] = $state([]);
-	let inputDevices: InputDeviceInfo[] = $state([]);
-	let models: ModelInfo[] = $state([]);
-	let downloading: string | null = $state(null);
-	let downloadProgress: DownloadProgress | null = $state(null);
-	let activeTab: string = $state('general');
-	let showSaved: boolean = $state(false);
-	let savedTimeout: ReturnType<typeof setTimeout> | undefined;
-
-	let lastHeight = 0;
+	let contentHeight: number = $state(0);
 	let tabHeight: number = $state(0);
 	let tabAnimated: boolean = $state(false);
+	let lastHeight = 0;
 
 	const OUTER_PAD = 16;
 
-	async function resizeWindow() {
-		await tick();
-		if (!contentEl) return;
-		const h = Math.ceil(contentEl.getBoundingClientRect().height) + OUTER_PAD;
+	$effect(() => {
+		const h = Math.ceil(contentHeight) + OUTER_PAD;
 		if (h > 0 && Math.abs(h - lastHeight) >= 2) {
 			lastHeight = h;
 			resizeWindowCmd(h);
 		}
-	}
-
-	$effect(() => {
-		if (!contentEl) return;
-
-		const ro = new ResizeObserver(() => resizeWindow());
-		ro.observe(contentEl);
-		resizeWindow();
-
-		return () => ro.disconnect();
 	});
 
 	$effect(() => {
-		if (!tabInnerEl) return;
-
-		const measure = () => {
-			const h = tabInnerEl!.scrollHeight;
-			if (h > 0) tabHeight = h;
-		};
-
-		const ro = new ResizeObserver(measure);
-		ro.observe(tabInnerEl);
-		measure();
-		requestAnimationFrame(() => {
-			tabAnimated = true;
-		});
-
-		return () => ro.disconnect();
+		if (tabHeight > 0) {
+			requestAnimationFrame(() => {
+				tabAnimated = true;
+			});
+		}
 	});
 
-	async function save(updates: Partial<Settings>) {
-		if (!settings) return;
-		const dominated = Object.entries(updates).every(
-			([k, v]) => (settings as Record<string, unknown>)[k] === v
-		);
-		if (dominated) return;
-		const keys = Object.keys(updates);
-		log.info(`[page] save: ${keys.join(', ')}`);
-		settings = { ...settings, ...updates };
-		try {
-			await updateSettings(settings);
-			showSavedFlag(true, 750);
-		} catch (e) {
-			log.error(`[page] save failed: ${e}`);
-			toast.error(`Failed to save settings: ${e}`);
-		}
-	}
-
-	function showSavedFlag(show: boolean, timeout?: number) {
-		clearTimeout(savedTimeout);
-		showSaved = show;
-		if (show && timeout) {
-			savedTimeout = setTimeout(() => (showSaved = false), timeout);
-		}
-	}
-
-	async function handleDownload(name: string) {
-		log.info(`[page] download: ${name}`);
-		downloading = name;
-		downloadProgress = null;
-		try {
-			await downloadModel(name);
-			log.info(`[page] download complete: ${name}`);
-			models = await getModels();
-		} catch (e) {
-			log.error(`[page] download failed: ${name} ${e}`);
-			toast.error(`Failed to download model: ${e}`);
-		} finally {
-			downloading = null;
-			downloadProgress = null;
-		}
-	}
-
-	async function handleDeleteModel(name: string) {
-		log.info(`[page] delete: ${name}`);
-		try {
-			await deleteModel(name);
-			models = await getModels();
-		} catch (e) {
-			log.error(`[page] delete failed: ${name} ${e}`);
-			toast.error(`Failed to delete model: ${e}`);
-		}
-	}
-
-	onMount(() => {
-		log.info('[page] mounted');
-
-		Promise.all([
-			getSettings().then((s) => (settings = s)),
-			getOverlayState().then((s) => (overlay = s)),
-			getGpuBackend().then((b) => (gpuBackend = b)),
-			getMonitors().then((m) => (monitors = m)),
-			getInputDevices().then((d) => (inputDevices = d)),
-			getModels().then((m) => (models = m))
-		])
-			.then(() => log.info('[page] initial data loaded'))
-			.catch((e) => log.error(`[page] initial data load error: ${e}`));
-
-		isFirstRun()
-			.then((first) => {
-				log.info(`[page] isFirstRun: ${first}`);
-				if (first) {
-					activeTab = 'about';
-					handleDownload('base');
-				}
-			})
-			.catch((e) => log.error(`[page] isFirstRun failed: ${e}`));
-
-		const unsubs = [
-			onOverlayState((s) => {
-				log.info(`[page] event: overlay-state -> ${s.icon} ${s.label}`);
-				clearTimeout(overlayTtlTimeout);
-				overlay = s;
-				if (s.ttl_ms != null) {
-					overlayTtlTimeout = setTimeout(() => {
-						getOverlayState().then((real) => (overlay = real));
-					}, s.ttl_ms);
-				}
-			}),
-			onTranscription((t) => {
-				log.info(`[page] event: transcription ${t.length} chars`);
-				lastTranscription = t;
-			}),
-			onError((msg) => {
-				log.error(`[page] event: backend-error: ${msg}`);
-				toast.error(msg);
-			}),
-			onSettingsChanged((s) => {
-				log.info('[page] event: settings-changed');
-				settings = s;
-			}),
-			onDownloadProgress((p) => (downloadProgress = p))
-		];
-
-		return () => {
-			unsubs.forEach((p) => p.then((fn) => fn()));
-		};
-	});
+	onMount(() => app.init());
 </script>
 
 <div class="p-2">
 	<div
-		bind:this={contentEl}
+		bind:clientHeight={contentHeight}
 		class="overflow-hidden rounded-xl border border-border bg-card shadow-md"
 	>
-		<Titlebar
-			{overlay}
-			{showSaved}
-			downloading={downloading !== null}
-			autostart={settings?.autostart ?? false}
-			onautostart={(v) => save({ autostart: v })}
-		/>
+		<Titlebar />
 
-		{#if settings}
-			<Tabs.Root bind:value={activeTab}>
+		{#if app.settings}
+			<Tabs.Root bind:value={app.activeTab}>
 				<div class="px-3 pb-2">
 					<Tabs.List class="w-full">
 						<Tabs.Trigger value="general">General</Tabs.Trigger>
@@ -238,48 +64,37 @@
 					class:ease-out={tabAnimated}
 					style:height={tabHeight ? `${tabHeight}px` : 'auto'}
 				>
-					<div bind:this={tabInnerEl} class="px-3 pb-3">
+					<div bind:clientHeight={tabHeight} class="px-3 pb-3">
 						<Tabs.Content value="general">
-							<SettingsGeneral
-								{settings}
-								{inputDevices}
-								{lastTranscription}
-								onsave={save}
-								onsavedflag={showSavedFlag}
-							/>
+							<TabGeneral />
 						</Tabs.Content>
 
 						<Tabs.Content value="model">
-							<SettingsModel
-								{settings}
-								{gpuBackend}
-								{models}
-								{downloading}
-								progress={downloadProgress}
-								onsave={save}
-								ondownload={handleDownload}
-								ondelete={handleDeleteModel}
-							/>
+							<TabModel />
 						</Tabs.Content>
 
 						<Tabs.Content value="overlay">
-							<SettingsOverlay {settings} {monitors} onsave={save} />
+							<TabOverlay />
 						</Tabs.Content>
 
 						<Tabs.Content value="transcribe">
-							<SettingsTranscribe {settings} />
+							<TabTranscribe />
 						</Tabs.Content>
 
 						<Tabs.Content value="history">
-							<SettingsHistory {settings} onsave={save} />
+							<TabHistory />
 						</Tabs.Content>
 
 						<Tabs.Content value="about">
-							<SettingsAbout hotkey={settings.hotkey} />
+							<TabAbout />
 						</Tabs.Content>
 					</div>
 				</div>
 			</Tabs.Root>
+		{:else}
+			<div class="flex items-center justify-center p-8">
+				<span class="text-xs text-muted-foreground">Loading...</span>
+			</div>
 		{/if}
 	</div>
 </div>

@@ -1,6 +1,7 @@
 use crate::audio;
+use crate::engine;
 use crate::history;
-use crate::settings::{OverlayState, Settings, WispState};
+use crate::settings::{OverlayIcon, OverlayState, Settings, WispState};
 use crate::whisper;
 use tauri::{Emitter, Manager};
 
@@ -65,6 +66,16 @@ pub fn update_settings(
 
     let _ = app.emit("settings-changed", &settings);
 
+    engine::set_overlay(
+        &app,
+        &state,
+        OverlayState {
+            icon: OverlayIcon::Check,
+            label: "Saved".into(),
+            ttl_ms: Some(750),
+        },
+    );
+
     Ok(())
 }
 
@@ -93,9 +104,23 @@ pub async fn download_model(
 
 #[tauri::command]
 #[specta::specta]
-pub fn delete_model(state: tauri::State<'_, WispState>, name: String) -> Result<(), String> {
+pub fn delete_model(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, WispState>,
+    name: String,
+) -> Result<(), String> {
     log::info!("delete requested: {}", name);
-    whisper::delete_model(&state.models_dir, &name)
+    whisper::delete_model(&state.models_dir, &name)?;
+    engine::set_overlay(
+        &app,
+        &state,
+        OverlayState {
+            icon: OverlayIcon::Check,
+            label: "Deleted".into(),
+            ttl_ms: Some(750),
+        },
+    );
+    Ok(())
 }
 
 #[tauri::command]

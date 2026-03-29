@@ -418,7 +418,7 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
     }
 }
 
-fn set_overlay(app: &tauri::AppHandle, state: &WispState, overlay: OverlayState) {
+pub(crate) fn set_overlay(app: &tauri::AppHandle, state: &WispState, overlay: OverlayState) {
     log::debug!("set_overlay -> {:?} {}", overlay.icon, overlay.label);
     if overlay.ttl_ms.is_none() {
         *state.overlay.lock() = overlay.clone();

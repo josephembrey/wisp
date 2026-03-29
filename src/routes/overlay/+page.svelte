@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { log } from '$lib/log';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -15,11 +14,11 @@
 	} from '$lib/tauri';
 
 	const styles: Record<OverlayIcon, { color: string; iconColor: string }> = {
-		dot: { color: 'rgba(255,255,255,0.6)', iconColor: '#a3a3a3' },
-		pulse: { color: '#fff', iconColor: '#ef4444' },
-		spinner: { color: '#fff', iconColor: '#fbbf24' },
-		check: { color: '#4ade80', iconColor: '#4ade80' },
-		x: { color: '#fbbf24', iconColor: '#fbbf24' }
+		dot: { color: 'var(--overlay-text-muted)', iconColor: 'var(--overlay-idle)' },
+		pulse: { color: 'var(--overlay-text)', iconColor: 'var(--overlay-recording)' },
+		spinner: { color: 'var(--overlay-text)', iconColor: 'var(--overlay-processing)' },
+		check: { color: 'var(--overlay-success)', iconColor: 'var(--overlay-success)' },
+		x: { color: 'var(--overlay-processing)', iconColor: 'var(--overlay-processing)' }
 	};
 
 	let alwaysShow = $state(false);
@@ -43,11 +42,7 @@
 	}
 
 	onMount(() => {
-		log.info('[overlay] mounted');
-		getSettings().then((s) => {
-			log.info(`[overlay] loaded, position=${s.overlay_position}`);
-			applySettings(s);
-		});
+		getSettings().then(applySettings);
 		getOverlayState().then((s) => (overlay = s));
 
 		const unsubs = [
@@ -68,7 +63,8 @@
 
 <div class="flex {align} {justify} h-screen w-screen p-3">
 	<div
-		class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm transition-opacity duration-150 {scale}"
+		class="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 shadow-lg backdrop-blur-sm transition-opacity duration-150 {scale}"
+		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
 		{#if overlay.icon === 'dot' || overlay.icon === 'pulse'}
@@ -102,6 +98,16 @@
 </div>
 
 <style>
+	:root {
+		--overlay-bg: rgba(0, 0, 0, 0.6);
+		--overlay-text: #fff;
+		--overlay-text-muted: rgba(255, 255, 255, 0.6);
+		--overlay-idle: #a3a3a3;
+		--overlay-recording: #ef4444;
+		--overlay-processing: #fbbf24;
+		--overlay-success: #4ade80;
+	}
+
 	:global(html),
 	:global(body) {
 		background: transparent !important;
