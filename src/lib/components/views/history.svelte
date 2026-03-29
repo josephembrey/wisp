@@ -191,16 +191,17 @@
 		</div>
 
 		<!-- Settings + clear -->
-		<div class="flex items-center justify-between text-xs text-muted-foreground">
-			<div class="flex items-center gap-2">
+		<div class="flex items-center text-xs text-muted-foreground">
+			<div class="flex flex-1 items-center gap-2">
 				<span>Save</span>
 				<SettingSwitch
 					checked={app.settings!.history_enabled ?? true}
 					onchange={(v) => app.save({ history_enabled: v })}
 				/>
-				{#if !app.settings!.history_enabled}
-					<span class="text-[10px] text-muted-foreground/40">paused</span>
-				{/if}
+				<span
+					class="text-[10px] text-muted-foreground/40"
+					class:invisible={app.settings!.history_enabled}>paused</span
+				>
 			</div>
 
 			<AlertDialog.Root>
@@ -222,7 +223,8 @@
 			</AlertDialog.Root>
 
 			<div
-				class="flex items-center gap-1.5 transition-opacity {app.settings!.history_enabled
+				class="flex flex-1 items-center justify-end gap-1.5 transition-opacity {app.settings!
+					.history_enabled
 					? ''
 					: 'pointer-events-none opacity-40'}"
 			>
