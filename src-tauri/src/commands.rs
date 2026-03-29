@@ -46,7 +46,7 @@ pub fn update_settings(
             settings.gpu
         );
         *state.settings.lock() = settings.clone();
-        let _ = app.emit("reload-model", ());
+        let _ = state.engine_tx.send(crate::engine::AppEvent::ReloadModel);
     } else {
         *state.settings.lock() = settings.clone();
     }
@@ -57,7 +57,7 @@ pub fn update_settings(
             settings.hotkey,
             settings.output_hotkey
         );
-        crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
+        crate::hotkey::register(&app, &settings.hotkey, &settings.output_hotkey);
     }
 
     if old.autostart != settings.autostart {
@@ -68,7 +68,6 @@ pub fn update_settings(
 
     engine::set_overlay(
         &app,
-        &state,
         OverlayState {
             icon: OverlayIcon::Check,
             label: "Saved".into(),
@@ -77,12 +76,6 @@ pub fn update_settings(
     );
 
     Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn get_overlay_state(state: tauri::State<'_, WispState>) -> OverlayState {
-    state.overlay.lock().clone()
 }
 
 #[tauri::command]
@@ -113,7 +106,6 @@ pub fn delete_model(
     whisper::delete_model(&state.models_dir, &name)?;
     engine::set_overlay(
         &app,
-        &state,
         OverlayState {
             icon: OverlayIcon::Check,
             label: "Deleted".into(),

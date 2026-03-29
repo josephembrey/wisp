@@ -1,3 +1,4 @@
+mod migrate;
 mod state;
 mod types;
 
@@ -82,7 +83,7 @@ impl Default for Settings {
         Self {
             model: "base".to_string(),
             output_mode: OutputMode::Paste,
-            hotkey: "Alt+KeyQ".to_string(),
+            hotkey: "Alt+Q".to_string(),
             language: "en".to_string(),
             gpu: true,
             interrupt: false,
@@ -109,12 +110,16 @@ impl Settings {
 
     pub fn load(data_dir: &Path) -> Self {
         let path = data_dir.join("settings.json");
-        if path.exists() {
+        let mut settings = if path.exists() {
             let content = fs::read_to_string(&path).unwrap_or_default();
             serde_json::from_str(&content).unwrap_or_default()
         } else {
             Settings::default()
+        };
+        if migrate::migrate(&mut settings) {
+            let _ = settings.save(data_dir);
         }
+        settings
     }
 
     pub fn save(&self, data_dir: &Path) -> Result<(), String> {

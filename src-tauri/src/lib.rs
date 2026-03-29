@@ -8,8 +8,8 @@ mod settings;
 mod tray;
 mod whisper;
 
-use settings::{OverlayState, Settings, WispState};
-use tauri::{Listener, Manager};
+use settings::{OverlayIcon, OverlayState, Settings, WispState};
+use tauri::Manager;
 use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 
 pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
@@ -18,7 +18,6 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::is_first_run,
             commands::get_settings,
             commands::update_settings,
-            commands::get_overlay_state,
             commands::get_models,
             commands::download_model,
             commands::delete_model,
@@ -36,6 +35,8 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         ])
         .typ::<whisper::DownloadProgress>()
         .typ::<history::HistoryEntry>()
+        .typ::<OverlayState>()
+        .typ::<OverlayIcon>()
 }
 
 pub fn ts_export_config() -> specta_typescript::Typescript {
@@ -78,25 +79,37 @@ pub fn run() {
                     let state = app.state::<WispState>();
                     let settings = state.settings.lock().clone();
 
-                    let main_shortcut = hotkey::to_accelerator(&settings.hotkey)
-                        .and_then(|s| s.parse::<Shortcut>().ok());
-                    let output_shortcut = hotkey::to_accelerator(&settings.output_hotkey)
-                        .and_then(|s| s.parse::<Shortcut>().ok());
+                    let main_shortcut = if settings.hotkey.is_empty() {
+                        None
+                    } else {
+                        settings.hotkey.parse::<Shortcut>().ok()
+                    };
+                    let output_shortcut = if settings.output_hotkey.is_empty() {
+                        None
+                    } else {
+                        settings.output_hotkey.parse::<Shortcut>().ok()
+                    };
 
                     if main_shortcut.as_ref() == Some(shortcut) {
                         log::info!("hotkey: main {:?}", event.state());
                         match event.state() {
                             ShortcutState::Pressed => {
-                                let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::Pressed);
+                                let _ = state
+                                    .engine_tx
+                                    .send(engine::AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed));
                             }
                             ShortcutState::Released => {
-                                let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::Released);
+                                let _ = state
+                                    .engine_tx
+                                    .send(engine::AppEvent::Hotkey(hotkey::HotkeyEvent::Released));
                             }
                         }
                     } else if output_shortcut.as_ref() == Some(shortcut) {
                         if event.state() == ShortcutState::Pressed {
                             log::info!("hotkey: output toggle");
-                            let _ = state.hotkey_tx.send(hotkey::HotkeyEvent::OutputToggle);
+                            let _ = state
+                                .engine_tx
+                                .send(engine::AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle));
                         }
                     } else {
                         log::warn!(
@@ -140,29 +153,15 @@ pub fn run() {
 
             let (tx, rx) = std::sync::mpsc::channel::<engine::AppEvent>();
 
-            let (event_tx, event_rx) = std::sync::mpsc::channel();
-            let tx_fwd = tx.clone();
-            std::thread::spawn(move || {
-                for e in event_rx {
-                    let _ = tx_fwd.send(engine::AppEvent::Hotkey(e));
-                }
-            });
-
             app.manage(WispState {
                 settings: parking_lot::Mutex::new(settings.clone()),
-                overlay: parking_lot::Mutex::new(OverlayState::default()),
                 data_dir,
                 models_dir,
-                hotkey_tx: event_tx.clone(),
+                engine_tx: tx.clone(),
                 first_run,
             });
 
-            register_shortcuts(app.handle(), &settings.hotkey, &settings.output_hotkey);
-
-            let tx_reload = tx.clone();
-            app.listen("reload-model", move |_| {
-                let _ = tx_reload.send(engine::AppEvent::ReloadModel);
-            });
+            hotkey::register(app.handle(), &settings.hotkey, &settings.output_hotkey);
 
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -177,14 +176,14 @@ pub fn run() {
             let label = window.label();
             match event {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    log::info!("window[{}]: close requested, hiding instead", label);
+                    log::debug!("window[{}]: close requested, hiding instead", label);
                     api.prevent_close();
                     if label != "overlay" {
                         let _ = window.hide();
                     }
                 }
                 tauri::WindowEvent::Focused(focused) => {
-                    log::info!("window[{}]: focused={}", label, focused);
+                    log::debug!("window[{}]: focused={}", label, focused);
                 }
                 tauri::WindowEvent::Destroyed => {
                     log::warn!("window[{}]: destroyed", label);
@@ -233,28 +232,5 @@ pub(crate) fn sync_autostart<M: tauri::Manager<tauri::Wry>>(app: &M, enabled: bo
     match result {
         Ok(()) => log::info!("autostart: set to {}", enabled),
         Err(e) => log::warn!("autostart: failed to set to {}: {}", enabled, e),
-    }
-}
-
-pub(crate) fn register_shortcuts(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-
-    let gs = app.global_shortcut();
-    let _ = gs.unregister_all();
-
-    for (label, combo) in [("main", main_combo), ("output", output_combo)] {
-        let Some(accel) = hotkey::to_accelerator(combo) else {
-            continue;
-        };
-        match accel.parse::<tauri_plugin_global_shortcut::Shortcut>() {
-            Ok(shortcut) => {
-                if let Err(e) = gs.register(shortcut) {
-                    log::warn!("failed to register {} hotkey '{}': {}", label, accel, e);
-                } else {
-                    log::info!("registered {} hotkey: {}", label, accel);
-                }
-            }
-            Err(e) => log::warn!("invalid {} hotkey '{}': {}", label, accel, e),
-        }
     }
 }

@@ -1,8 +1,8 @@
 import { toast } from 'svelte-sonner';
+import { error as logError } from '@tauri-apps/plugin-log';
 import {
 	getSettings,
 	updateSettings,
-	getOverlayState,
 	getGpuBackend,
 	getMonitors,
 	getInputDevices,
@@ -24,28 +24,45 @@ import {
 	type DownloadProgress
 } from '$lib/tauri';
 
+const IDLE: OverlayState = { icon: 'dot', label: 'Idle', ttl_ms: null };
+
 // App state (reactive via Svelte 5 runes)
 let settings: Settings | null = $state(null);
-let overlay: OverlayState = $state({ icon: 'dot', label: 'Idle', ttl_ms: null });
 let models: ModelInfo[] = $state([]);
 let gpuBackend: string = $state('');
 let monitors: MonitorInfo[] = $state([]);
 let inputDevices: InputDeviceInfo[] = $state([]);
-let downloading: string | null = $state(null);
 let downloadProgress: DownloadProgress | null = $state(null);
 let lastTranscription: string = $state('');
 let activeTab: string = $state('general');
 
-// Overlay TTL timer
-let overlayTtlTimeout: ReturnType<typeof setTimeout> | undefined;
+// Overlay notification stack
+// base = persistent state (recording, processing, idle)
+// transient = timed state with auto-expiry (saved, copied, cancelled)
+// app.overlay returns transient if active, else base
+let overlayBase: OverlayState = $state(IDLE);
+let overlayTransient: OverlayState | null = $state(null);
+let transientTimeout: ReturnType<typeof setTimeout> | undefined;
 
-// Frontend notification gateway — same codepath as backend overlay events
+function pushOverlay(s: OverlayState) {
+	if (s.ttl_ms != null) {
+		// Timed state: push onto transient slot, auto-expire
+		clearTimeout(transientTimeout);
+		overlayTransient = s;
+		transientTimeout = setTimeout(() => {
+			overlayTransient = null;
+		}, s.ttl_ms);
+	} else {
+		// Persistent state: update base, clear any transient
+		clearTimeout(transientTimeout);
+		overlayBase = s;
+		overlayTransient = null;
+	}
+}
+
+// Frontend notification gateway
 function notify(label: string, icon: OverlayIcon, ttl_ms: number) {
-	clearTimeout(overlayTtlTimeout);
-	overlay = { icon, label, ttl_ms };
-	overlayTtlTimeout = setTimeout(() => {
-		getOverlayState().then((real) => (overlay = real));
-	}, ttl_ms);
+	pushOverlay({ icon, label, ttl_ms });
 }
 
 // Actions
@@ -59,20 +76,20 @@ async function save(updates: Partial<Settings>) {
 	try {
 		await updateSettings(settings);
 	} catch (e) {
+		logError(`[settings] save failed: ${e}`);
 		toast.error(`Failed to save settings: ${e}`);
 	}
 }
 
 async function downloadModel(name: string) {
-	downloading = name;
-	downloadProgress = null;
+	downloadProgress = { model: name, downloaded: 0, total: 0 };
 	try {
 		await downloadModelCmd(name);
 		models = await getModels();
 	} catch (e) {
+		logError(`[model] download failed: ${e}`);
 		toast.error(`Failed to download model: ${e}`);
 	} finally {
-		downloading = null;
 		downloadProgress = null;
 	}
 }
@@ -82,6 +99,7 @@ async function deleteModel(name: string) {
 		await deleteModelCmd(name);
 		models = await getModels();
 	} catch (e) {
+		logError(`[model] delete failed: ${e}`);
 		toast.error(`Failed to delete model: ${e}`);
 	}
 }
@@ -90,12 +108,11 @@ async function deleteModel(name: string) {
 function init(): () => void {
 	Promise.all([
 		getSettings().then((s) => (settings = s)),
-		getOverlayState().then((s) => (overlay = s)),
 		getGpuBackend().then((b) => (gpuBackend = b)),
 		getMonitors().then((m) => (monitors = m)),
 		getInputDevices().then((d) => (inputDevices = d)),
 		getModels().then((m) => (models = m))
-	]);
+	]).catch((e) => logError(`[init] failed to load state: ${e}`));
 
 	isFirstRun()
 		.then((first) => {
@@ -104,20 +121,15 @@ function init(): () => void {
 				downloadModel('base');
 			}
 		})
-		.catch(() => {});
+		.catch((e) => logError(`[init] first-run check failed: ${e}`));
 
 	const unsubs = [
-		onOverlayState((s) => {
-			clearTimeout(overlayTtlTimeout);
-			overlay = s;
-			if (s.ttl_ms != null) {
-				overlayTtlTimeout = setTimeout(() => {
-					getOverlayState().then((real) => (overlay = real));
-				}, s.ttl_ms);
-			}
-		}),
+		onOverlayState((s) => pushOverlay(s)),
 		onTranscription((t) => (lastTranscription = t)),
-		onError((msg) => toast.error(msg)),
+		onError((msg) => {
+			logError(`[backend] ${msg}`);
+			toast.error(msg);
+		}),
 		onSettingsChanged((s) => (settings = s)),
 		onDownloadProgress((p) => (downloadProgress = p))
 	];
@@ -132,8 +144,8 @@ export const app = {
 	get settings() {
 		return settings;
 	},
-	get overlay() {
-		return overlay;
+	get overlay(): OverlayState {
+		return overlayTransient ?? overlayBase;
 	},
 	get models() {
 		return models;
@@ -146,9 +158,6 @@ export const app = {
 	},
 	get inputDevices() {
 		return inputDevices;
-	},
-	get downloading() {
-		return downloading;
 	},
 	get downloadProgress() {
 		return downloadProgress;

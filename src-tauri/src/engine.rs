@@ -44,7 +44,6 @@ pub(crate) fn run(
         if settings.model_loading == ModelLoading::Eager {
             set_overlay(
                 &app,
-                &state,
                 OverlayState {
                     icon: OverlayIcon::Spinner,
                     label: "Loading".into(),
@@ -60,7 +59,7 @@ pub(crate) fn run(
                 }
                 Err(e) => log::warn!("eager load skipped: {}", e),
             }
-            set_overlay(&app, &state, OverlayState::default());
+            set_overlay(&app, OverlayState::default());
         }
     }
 
@@ -88,7 +87,6 @@ pub(crate) fn run(
                         recorder = Some(rec);
                         set_overlay(
                             &app,
-                            &state,
                             OverlayState {
                                 icon: OverlayIcon::Pulse,
                                 label: "Recording".into(),
@@ -126,7 +124,6 @@ pub(crate) fn run(
                     );
                     set_overlay(
                         &app,
-                        &state,
                         OverlayState {
                             icon: OverlayIcon::X,
                             label: "Cancelled".into(),
@@ -138,7 +135,6 @@ pub(crate) fn run(
 
                 set_overlay(
                     &app,
-                    &state,
                     OverlayState {
                         icon: OverlayIcon::Spinner,
                         label: "Processing".into(),
@@ -169,7 +165,6 @@ pub(crate) fn run(
                     if needs_reload {
                         set_overlay(
                             &app,
-                            &state,
                             OverlayState {
                                 icon: OverlayIcon::Spinner,
                                 label: "Loading".into(),
@@ -183,15 +178,14 @@ pub(crate) fn run(
                                 loaded_gpu = settings.gpu;
                             }
                             Err(e) => {
-                                log::error!("{}", e);
+                                log::error!("model load error: {}", e);
                                 let _ = app.emit("backend-error", &e);
-                                set_overlay(&app, &state, OverlayState::default());
+                                set_overlay(&app, OverlayState::default());
                                 continue;
                             }
                         }
                         set_overlay(
                             &app,
-                            &state,
                             OverlayState {
                                 icon: OverlayIcon::Spinner,
                                 label: "Processing".into(),
@@ -203,7 +197,7 @@ pub(crate) fn run(
                     if let Some(ref eng) = engine {
                         match eng.transcribe(&audio, &settings.language, None) {
                             Ok(text) if !text.is_empty() => {
-                                emit_output(&app, &text, &settings.output_mode, &state);
+                                handle_transcription(&app, &text, &settings.output_mode, &state);
                             }
                             Ok(_) => {}
                             Err(e) => {
@@ -219,10 +213,8 @@ pub(crate) fn run(
                         loaded_model.clear();
                     }
 
-                    // Don't emit idle overlay here — emit_output sent a timed state
-                    // ("Copied"/"Typed") and its TTL will handle the return to idle.
-                    // The mutex is updated to idle so getOverlayState() returns the right thing.
-                    *state.overlay.lock() = OverlayState::default();
+                    // emit_output sent a timed "Copied"/"Typed" state.
+                    // The frontend stack handles the revert to idle when the TTL expires.
                 }
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
@@ -246,7 +238,6 @@ pub(crate) fn run(
                 let _ = app.emit("settings-changed", &settings);
                 set_overlay(
                     &app,
-                    &state,
                     OverlayState {
                         icon: OverlayIcon::Check,
                         label: label.into(),
@@ -265,7 +256,7 @@ pub(crate) fn run(
                 if !cancelled {
                     match result {
                         Ok(ref text) if !text.is_empty() => {
-                            emit_output(&app, text, &output_mode, &state);
+                            handle_transcription(&app, text, &output_mode, &state);
                         }
                         Ok(_) => {}
                         Err(ref e) => {
@@ -298,7 +289,7 @@ pub(crate) fn run(
                 } else {
                     engine = Some(returned_engine);
                     if recorder.is_none() {
-                        set_overlay(&app, &state, OverlayState::default());
+                        set_overlay(&app, OverlayState::default());
                     }
                 }
             }
@@ -306,7 +297,6 @@ pub(crate) fn run(
                 let settings = state.settings.lock().clone();
                 set_overlay(
                     &app,
-                    &state,
                     OverlayState {
                         icon: OverlayIcon::Spinner,
                         label: "Loading".into(),
@@ -321,11 +311,11 @@ pub(crate) fn run(
                         loaded_gpu = settings.gpu;
                     }
                     Err(e) => {
-                        log::warn!("{}", e);
+                        log::warn!("model reload error: {}", e);
                         let _ = app.emit("backend-error", &e);
                     }
                 }
-                set_overlay(&app, &state, OverlayState::default());
+                set_overlay(&app, OverlayState::default());
             }
         }
     }
@@ -390,20 +380,26 @@ fn load_model(
         .map_err(|e| format!("Failed to load model '{}': {}", name, e))
 }
 
-fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &WispState) {
-    log::info!("transcription result: {} chars", text.len());
+/// Handle a successful transcription: output text, notify frontend, update overlay, save history.
+fn handle_transcription(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &WispState) {
+    log::info!("transcription: {} chars", text.len());
+
+    // 1. Send to clipboard or type at cursor
     if let Err(e) = output::send(text, mode) {
         log::error!("output error: {}", e);
         let _ = app.emit("backend-error", format!("Output error: {}", e));
     }
+
+    // 2. Notify frontend of the transcription text
     let _ = app.emit("transcription", text);
+
+    // 3. Show confirmation overlay
     let label = match mode {
         OutputMode::Clipboard => "Copied",
         OutputMode::Paste => "Typed",
     };
     set_overlay(
         app,
-        state,
         OverlayState {
             icon: OverlayIcon::Check,
             label: label.into(),
@@ -411,6 +407,7 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
         },
     );
 
+    // 4. Save to history
     let settings = state.settings.lock();
     if settings.history_enabled {
         history::append(&state.data_dir, text, "mic", settings.history_retention);
@@ -418,10 +415,6 @@ fn emit_output(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &Wi
     }
 }
 
-pub(crate) fn set_overlay(app: &tauri::AppHandle, state: &WispState, overlay: OverlayState) {
-    log::debug!("set_overlay -> {:?} {}", overlay.icon, overlay.label);
-    if overlay.ttl_ms.is_none() {
-        *state.overlay.lock() = overlay.clone();
-    }
+pub(crate) fn set_overlay(app: &tauri::AppHandle, overlay: OverlayState) {
     let _ = app.emit("overlay-state", &overlay);
 }

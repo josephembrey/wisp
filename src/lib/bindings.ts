@@ -19,9 +19,6 @@ async updateSettings(settings: Settings) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getOverlayState() : Promise<OverlayState> {
-    return await TAURI_INVOKE("get_overlay_state");
-},
 async getModels() : Promise<ModelInfo[]> {
     return await TAURI_INVOKE("get_models");
 },

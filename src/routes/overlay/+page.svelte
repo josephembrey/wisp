@@ -3,9 +3,9 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
+	import { error as logError } from '@tauri-apps/plugin-log';
 	import {
 		getSettings,
-		getOverlayState,
 		onOverlayState,
 		onSettingsChanged,
 		type Settings,
@@ -24,8 +24,22 @@
 	let alwaysShow = $state(false);
 	let position = $state('top-right');
 	let size = $state('md');
-	let overlay = $state<OverlayState>({ icon: 'dot', label: 'Idle', ttl_ms: null });
-	let ttlTimeout: ReturnType<typeof setTimeout> | undefined;
+	let overlayBase = $state<OverlayState>({ icon: 'dot', label: 'Idle', ttl_ms: null });
+	let overlayTransient = $state<OverlayState | null>(null);
+	let transientTimeout: ReturnType<typeof setTimeout> | undefined;
+	let overlay = $derived(overlayTransient ?? overlayBase);
+
+	function pushOverlay(s: OverlayState) {
+		if (s.ttl_ms != null) {
+			clearTimeout(transientTimeout);
+			overlayTransient = s;
+			transientTimeout = setTimeout(() => (overlayTransient = null), s.ttl_ms);
+		} else {
+			clearTimeout(transientTimeout);
+			overlayBase = s;
+			overlayTransient = null;
+		}
+	}
 
 	const style = $derived(styles[overlay.icon]);
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
@@ -42,21 +56,11 @@
 	}
 
 	onMount(() => {
-		getSettings().then(applySettings);
-		getOverlayState().then((s) => (overlay = s));
+		getSettings()
+			.then(applySettings)
+			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
 
-		const unsubs = [
-			onOverlayState((s) => {
-				clearTimeout(ttlTimeout);
-				overlay = s;
-				if (s.ttl_ms != null) {
-					ttlTimeout = setTimeout(() => {
-						getOverlayState().then((real) => (overlay = real));
-					}, s.ttl_ms);
-				}
-			}),
-			onSettingsChanged(applySettings)
-		];
+		const unsubs = [onOverlayState((s) => pushOverlay(s)), onSettingsChanged(applySettings)];
 		return () => unsubs.forEach((p) => p.then((fn) => fn()));
 	});
 </script>

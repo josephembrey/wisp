@@ -24,7 +24,6 @@ function unwrap<T>(result: Result<T, string>): T {
 // Commands (pass-through for simple getters, unwrap for fallible actions)
 export const isFirstRun = commands.isFirstRun;
 export const getSettings = commands.getSettings;
-export const getOverlayState = commands.getOverlayState;
 export const getModels = commands.getModels;
 export const getGpuBackend = commands.getGpuBackend;
 export const getMonitors = commands.getMonitors;
