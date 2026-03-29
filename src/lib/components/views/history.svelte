@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import {
 		getHistory,
@@ -20,6 +20,12 @@
 	let expandedId: number | null = $state(null);
 	let copiedId: number | null = $state(null);
 	let copiedTimeout: ReturnType<typeof setTimeout> | undefined;
+	let page = $state(1);
+
+	// Pagination
+	const PER_PAGE = 5;
+	let totalPages = $derived(Math.ceil(entries.length / PER_PAGE));
+	let pageEntries = $derived(entries.slice((page - 1) * PER_PAGE, page * PER_PAGE));
 
 	// Source badge styles
 	const sourceBadge: Record<string, string> = {
@@ -31,6 +37,7 @@
 	async function refresh() {
 		try {
 			entries = await getHistory();
+			if (page > totalPages && totalPages > 0) page = totalPages;
 		} catch (e) {
 			logError(`[history] failed to load: ${e}`);
 		}
@@ -40,6 +47,7 @@
 		try {
 			await deleteHistoryEntry(id);
 			entries = entries.filter((e) => e.id !== id);
+			if (page > totalPages && totalPages > 0) page = totalPages;
 		} catch (e) {
 			logError(`[history] delete failed: ${e}`);
 		}
@@ -49,6 +57,7 @@
 		try {
 			await clearHistory();
 			entries = [];
+			page = 1;
 		} catch (e) {
 			logError(`[history] clear failed: ${e}`);
 		}
@@ -127,84 +136,99 @@
 
 		<!-- Entry list -->
 	{:else}
-		<ScrollArea class="max-h-64">
-			<div class="flex flex-col gap-1 pr-1">
-				{#each entries as entry (entry.id)}
-					<div class="group rounded-md border border-border bg-background p-2">
-						<div class="flex items-start justify-between gap-2">
-							<!-- Entry content (click to expand) -->
-							<button
-								class="min-w-0 flex-1 text-left"
-								onclick={() => (expandedId = expandedId === entry.id ? null : entry.id)}
-							>
-								<div class="flex items-center gap-1.5">
-									<span
-										class="shrink-0 rounded px-1 py-0.5 text-[10px] leading-none font-medium uppercase {sourceBadge[
-											entry.source
-										] ?? sourceBadge.file}"
-									>
-										{entry.source}
-									</span>
-									<span class="text-[10px] text-muted-foreground">
-										{timeAgo(entry.timestamp)}
-									</span>
-								</div>
-								<p
-									class="mt-1 text-xs text-foreground"
-									class:line-clamp-1={expandedId !== entry.id}
+		<div class="flex flex-col divide-y divide-border">
+			{#each pageEntries as entry (entry.id)}
+				<div class="group py-2">
+					<div class="flex items-start justify-between gap-2">
+						<!-- Entry content (click to expand) -->
+						<button
+							class="min-w-0 flex-1 text-left"
+							onclick={() => (expandedId = expandedId === entry.id ? null : entry.id)}
+						>
+							<div class="flex items-center gap-1.5">
+								<span
+									class="shrink-0 rounded px-1 py-0.5 text-[10px] leading-none font-medium uppercase {sourceBadge[
+										entry.source
+									] ?? sourceBadge.file}"
 								>
-									{entry.text}
-								</p>
-							</button>
-
-							<!-- Hover actions -->
-							<div
-								class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-							>
-								<button
-									class="{actionBtn} hover:bg-accent hover:text-foreground"
-									onclick={() => copyText(entry)}
-									title="Copy"
-								>
-									{#if copiedId === entry.id}
-										<CheckIcon size={12} />
-									{:else}
-										<CopyIcon size={12} />
-									{/if}
-								</button>
-								<button
-									class="{actionBtn} hover:bg-destructive hover:text-white"
-									onclick={() => handleDelete(entry.id)}
-									title="Delete"
-								>
-									<XIcon size={12} />
-								</button>
+									{entry.source}
+								</span>
+								<span class="text-[10px] text-muted-foreground">
+									{timeAgo(entry.timestamp)}
+								</span>
 							</div>
+							<p class="mt-1 text-xs text-foreground" class:line-clamp-1={expandedId !== entry.id}>
+								{entry.text}
+							</p>
+						</button>
+
+						<!-- Hover actions -->
+						<div
+							class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+						>
+							<button
+								class="{actionBtn} hover:bg-accent hover:text-foreground"
+								onclick={() => copyText(entry)}
+								title="Copy"
+							>
+								{#if copiedId === entry.id}
+									<CheckIcon size={12} />
+								{:else}
+									<CopyIcon size={12} />
+								{/if}
+							</button>
+							<button
+								class="{actionBtn} hover:bg-destructive hover:text-white"
+								onclick={() => handleDelete(entry.id)}
+								title="Delete"
+							>
+								<XIcon size={12} />
+							</button>
 						</div>
 					</div>
-				{/each}
-			</div>
-		</ScrollArea>
+				</div>
+			{/each}
+		</div>
 
-		<!-- Clear all (destructive, understated) -->
-		<AlertDialog.Root>
-			<AlertDialog.Trigger
-				class="self-start text-[10px] text-muted-foreground/40 underline hover:text-muted-foreground"
-			>
-				Clear all history
-			</AlertDialog.Trigger>
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>Clear History?</AlertDialog.Title>
-					<AlertDialog.Description>
-						This will permanently delete all {entries.length} transcription entries.
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-					<AlertDialog.Action onclick={handleClearAll}>Clear</AlertDialog.Action>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Root>
+		<!-- Pagination + clear -->
+		<div class="flex items-center justify-between">
+			{#if totalPages > 1}
+				<Pagination.Root count={entries.length} perPage={PER_PAGE} bind:page>
+					<Pagination.Content class="gap-0.5">
+						<Pagination.Item>
+							<Pagination.PrevButton class="h-6 w-6" />
+						</Pagination.Item>
+						<span class="px-2 text-[10px] text-muted-foreground">
+							{page} / {totalPages}
+						</span>
+						<Pagination.Item>
+							<Pagination.NextButton class="h-6 w-6" />
+						</Pagination.Item>
+					</Pagination.Content>
+				</Pagination.Root>
+			{:else}
+				<div></div>
+			{/if}
+
+			<AlertDialog.Root>
+				<AlertDialog.Trigger
+					class="text-[10px] text-muted-foreground/40 underline hover:text-muted-foreground"
+				>
+					Clear all
+				</AlertDialog.Trigger>
+				<AlertDialog.Content>
+					<AlertDialog.Header>
+						<AlertDialog.Title>Clear History?</AlertDialog.Title>
+						<AlertDialog.Description>
+							This will permanently delete all {entries.length} transcription entries.
+						</AlertDialog.Description>
+					</AlertDialog.Header>
+					<AlertDialog.Footer>
+						<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+						<AlertDialog.Action onclick={handleClearAll}>Clear</AlertDialog.Action>
+					</AlertDialog.Footer>
+				</AlertDialog.Content>
+			</AlertDialog.Root>
+		</div>
 	{/if}
 </div>
