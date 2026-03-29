@@ -75,9 +75,7 @@
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
 					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-					<AlertDialog.Action variant="outline" onclick={() => hideWindow()}>
-						Hide to tray
-					</AlertDialog.Action>
+					<AlertDialog.Cancel onclick={() => hideWindow()}>Hide to tray</AlertDialog.Cancel>
 					<AlertDialog.Action onclick={() => quit()}>Quit</AlertDialog.Action>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>
