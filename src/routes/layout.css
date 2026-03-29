@@ -98,7 +98,7 @@
 		@apply border-border outline-ring/50;
 	}
 	body {
-		@apply overflow-hidden bg-transparent text-foreground;
+		@apply overflow-hidden bg-transparent text-foreground select-none;
 	}
 }
 

@@ -143,7 +143,7 @@
 				</Button>
 			</div>
 			<div
-				class="max-h-40 overflow-y-auto rounded-md border bg-muted/50 p-2 text-xs leading-relaxed text-foreground"
+				class="max-h-40 overflow-y-auto rounded-md border bg-muted/50 p-2 text-xs leading-relaxed text-foreground select-text"
 			>
 				{result}
 			</div>

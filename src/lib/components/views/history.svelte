@@ -157,7 +157,10 @@
 									{timeAgo(entry.timestamp)}
 								</span>
 							</div>
-							<p class="mt-1 text-xs text-foreground" class:line-clamp-1={expandedId !== entry.id}>
+							<p
+								class="mt-1 text-xs text-foreground select-text"
+								class:line-clamp-1={expandedId !== entry.id}
+							>
 								{entry.text}
 							</p>
 						</button>
