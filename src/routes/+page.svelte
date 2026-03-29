@@ -4,12 +4,7 @@
 	import { onMount } from 'svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import Titlebar from '$lib/components/titlebar.svelte';
-	import TabGeneral from '$lib/components/tabs/general.svelte';
-	import TabModel from '$lib/components/tabs/model.svelte';
-	import TabOverlay from '$lib/components/tabs/overlay.svelte';
-	import TabAbout from '$lib/components/tabs/about.svelte';
-	import TabTranscribe from '$lib/components/tabs/transcribe.svelte';
-	import TabHistory from '$lib/components/tabs/history.svelte';
+	import * as View from '$lib/components/views';
 
 	let contentHeight: number = $state(0);
 	let tabHeight: number = $state(0);
@@ -66,27 +61,27 @@
 				>
 					<div bind:clientHeight={tabHeight} class="px-3 pb-3">
 						<Tabs.Content value="general">
-							<TabGeneral />
+							<View.General />
 						</Tabs.Content>
 
 						<Tabs.Content value="model">
-							<TabModel />
+							<View.Model />
 						</Tabs.Content>
 
 						<Tabs.Content value="overlay">
-							<TabOverlay />
+							<View.Overlay />
 						</Tabs.Content>
 
 						<Tabs.Content value="transcribe">
-							<TabTranscribe />
+							<View.Transcribe />
 						</Tabs.Content>
 
 						<Tabs.Content value="history">
-							<TabHistory />
+							<View.History />
 						</Tabs.Content>
 
 						<Tabs.Content value="about">
-							<TabAbout />
+							<View.About />
 						</Tabs.Content>
 					</div>
 				</div>
