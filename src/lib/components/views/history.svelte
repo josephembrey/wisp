@@ -94,37 +94,7 @@
 		'inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground';
 </script>
 
-<!-- Settings row -->
 <div class="flex flex-col gap-2">
-	<div class="flex items-center justify-between gap-2">
-		<SettingSwitch
-			checked={app.settings!.history_enabled ?? true}
-			label="Save history"
-			onchange={(v) => app.save({ history_enabled: v })}
-		/>
-		<div
-			class="flex items-center gap-1.5 transition-opacity {app.settings!.history_enabled
-				? ''
-				: 'pointer-events-none opacity-40'}"
-		>
-			<span class="text-xs text-muted-foreground">Keep</span>
-			<input
-				type="number"
-				min="10"
-				max="10000"
-				step="10"
-				disabled={!app.settings!.history_enabled}
-				value={app.settings!.history_retention ?? 100}
-				onchange={(e) => {
-					const v = parseInt(e.currentTarget.value);
-					if (!isNaN(v) && v >= 10) app.save({ history_retention: v });
-				}}
-				class="h-6 w-16 rounded-md border border-input bg-background px-1.5 text-xs"
-			/>
-			<span class="text-xs text-muted-foreground">entries</span>
-		</div>
-	</div>
-
 	<!-- Empty state -->
 	{#if entries.length === 0}
 		<div class="flex flex-col items-center gap-1 py-8 text-center">
@@ -136,6 +106,36 @@
 
 		<!-- Entry list -->
 	{:else}
+		<!-- Pagination -->
+		{#if totalPages > 1}
+			<Pagination.Root count={entries.length} perPage={PER_PAGE} bind:page>
+				{#snippet children({ pages, currentPage })}
+					<Pagination.Content class="w-full justify-between">
+						<Pagination.Item>
+							<Pagination.PrevButton />
+						</Pagination.Item>
+						{#each pages as pg (pg.key)}
+							{#if pg.type === 'ellipsis'}
+								<Pagination.Item>
+									<Pagination.Ellipsis />
+								</Pagination.Item>
+							{:else}
+								<Pagination.Item>
+									<Pagination.Link page={pg} isActive={currentPage === pg.value}>
+										{pg.value}
+									</Pagination.Link>
+								</Pagination.Item>
+							{/if}
+						{/each}
+						<Pagination.Item>
+							<Pagination.NextButton />
+						</Pagination.Item>
+					</Pagination.Content>
+				{/snippet}
+			</Pagination.Root>
+		{/if}
+
+		<!-- Entries -->
 		<div class="flex flex-col divide-y divide-border">
 			{#each pageEntries as entry (entry.id)}
 				<div class="group py-2">
@@ -190,30 +190,21 @@
 			{/each}
 		</div>
 
-		<!-- Pagination + clear -->
-		<div class="flex items-center justify-between">
-			{#if totalPages > 1}
-				<Pagination.Root count={entries.length} perPage={PER_PAGE} bind:page>
-					<Pagination.Content class="gap-0.5">
-						<Pagination.Item>
-							<Pagination.PrevButton class="h-6 w-6" />
-						</Pagination.Item>
-						<span class="px-2 text-[10px] text-muted-foreground">
-							{page} / {totalPages}
-						</span>
-						<Pagination.Item>
-							<Pagination.NextButton class="h-6 w-6" />
-						</Pagination.Item>
-					</Pagination.Content>
-				</Pagination.Root>
-			{:else}
-				<div></div>
-			{/if}
+		<!-- Settings + clear -->
+		<div class="flex items-center justify-between text-xs text-muted-foreground">
+			<div class="flex items-center gap-2">
+				<span>Save</span>
+				<SettingSwitch
+					checked={app.settings!.history_enabled ?? true}
+					onchange={(v) => app.save({ history_enabled: v })}
+				/>
+				{#if !app.settings!.history_enabled}
+					<span class="text-[10px] text-muted-foreground/40">paused</span>
+				{/if}
+			</div>
 
 			<AlertDialog.Root>
-				<AlertDialog.Trigger
-					class="text-[10px] text-muted-foreground/40 underline hover:text-muted-foreground"
-				>
+				<AlertDialog.Trigger class="shrink-0 whitespace-nowrap underline hover:text-foreground">
 					Clear all
 				</AlertDialog.Trigger>
 				<AlertDialog.Content>
@@ -229,6 +220,27 @@
 					</AlertDialog.Footer>
 				</AlertDialog.Content>
 			</AlertDialog.Root>
+
+			<div
+				class="flex items-center gap-1.5 transition-opacity {app.settings!.history_enabled
+					? ''
+					: 'pointer-events-none opacity-40'}"
+			>
+				<span>Keep</span>
+				<input
+					type="number"
+					min="10"
+					max="10000"
+					step="10"
+					disabled={!app.settings!.history_enabled}
+					value={app.settings!.history_retention ?? 100}
+					onchange={(e) => {
+						const v = parseInt(e.currentTarget.value);
+						if (!isNaN(v) && v >= 10) app.save({ history_retention: v });
+					}}
+					class="h-6 w-14 rounded-md border border-input bg-background px-1.5 text-xs"
+				/>
+			</div>
 		</div>
 	{/if}
 </div>
