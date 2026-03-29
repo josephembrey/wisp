@@ -50,11 +50,14 @@
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
 <div class="flex items-center gap-2">
+	<!-- Capturing: show pressed keys with pulse animation -->
 	{#if capturing}
 		<Kbd class="animate-pulse px-2 py-1 text-sm">
 			{capturedKeys.size > 0 ? Array.from(capturedKeys).join(' + ') : 'Press keys...'}
 		</Kbd>
 		<span class="text-xs text-muted-foreground">Release to save, Esc to cancel</span>
+
+		<!-- Has hotkey: show current combo with change/clear buttons -->
 	{:else if hotkey}
 		<div class="flex flex-wrap items-center gap-1">
 			{#each hotkey.split('+') as key, i (key)}
@@ -74,6 +77,8 @@
 		>
 			<XIcon size={14} />
 		</Button>
+
+		<!-- No hotkey: show set button -->
 	{:else}
 		<span class="text-sm text-muted-foreground">None</span>
 		<Button size="sm" variant="outline" onclick={startCapture} class="ml-auto">Set</Button>

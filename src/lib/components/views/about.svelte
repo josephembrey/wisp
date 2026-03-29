@@ -8,6 +8,10 @@
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
 	const isDev = import.meta.env.DEV;
+	const card =
+		'flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-muted-foreground/50';
+	const cardIcon =
+		'flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground';
 </script>
 
 <div class="flex flex-col gap-3">
@@ -17,15 +21,8 @@
 	</p>
 
 	<!-- Action cards -->
-	<button
-		class="flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-muted-foreground/50"
-		onclick={() => (app.activeTab = 'model')}
-	>
-		<div
-			class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
-		>
-			<DownloadIcon size={14} />
-		</div>
+	<button class={card} onclick={() => (app.activeTab = 'model')}>
+		<div class={cardIcon}><DownloadIcon size={14} /></div>
 		<div class="flex-1">
 			<div class="text-xs font-medium text-foreground">Download a model</div>
 			<div class="text-[10px] text-muted-foreground/60">Pick a Whisper model to get started</div>
@@ -33,15 +30,8 @@
 		<ChevronRightIcon size={14} class="text-muted-foreground/40" />
 	</button>
 
-	<button
-		class="flex items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-muted-foreground/50"
-		onclick={() => (app.activeTab = 'general')}
-	>
-		<div
-			class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
-		>
-			<KeyboardIcon size={14} />
-		</div>
+	<button class={card} onclick={() => (app.activeTab = 'general')}>
+		<div class={cardIcon}><KeyboardIcon size={14} /></div>
 		<div class="flex-1">
 			<div class="text-xs font-medium text-foreground">Your hotkey</div>
 			<div class="text-[10px] text-muted-foreground/60">Hold to record, release to transcribe</div>
