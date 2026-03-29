@@ -41,5 +41,18 @@ in
         WebKit
       ]);
 
+    shellHook = ''
+      prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
+    '';
+
     env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+    env.LD_LIBRARY_PATH = lib.optionalString isLinux (lib.makeLibraryPath [
+      pkgs.alsa-lib
+      pkgs.gtk3
+      pkgs.libayatana-appindicator
+      pkgs.librsvg
+      pkgs.openssl
+      pkgs.vulkan-loader
+      pkgs.webkitgtk_4_1
+    ]);
   }

@@ -47,4 +47,7 @@ if ($answer -eq 'y') {
     wg Microsoft.Azure.TrustedSigningClientTools
 }
 
-Write-Host "`nDone. Run: just install" -ForegroundColor Cyan
+# Git hooks
+prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
+
+Write-Host "`nDone." -ForegroundColor Cyan
