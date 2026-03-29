@@ -7,10 +7,13 @@
 	import { getSettings, onSettingsChanged, type Settings } from '$lib/tauri';
 	import { overlay } from '$lib/overlay.svelte';
 
+	// Overlay state
+	let current = $derived(overlay.current);
+
+	// Position & visibility (from settings)
 	let alwaysShow = $state(false);
 	let position = $state('top-right');
 	let size = $state('md');
-	let current = $derived(overlay.current);
 
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
 	const justify = $derived(
@@ -19,6 +22,7 @@
 	const overlayScale = $derived({ small: 'scale-75', large: 'scale-150' }[size] ?? '');
 	const visible = $derived(current.status !== 'idle' || alwaysShow);
 
+	// Settings sync
 	function applySettings(s: Settings) {
 		alwaysShow = s.overlay_always_show ?? false;
 		position = s.overlay_position ?? 'top-right';
@@ -35,12 +39,14 @@
 	});
 </script>
 
+<!-- Overlay pill: positioned fullscreen, fades in/out -->
 <div class="flex {align} {justify} h-screen w-screen p-3">
 	<div
 		class="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 shadow-lg backdrop-blur-sm transition-opacity duration-150 {overlayScale}"
 		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
+		<!-- Status icon + label per state -->
 		<!-- idle: muted gray dot -->
 		{#if current.status === 'idle'}
 			<span class="relative flex h-2.5 w-2.5">
@@ -94,6 +100,7 @@
 </div>
 
 <style>
+	/* Overlay color tokens (separate window, can't use app theme) */
 	:root {
 		--overlay-bg: rgba(0, 0, 0, 0.6);
 		--overlay-text: #fff;
@@ -111,6 +118,7 @@
 		transition: color 300ms;
 	}
 
+	/* Transparent window setup */
 	:global(html),
 	:global(body) {
 		background: transparent !important;

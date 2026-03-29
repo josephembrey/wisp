@@ -7,6 +7,7 @@
 	import * as View from '$lib/components/views';
 	import Titlebar from '$lib/components/titlebar.svelte';
 
+	// Window auto-resize: track content height, resize OS window to match
 	let contentHeight: number = $state(0);
 	let tabHeight: number = $state(0);
 	let lastHeight = 0;
@@ -23,6 +24,7 @@
 	onMount(() => app.init());
 </script>
 
+<!-- Settings window -->
 <div class="p-2">
 	<div
 		bind:clientHeight={contentHeight}
@@ -31,6 +33,7 @@
 		<Titlebar />
 
 		{#if app.settings}
+			<!-- Tab navigation -->
 			<Tabs.Root bind:value={app.activeTab}>
 				<div class="px-3 pb-2">
 					<Tabs.List class="w-full">
@@ -43,6 +46,7 @@
 					</Tabs.List>
 				</div>
 
+				<!-- Tab content (animated height transition) -->
 				<div
 					class="overflow-hidden transition-[height] duration-200 ease-out"
 					style:height={tabHeight ? `${tabHeight}px` : 'auto'}
@@ -74,6 +78,8 @@
 					</div>
 				</div>
 			</Tabs.Root>
+
+			<!-- Loading state -->
 		{:else}
 			<div class="flex items-center justify-center p-8">
 				<Loader2Icon size={16} class="animate-spin text-muted-foreground" />

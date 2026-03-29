@@ -7,6 +7,7 @@
 	let { children } = $props();
 </script>
 
+<!-- App-wide providers -->
 <ModeWatcher defaultMode="dark" />
 <Toaster position="bottom-center" />
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

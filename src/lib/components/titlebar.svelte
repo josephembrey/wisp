@@ -10,6 +10,7 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import PowerIcon from '@lucide/svelte/icons/power';
 
+	// Status badge
 	const badge: Record<OverlayStatus, { label: string; variant: string }> = {
 		idle: { label: 'Idle', variant: 'default' },
 		recording: { label: 'Recording', variant: 'destructive' },
@@ -21,15 +22,17 @@
 		deleted: { label: 'Deleted', variant: 'outline' },
 		cancelled: { label: 'Cancelled', variant: 'outline' }
 	};
-
 	let badgeLabel = $derived(badge[overlay.current.status].label);
 	let badgeVariant = $derived(badge[overlay.current.status].variant);
 
+	// Window controls
 	const btn =
 		'inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground';
 </script>
 
+<!-- Titlebar: draggable, 32px height -->
 <div class="flex h-8 shrink-0 items-center justify-between px-3" data-tauri-drag-region>
+	<!-- App name + status badge -->
 	<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
 		<span class="text-sm font-semibold" data-tauri-drag-region>Wisp</span>
 		<Badge
@@ -40,6 +43,7 @@
 		</Badge>
 	</div>
 
+	<!-- Window controls -->
 	<div class="flex items-center gap-0.5">
 		<button class={btn} onclick={() => toggleMode()}>
 			{#if mode.current === 'dark'}
@@ -48,15 +52,14 @@
 				<MoonIcon size={12} />
 			{/if}
 		</button>
-
 		<button class={btn} onclick={() => minimizeWindow()}>
 			<MinusIcon size={12} />
 		</button>
-
 		<button class={btn} onclick={() => hideWindow()}>
 			<XIcon size={12} />
 		</button>
 
+		<!-- Quit confirmation dialog -->
 		<AlertDialog.Root>
 			<AlertDialog.Trigger
 				class="inline-flex h-5 w-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-white"
@@ -67,11 +70,14 @@
 				<AlertDialog.Header>
 					<AlertDialog.Title>Quit Wisp?</AlertDialog.Title>
 					<AlertDialog.Description>
-						This will stop the hotkey listener and close the app.
+						This will fully close Wisp. To keep it running in the background, hide to tray instead.
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
 					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Action variant="outline" onclick={() => hideWindow()}>
+						Hide to tray
+					</AlertDialog.Action>
 					<AlertDialog.Action onclick={() => quit()}>Quit</AlertDialog.Action>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>
