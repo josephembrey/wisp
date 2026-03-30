@@ -36,6 +36,10 @@ clean:
     cargo clean --manifest-path src-tauri/Cargo.toml
     @('.svelte-kit', 'build', 'src-tauri\gen\schemas', 'node_modules') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
 
+# Regenerate app icons from src-tauri/icons/icon.png
+icons:
+    bunx tauri icon src-tauri/icons/icon.png
+
 # Run in development mode
 dev:
     bun tauri dev
