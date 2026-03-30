@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - run: nix develop --command just install
+      - run: nix develop --command just build
+
+      - run: cp src-tauri/target/release/wisp wisp-linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wisp-linux-x64
+          path: wisp-linux-x64
+
+  build-macos:
+    strategy:
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-13
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - run: nix develop --command just install
+      - run: nix develop --command just build
+
+      - run: cp src-tauri/target/release/wisp wisp-macos-${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wisp-macos-${{ matrix.arch }}
+          path: wisp-macos-${{ matrix.arch }}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v2
+
+      - run: just install ci
+      - run: just build
+
+      - run: Copy-Item "C:\wisp\release\wisp.exe" "wisp-windows-x64.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wisp-windows-x64
+          path: wisp-windows-x64.exe
+
+  # TODO: sign-windows
+  #   - uses: azure/trusted-signing-action@v0.5.0
+
+  # TODO: sign-macos
+  #   - import .p12 cert, codesign, notarize
+
+  release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - run: ls -lR artifacts
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "${{ github.ref_name }}" \
+            --notes-file CHANGELOG.md \
+            artifacts/*
