@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { resizeWindow as resizeWindowCmd } from '$lib/tauri';
 	import { app } from '$lib/state.svelte';
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
@@ -7,17 +7,75 @@
 	import * as View from '$lib/components/views';
 	import Titlebar from '$lib/components/titlebar.svelte';
 
-	// Window auto-resize: track content height, resize OS window to match
-	let contentHeight: number = $state(0);
+	// Window resize flow:
+	// 1. Tab content swaps instantly (clipped by overflow:hidden)
+	// 2. Measure new content height via calcWindowHeight (header + inner + pad)
+	// 3. Growing: await resizeWindowCmd → animate card height
+	// 4. Shrinking: animate card height → transitionend → resizeWindowCmd
+	let cardEl: HTMLDivElement | undefined = $state();
+	let headerEl: HTMLDivElement | undefined = $state();
+	let innerEl: HTMLDivElement | undefined = $state();
 	let tabHeight: number = $state(0);
-	let lastHeight = 0;
+	let lastWindowHeight = 0;
+	let animating = $state(false);
 
-	const OUTER_PAD = 16;
-	$effect(() => {
-		const h = Math.ceil(contentHeight) + OUTER_PAD;
-		if (h > 0 && Math.abs(h - lastHeight) >= 2) {
-			lastHeight = h;
+	const OUTER_PAD = 8;
+
+	function calcWindowHeight(innerHeight: number): number {
+		const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+		const cardBorder = cardEl ? cardEl.offsetHeight - cardEl.clientHeight : 0;
+		return Math.ceil(headerHeight + innerHeight + cardBorder + OUTER_PAD);
+	}
+
+	async function onTabChange(newTab: string) {
+		// 1. Swap content immediately (no animation)
+		animating = false;
+		app.activeTab = newTab;
+		await tick();
+
+		if (!innerEl) return;
+
+		// 2. Measure new content
+		const targetInner = innerEl.scrollHeight;
+		const targetWindow = calcWindowHeight(targetInner);
+
+		if (targetWindow > lastWindowHeight) {
+			// Growing: resize window first, then animate
+			lastWindowHeight = targetWindow;
+			await resizeWindowCmd(targetWindow);
+			animating = true;
+			await tick();
+			tabHeight = targetInner;
+		} else if (targetWindow < lastWindowHeight) {
+			// Shrinking: animate first, resize on transitionend
+			animating = true;
+			await tick();
+			tabHeight = targetInner;
+		} else {
+			tabHeight = targetInner;
+		}
+	}
+
+	function onTransitionEnd(e: TransitionEvent) {
+		if (e.propertyName !== 'height') return;
+		const h = calcWindowHeight(tabHeight);
+		if (h !== lastWindowHeight) {
+			lastWindowHeight = h;
 			resizeWindowCmd(h);
+		}
+	}
+
+	// Initial sizing
+	$effect(() => {
+		if (app.settings && lastWindowHeight === 0 && innerEl && headerEl) {
+			tick().then(() => {
+				tabHeight = innerEl!.scrollHeight;
+				const h = calcWindowHeight(tabHeight);
+				if (h > 0) {
+					lastWindowHeight = h;
+					resizeWindowCmd(h);
+				}
+			});
 		}
 	});
 
@@ -25,33 +83,38 @@
 </script>
 
 <!-- Settings window -->
-<div class="p-2">
-	<div
-		bind:clientHeight={contentHeight}
-		class="overflow-hidden rounded-xl border border-border bg-card shadow-md"
-	>
-		<Titlebar />
-
+<div class="p-1">
+	<div bind:this={cardEl} class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 		{#if app.settings}
-			<!-- Tab navigation -->
-			<Tabs.Root bind:value={app.activeTab}>
-				<div class="px-3 pb-2">
-					<Tabs.List class="w-full">
-						<Tabs.Trigger value="general">General</Tabs.Trigger>
-						<Tabs.Trigger value="model">Model</Tabs.Trigger>
-						<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
-						<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
-						<Tabs.Trigger value="history">History</Tabs.Trigger>
-						<Tabs.Trigger value="about">About</Tabs.Trigger>
-					</Tabs.List>
+			<Tabs.Root
+				class="gap-0"
+				value={app.activeTab}
+				onValueChange={(v) => {
+					if (v) onTabChange(v);
+				}}
+			>
+				<!-- Header: titlebar + tab bar (measured for height calc) -->
+				<div bind:this={headerEl}>
+					<Titlebar />
+					<div class="px-3 pb-2">
+						<Tabs.List class="w-full">
+							<Tabs.Trigger value="general">General</Tabs.Trigger>
+							<Tabs.Trigger value="model">Model</Tabs.Trigger>
+							<Tabs.Trigger value="overlay">Overlay</Tabs.Trigger>
+							<Tabs.Trigger value="transcribe">Scribe</Tabs.Trigger>
+							<Tabs.Trigger value="history">History</Tabs.Trigger>
+							<Tabs.Trigger value="about">About</Tabs.Trigger>
+						</Tabs.List>
+					</div>
 				</div>
 
-				<!-- Tab content (animated height transition) -->
+				<!-- Tab content (animated height) -->
 				<div
-					class="overflow-hidden transition-[height] duration-200 ease-out"
+					class="overflow-hidden {animating ? 'transition-[height] duration-200 ease-out' : ''}"
 					style:height={tabHeight ? `${tabHeight}px` : 'auto'}
+					ontransitionend={onTransitionEnd}
 				>
-					<div bind:clientHeight={tabHeight} class="px-3 pb-3">
+					<div bind:this={innerEl} class="flow-root px-3 pb-3">
 						<Tabs.Content value="general">
 							<View.General />
 						</Tabs.Content>
@@ -81,6 +144,7 @@
 
 			<!-- Loading state -->
 		{:else}
+			<Titlebar />
 			<div class="flex items-center justify-center p-8">
 				<Loader2Icon size={16} class="animate-spin text-muted-foreground" />
 			</div>
