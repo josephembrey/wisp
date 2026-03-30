@@ -25,6 +25,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::resize_window,
             commands::reset_app,
             commands::get_monitors,
+            commands::get_memory_info,
             commands::get_input_devices,
             commands::transcribe_file,
             commands::get_history,

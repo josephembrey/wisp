@@ -186,6 +186,74 @@ pub struct MonitorInfo {
     pub primary: bool,
 }
 
+#[derive(serde::Serialize, specta::Type)]
+pub struct MemoryInfo {
+    pub total_mb: u64,
+    pub available_mb: u64,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_memory_info(gpu: bool) -> MemoryInfo {
+    if gpu {
+        if let Some(info) = get_gpu_memory() {
+            return info;
+        }
+    }
+    get_system_memory()
+}
+
+fn get_system_memory() -> MemoryInfo {
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    MemoryInfo {
+        total_mb: sys.total_memory() / (1024 * 1024),
+        available_mb: sys.available_memory() / (1024 * 1024),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_gpu_memory() -> Option<MemoryInfo> {
+    use windows::core::Interface;
+    use windows::Win32::Graphics::Dxgi::*;
+
+    unsafe {
+        let factory: IDXGIFactory1 = CreateDXGIFactory1().ok()?;
+        let adapter = factory.EnumAdapters1(0).ok()?;
+        let desc = adapter.GetDesc1().ok()?;
+
+        if desc.DedicatedVideoMemory == 0 {
+            return None;
+        }
+
+        let total_mb = (desc.DedicatedVideoMemory / (1024 * 1024)) as u64;
+
+        if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
+            let mut info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+            if adapter3
+                .QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mut info)
+                .is_ok()
+            {
+                let available_mb = info.Budget.saturating_sub(info.CurrentUsage) / (1024 * 1024);
+                return Some(MemoryInfo {
+                    total_mb,
+                    available_mb,
+                });
+            }
+        }
+
+        Some(MemoryInfo {
+            total_mb,
+            available_mb: total_mb,
+        })
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_gpu_memory() -> Option<MemoryInfo> {
+    None
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {

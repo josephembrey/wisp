@@ -73,6 +73,9 @@ tauri-plugin-window-state = "2"
 # Open files/dirs in native explorer
 open = "5"
 
+# System info
+sysinfo = "0.38.4"
+
 # Concurrency
 parking_lot = "0.12"
 tauri-plugin-single-instance = "2.4.0"
@@ -86,3 +89,4 @@ whisper-rs = { version = "0.16", features = ["vulkan"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 whisper-rs = { version = "0.16", features = ["vulkan"] }
 windows-sys = "0.61.2"
+windows = { version = "0.62.2", features = ["Win32_Graphics_Dxgi"] }
