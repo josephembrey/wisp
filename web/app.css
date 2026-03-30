@@ -1,0 +1,7 @@
+@import '../src/routes/layout.css';
+
+@layer base {
+	body {
+		@apply overflow-auto bg-background select-auto;
+	}
+}

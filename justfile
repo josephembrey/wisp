@@ -44,6 +44,14 @@ icons:
 dev:
     bun tauri dev
 
+# Build the marketing site to build/web
+web:
+    bunx vite build --config web/vite.config.ts
+
+# Dev server for the marketing site
+web-dev:
+    bunx vite dev --config web/vite.config.ts
+
 # Install dependencies
 [linux]
 install:

@@ -9,7 +9,7 @@ import svelteConfig from './svelte.config.js';
 
 export default defineConfig(
 	includeIgnoreFile(import.meta.dirname + '/.gitignore'),
-	{ ignores: ['src/lib/bindings.ts'] }, // auto-generated (see also vite.config.ts)
+	{ ignores: ['src/lib/bindings.ts', 'web/'] },
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,

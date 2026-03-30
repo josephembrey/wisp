@@ -146,7 +146,7 @@
 		>
 			<Switch checked={app.settings!.gpu} class="pointer-events-none" />
 			{#if app.settings!.gpu && app.gpuBackend}
-				<Badge variant="outline">{app.gpuBackend}</Badge>
+				<Badge variant="secondary">{app.gpuBackend}</Badge>
 			{:else}
 				<span class="text-xs text-muted-foreground">Using CPU only</span>
 			{/if}
