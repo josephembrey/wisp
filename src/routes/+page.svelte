@@ -38,26 +38,24 @@
 		// 2. Measure new content
 		const targetInner = innerEl.scrollHeight;
 		const targetWindow = calcWindowHeight(targetInner);
+		const growing = targetWindow > lastWindowHeight;
 
-		if (targetWindow > lastWindowHeight) {
-			// Growing: resize window first, then animate
+		// Growing: resize window first to make room
+		if (growing) {
 			lastWindowHeight = targetWindow;
 			await resizeWindowCmd(targetWindow);
-			animating = true;
-			await tick();
-			tabHeight = targetInner;
-		} else if (targetWindow < lastWindowHeight) {
-			// Shrinking: animate first, resize on transitionend
-			animating = true;
-			await tick();
-			tabHeight = targetInner;
-		} else {
-			tabHeight = targetInner;
 		}
+		// Animate height change (shrink resizes on transitionend)
+		if (growing || targetWindow < lastWindowHeight) {
+			animating = true;
+			await tick();
+		}
+		tabHeight = targetInner;
 	}
 
 	function onTransitionEnd(e: TransitionEvent) {
 		if (e.propertyName !== 'height') return;
+		animating = false;
 		const h = calcWindowHeight(tabHeight);
 		if (h !== lastWindowHeight) {
 			lastWindowHeight = h;
@@ -65,18 +63,21 @@
 		}
 	}
 
-	// Initial sizing
+	// Resize window when content height changes (initial sizing + within-tab changes)
 	$effect(() => {
-		if (app.settings && lastWindowHeight === 0 && innerEl && headerEl) {
-			tick().then(() => {
-				tabHeight = innerEl!.scrollHeight;
-				const h = calcWindowHeight(tabHeight);
-				if (h > 0) {
-					lastWindowHeight = h;
-					resizeWindowCmd(h);
-				}
-			});
-		}
+		if (!innerEl) return;
+		const observer = new ResizeObserver(() => {
+			if (animating) return;
+			const targetInner = innerEl.scrollHeight;
+			const targetWindow = calcWindowHeight(targetInner);
+			if (targetWindow !== lastWindowHeight) {
+				lastWindowHeight = targetWindow;
+				tabHeight = targetInner;
+				resizeWindowCmd(targetWindow);
+			}
+		});
+		observer.observe(innerEl);
+		return () => observer.disconnect();
 	});
 
 	onMount(() => app.init());

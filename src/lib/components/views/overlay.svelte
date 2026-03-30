@@ -2,11 +2,29 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
-
 	import { app } from '$lib/state.svelte';
+	import type { MonitorInfo } from '$lib/tauri';
+
+	const positions: Record<string, string> = {
+		'top-left': 'Top Left',
+		'top-center': 'Top Center',
+		'top-right': 'Top Right',
+		'bottom-left': 'Bottom Left',
+		'bottom-center': 'Bottom Center',
+		'bottom-right': 'Bottom Right'
+	};
+
+	function monitorLabel(m: MonitorInfo) {
+		return `${m.name || `Monitor ${m.index}`}${m.primary ? ' (Primary)' : ''} — ${m.width}×${m.height}`;
+	}
+
+	const selectedMonitor = $derived(
+		app.monitors.find((m) => m.index === app.settings!.overlay_monitor)
+	);
 </script>
 
 <div class="flex flex-col gap-3">
+	<!-- Enabled -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Enabled</span>
 		<SettingSwitch
@@ -16,6 +34,7 @@
 		/>
 	</div>
 
+	<!-- Visibility -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Visibility</span>
 		<SettingSwitch
@@ -25,6 +44,7 @@
 		/>
 	</div>
 
+	<!-- Position -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Position</span>
 		<Select.Root
@@ -35,16 +55,7 @@
 			}}
 		>
 			<Select.Trigger class="w-full">
-				{(
-					{
-						'top-left': 'Top Left',
-						'top-center': 'Top Center',
-						'top-right': 'Top Right',
-						'bottom-left': 'Bottom Left',
-						'bottom-center': 'Bottom Center',
-						'bottom-right': 'Bottom Right'
-					} as Record<string, string>
-				)[app.settings!.overlay_position ?? ''] ?? app.settings!.overlay_position}
+				{positions[app.settings!.overlay_position ?? ''] ?? app.settings!.overlay_position}
 			</Select.Trigger>
 			<Select.Content>
 				<Select.Item value="top-left">Top Left</Select.Item>
@@ -57,6 +68,7 @@
 		</Select.Root>
 	</div>
 
+	<!-- Size -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Size</span>
 		<ToggleGroup.Root
@@ -73,6 +85,7 @@
 		</ToggleGroup.Root>
 	</div>
 
+	<!-- Monitor -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Monitor</span>
 		<Select.Root
@@ -83,16 +96,14 @@
 			}}
 		>
 			<Select.Trigger class="w-full truncate">
-				{(() => {
-					const m = app.monitors.find((m) => m.index === app.settings!.overlay_monitor);
-					if (!m) return `Monitor ${app.settings!.overlay_monitor}`;
-					return `${m.name || `Monitor ${m.index}`}${m.primary ? ' (Primary)' : ''} - ${m.width}x${m.height}`;
-				})()}
+				{selectedMonitor
+					? monitorLabel(selectedMonitor)
+					: `Monitor ${app.settings!.overlay_monitor}`}
 			</Select.Trigger>
 			<Select.Content>
 				{#each app.monitors as monitor (monitor.index)}
 					<Select.Item value={String(monitor.index)}>
-						{monitor.name || `Monitor ${monitor.index}`}{monitor.primary ? ' (Primary)' : ''} - {monitor.width}x{monitor.height}
+						{monitorLabel(monitor)}
 					</Select.Item>
 				{/each}
 			</Select.Content>

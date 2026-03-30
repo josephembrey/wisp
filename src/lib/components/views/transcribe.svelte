@@ -3,7 +3,7 @@
 	import { open } from '@tauri-apps/plugin-dialog';
 	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import { toast } from 'svelte-sonner';
-	import { info, error as logError } from '@tauri-apps/plugin-log';
+	import { error as logError } from '@tauri-apps/plugin-log';
 	import { transcribeFile, onTranscribeFileProgress } from '$lib/tauri';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { app } from '$lib/state.svelte';
@@ -31,11 +31,8 @@
 	async function handleFile(path: string) {
 		filePath = path;
 		result = '';
-		info(`[transcribe] file: ${path}`);
 		try {
-			const text = await transcribeFile(path);
-			result = text;
-			info(`[transcribe] done: ${text.length} chars`);
+			result = await transcribeFile(path);
 		} catch (e) {
 			logError(`[transcribe] failed: ${e}`);
 			toast.error(`Transcription failed: ${e}`);
@@ -71,36 +68,24 @@
 	}
 
 	onMount(() => {
-		const unsubs = [
+		const listeners = [
 			onTranscribeFileProgress((s) => {
-				if (s === 'done') {
-					status = 'idle';
-				} else {
-					status = s as FileStatus;
+				status = s === 'done' ? 'idle' : (s as FileStatus);
+			}),
+			getCurrentWebviewWindow().onDragDropEvent((event) => {
+				if (busy) return;
+				if (event.payload.type === 'over') {
+					dragOver = true;
+				} else if (event.payload.type === 'leave') {
+					dragOver = false;
+				} else if (event.payload.type === 'drop') {
+					dragOver = false;
+					const paths = event.payload.paths;
+					if (paths.length > 0) handleFile(paths[0]);
 				}
 			})
 		];
-
-		const webview = getCurrentWebviewWindow();
-		const dropPromise = webview.onDragDropEvent((event) => {
-			if (busy) return;
-			if (event.payload.type === 'over') {
-				dragOver = true;
-			} else if (event.payload.type === 'leave') {
-				dragOver = false;
-			} else if (event.payload.type === 'drop') {
-				dragOver = false;
-				const paths = event.payload.paths;
-				if (paths.length > 0) {
-					handleFile(paths[0]);
-				}
-			}
-		});
-
-		return () => {
-			unsubs.forEach((p) => p.then((fn) => fn()));
-			dropPromise.then((fn) => fn());
-		};
+		return () => listeners.forEach((p) => p.then((fn) => fn()));
 	});
 </script>
 

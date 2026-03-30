@@ -35,68 +35,66 @@
 </script>
 
 <div class="flex flex-col gap-3">
+	<!-- Model selector + download/delete -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Model</span>
-		<div class="flex flex-col gap-1.5">
-			<div class="flex items-center gap-2">
-				<Select.Root
-					type="single"
-					value={app.settings!.model}
-					onValueChange={(v) => {
-						if (v) app.save({ model: v });
-					}}
+		<div class="flex items-center gap-2">
+			<Select.Root
+				type="single"
+				value={app.settings!.model}
+				onValueChange={(v) => {
+					if (v) app.save({ model: v });
+				}}
+			>
+				<Select.Trigger class="flex-1">
+					{selectedModel?.name ?? app.settings!.model}
+				</Select.Trigger>
+				<Select.Content>
+					{#each app.models as model (model.name)}
+						<Select.Item value={model.name}>
+							{model.name}
+							<span class="ml-auto text-xs text-muted-foreground">
+								{model.size_mb} MB
+								{#if model.downloaded}&check;{/if}
+							</span>
+						</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+
+			{#if selectedModel && !selectedModel.downloaded}
+				<Button
+					size="sm"
+					onclick={() => app.downloadModel(selectedModel.name)}
+					disabled={app.downloadProgress !== null}
 				>
-					<Select.Trigger class="flex-1">
-						{selectedModel?.name ?? app.settings!.model}
-					</Select.Trigger>
-					<Select.Content>
-						{#each app.models as model (model.name)}
-							<Select.Item value={model.name}>
-								{model.name}
-								<span class="ml-auto text-xs text-muted-foreground">
-									{model.size_mb} MB
-									{#if model.downloaded}&check;{/if}
-								</span>
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-
-				{#if selectedModel}
-					{#if !selectedModel.downloaded}
-						<Button
-							size="sm"
-							onclick={() => app.downloadModel(selectedModel.name)}
-							disabled={app.downloadProgress !== null}
-						>
-							{app.downloadProgress?.model === selectedModel.name ? 'Downloading...' : 'Download'}
-						</Button>
-					{:else}
-						<Button
-							size="sm"
-							variant="outline"
-							onclick={() => app.deleteModel(selectedModel.name)}
-							class="h-8 w-8 shrink-0 p-0"
-							aria-label="Delete model"
-						>
-							<Trash2Icon size={14} />
-						</Button>
-					{/if}
-				{/if}
-			</div>
-
-			{#if app.downloadProgress && app.downloadProgress.total > 0}
-				{@const pct = Math.round(
-					(app.downloadProgress.downloaded / app.downloadProgress.total) * 100
-				)}
-				<div class="flex items-center gap-2">
-					<Progress value={pct} class="flex-1" />
-					<span class="text-xs text-muted-foreground tabular-nums">{pct}%</span>
-				</div>
+					{app.downloadProgress?.model === selectedModel.name ? 'Downloading...' : 'Download'}
+				</Button>
+			{:else if selectedModel}
+				<Button
+					size="sm"
+					variant="outline"
+					onclick={() => app.deleteModel(selectedModel.name)}
+					class="h-8 w-8 shrink-0 p-0"
+					aria-label="Delete model"
+				>
+					<Trash2Icon size={14} />
+				</Button>
 			{/if}
 		</div>
+
+		{#if app.downloadProgress && app.downloadProgress.total > 0}
+			{@const pct = Math.round(
+				(app.downloadProgress.downloaded / app.downloadProgress.total) * 100
+			)}
+			<div class="flex items-center gap-2">
+				<Progress value={pct} class="flex-1" />
+				<span class="text-xs text-muted-foreground tabular-nums">{pct}%</span>
+			</div>
+		{/if}
 	</div>
 
+	<!-- Model loading strategy -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Model Loading</span>
 		<div class="flex flex-col gap-1">
@@ -123,6 +121,7 @@
 		</div>
 	</div>
 
+	<!-- Language -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Language</span>
 		<Select.Root
@@ -143,6 +142,7 @@
 		</Select.Root>
 	</div>
 
+	<!-- GPU -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground"
 			>GPU Acceleration<span class="font-normal text-muted-foreground/60">
@@ -171,6 +171,7 @@
 		</div>
 	</div>
 
+	<!-- Interrupt -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Interrupt</span>
 		<SettingSwitch
@@ -182,6 +183,7 @@
 		/>
 	</div>
 
+	<!-- Min duration -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground"
 			>Min Duration<span class="font-normal text-muted-foreground/60">
