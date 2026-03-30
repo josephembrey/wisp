@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import CheckIcon from '@lucide/svelte/icons/check';
+	import ClipboardIcon from '@lucide/svelte/icons/clipboard';
+	import TextCursorIcon from '@lucide/svelte/icons/text-cursor';
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { error as logError } from '@tauri-apps/plugin-log';
@@ -10,10 +12,11 @@
 	// Overlay state
 	let current = $derived(overlay.current);
 
-	// Position & visibility (from settings)
+	// Settings-driven state
 	let alwaysShow = $state(false);
 	let position = $state('top-right');
 	let size = $state('md');
+	let outputMode = $state('paste');
 
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
 	const justify = $derived(
@@ -27,6 +30,7 @@
 		alwaysShow = s.overlay_always_show ?? false;
 		position = s.overlay_position ?? 'top-right';
 		size = s.overlay_size ?? 'md';
+		outputMode = s.output_mode ?? 'paste';
 	}
 
 	onMount(() => {
@@ -83,17 +87,27 @@
 			<XIcon size={12} color="var(--overlay-processing)" strokeWidth={2.5} />
 			<span class="overlay-label" style:color="var(--overlay-processing)">Cancelled</span>
 
+			<!-- mode change: show new output mode -->
+		{:else if current.status === 'output_mode'}
+			{#if outputMode === 'clipboard'}
+				<ClipboardIcon size={12} color="var(--overlay-text)" strokeWidth={2.5} />
+				<span class="overlay-label" style:color="var(--overlay-text)">Clipboard</span>
+			{:else}
+				<TextCursorIcon size={12} color="var(--overlay-text)" strokeWidth={2.5} />
+				<span class="overlay-label" style:color="var(--overlay-text)">Cursor</span>
+			{/if}
+
 			<!-- saved/copied/typed/deleted: green check -->
 		{:else}
 			<CheckIcon size={12} color="var(--overlay-success)" strokeWidth={2.5} />
 			<span class="overlay-label" style:color="var(--overlay-success)">
-				{current.status === 'saved'
-					? 'Saved'
-					: current.status === 'copied'
-						? 'Copied'
-						: current.status === 'typed'
-							? 'Typed'
-							: 'Deleted'}
+				{current.status === 'copied'
+					? 'Copied'
+					: current.status === 'typed'
+						? 'Typed'
+						: current.status === 'deleted'
+							? 'Deleted'
+							: 'Saved'}
 			</span>
 		{/if}
 	</div>

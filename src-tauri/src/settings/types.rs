@@ -29,6 +29,7 @@ pub enum OverlayStatus {
     Typed,
     Deleted,
     Cancelled,
+    OutputMode,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]

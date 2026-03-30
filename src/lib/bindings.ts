@@ -110,7 +110,7 @@ export type ModelLoading = "eager" | "lazy" | "per_use"
 export type MonitorInfo = { index: number; name: string; width: number; height: number; primary: boolean }
 export type OutputMode = "clipboard" | "paste"
 export type OverlayState = { status: OverlayStatus; ttl_ms: number | null }
-export type OverlayStatus = "idle" | "recording" | "processing" | "loading" | "saved" | "copied" | "typed" | "deleted" | "cancelled"
+export type OverlayStatus = "idle" | "recording" | "processing" | "loading" | "saved" | "copied" | "typed" | "deleted" | "cancelled" | "output_mode"
 export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language?: string; gpu?: boolean; interrupt?: boolean; output_hotkey?: string; min_duration?: number; overlay_enabled?: boolean; overlay_position?: string; overlay_size?: string; overlay_monitor?: number; overlay_always_show?: boolean; input_device?: string; model_loading?: ModelLoading; autostart?: boolean; history_enabled?: boolean; history_retention?: number }
 
 /** tauri-specta globals **/

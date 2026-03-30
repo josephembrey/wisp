@@ -229,7 +229,7 @@ pub(crate) fn run(
                 set_overlay(
                     &app,
                     OverlayState {
-                        status: OverlayStatus::Saved,
+                        status: OverlayStatus::OutputMode,
                         ttl_ms: Some(1000),
                     },
                 );
