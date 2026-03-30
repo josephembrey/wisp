@@ -9,6 +9,7 @@ export type {
 	ModelInfo,
 	InputDeviceInfo,
 	MonitorInfo,
+	MemoryInfo,
 	DownloadProgress,
 	OutputMode,
 	ModelLoading,
@@ -27,6 +28,7 @@ export const getSettings = commands.getSettings;
 export const getModels = commands.getModels;
 export const getGpuBackend = commands.getGpuBackend;
 export const getMonitors = commands.getMonitors;
+export const getMemoryInfo = commands.getMemoryInfo;
 export const getInputDevices = commands.getInputDevices;
 export const resizeWindow = commands.resizeWindow;
 export const quit = commands.quit;

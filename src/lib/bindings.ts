@@ -55,6 +55,9 @@ async resetApp() : Promise<Result<null, string>> {
 async getMonitors() : Promise<MonitorInfo[]> {
     return await TAURI_INVOKE("get_monitors");
 },
+async getMemoryInfo(gpu: boolean) : Promise<MemoryInfo> {
+    return await TAURI_INVOKE("get_memory_info", { gpu });
+},
 async getInputDevices() : Promise<InputDeviceInfo[]> {
     return await TAURI_INVOKE("get_input_devices");
 },
@@ -101,6 +104,7 @@ async quit() : Promise<void> {
 export type DownloadProgress = { model: string; downloaded: number; total: number }
 export type HistoryEntry = { id: number; timestamp: number; text: string; source: string }
 export type InputDeviceInfo = { name: string; label: string }
+export type MemoryInfo = { total_mb: number; available_mb: number }
 export type ModelInfo = { name: string; size_mb: number; downloaded: boolean }
 export type ModelLoading = "eager" | "lazy" | "per_use"
 export type MonitorInfo = { index: number; name: string; width: number; height: number; primary: boolean }

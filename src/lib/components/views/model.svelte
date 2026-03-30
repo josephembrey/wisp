@@ -11,6 +11,13 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 
 	let selectedModel = $derived(app.models.find((m) => m.name === app.settings!.model));
+	let memUsed = $derived(app.memoryInfo.total_mb - app.memoryInfo.available_mb);
+	let memUsedPct = $derived(
+		app.memoryInfo.total_mb ? (memUsed / app.memoryInfo.total_mb) * 100 : 0
+	);
+	let memModelPct = $derived(
+		app.memoryInfo.total_mb ? ((selectedModel?.size_mb ?? 0) / app.memoryInfo.total_mb) * 100 : 0
+	);
 
 	const languages = [
 		{ value: 'auto', label: 'Auto-detect' },
@@ -26,6 +33,8 @@
 		{ value: 'ru', label: 'Russian' },
 		{ value: 'ar', label: 'Arabic' }
 	];
+
+	const formatMb = (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
 
 	const loadingModes = [
 		{ value: 'eager', label: 'Startup' },
@@ -88,10 +97,60 @@
 				(app.downloadProgress.downloaded / app.downloadProgress.total) * 100
 			)}
 			<div class="flex items-center gap-2">
+				{#if app.downloadProgress.model !== selectedModel?.name}
+					<span class="shrink-0 text-xs text-muted-foreground">{app.downloadProgress.model}</span>
+				{/if}
 				<Progress value={pct} class="flex-1" />
 				<span class="text-xs text-muted-foreground tabular-nums">{pct}%</span>
 			</div>
 		{/if}
+	</div>
+
+	<!-- Memory bar -->
+	{#if app.memoryInfo.total_mb}
+		<div class="flex flex-col gap-1">
+			<span class="text-xs font-medium text-muted-foreground"
+				>{app.settings!.gpu ? 'GPU' : 'System'} Memory</span
+			>
+			<div class="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+				<div class="h-full bg-muted-foreground/30" style:width="{memUsedPct}%"></div>
+				<div class="h-full bg-primary/50" style:width="{memModelPct}%"></div>
+			</div>
+			<div class="flex gap-3 text-[10px] text-muted-foreground">
+				<span>{formatMb(memUsed)} used</span>
+				<span>{formatMb(selectedModel?.size_mb ?? 0)} model</span>
+				<span>{formatMb(app.memoryInfo.available_mb)} free</span>
+			</div>
+		</div>
+	{/if}
+
+	<!-- GPU -->
+	<div class="flex flex-col gap-1.5">
+		<span class="text-xs font-medium text-muted-foreground"
+			>GPU Acceleration<span class="font-normal text-muted-foreground/60">
+				— Use GPU for faster transcription</span
+			></span
+		>
+		<div
+			class="flex cursor-pointer items-center gap-3"
+			role="switch"
+			tabindex="0"
+			aria-checked={app.settings!.gpu}
+			onclick={() => app.save({ gpu: !app.settings!.gpu })}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					app.save({ gpu: !app.settings!.gpu });
+				}
+			}}
+		>
+			<Switch checked={app.settings!.gpu} class="pointer-events-none" />
+			{#if app.settings!.gpu && app.gpuBackend}
+				<Badge variant="outline">{app.gpuBackend}</Badge>
+			{:else}
+				<span class="text-xs text-muted-foreground">Using CPU only</span>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Model loading strategy -->
@@ -142,43 +201,14 @@
 		</Select.Root>
 	</div>
 
-	<!-- GPU -->
-	<div class="flex flex-col gap-1.5">
-		<span class="text-xs font-medium text-muted-foreground"
-			>GPU Acceleration<span class="font-normal text-muted-foreground/60">
-				— Use GPU for faster transcription</span
-			></span
-		>
-		<div
-			class="flex cursor-pointer items-center gap-3"
-			role="switch"
-			tabindex="0"
-			aria-checked={app.settings!.gpu}
-			onclick={() => app.save({ gpu: !app.settings!.gpu })}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					app.save({ gpu: !app.settings!.gpu });
-				}
-			}}
-		>
-			<Switch checked={app.settings!.gpu} class="pointer-events-none" />
-			{#if app.settings!.gpu && app.gpuBackend}
-				<Badge variant="outline">{app.gpuBackend}</Badge>
-			{:else}
-				<span class="text-xs text-muted-foreground">Using CPU only</span>
-			{/if}
-		</div>
-	</div>
-
 	<!-- Interrupt -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Interrupt</span>
 		<SettingSwitch
 			checked={app.settings!.interrupt ?? false}
 			label={app.settings!.interrupt
-				? 'Re-record during transcription'
-				: 'Wait for transcription to finish'}
+				? 'Can start a new recording while transcribing'
+				: 'Must wait for transcription before recording again'}
 			onchange={(v) => app.save({ interrupt: v })}
 		/>
 	</div>

@@ -7,6 +7,7 @@ import {
 	getMonitors,
 	getInputDevices,
 	getModels,
+	getMemoryInfo,
 	downloadModel as downloadModelCmd,
 	deleteModel as deleteModelCmd,
 	isFirstRun,
@@ -18,6 +19,7 @@ import {
 	type MonitorInfo,
 	type InputDeviceInfo,
 	type ModelInfo,
+	type MemoryInfo,
 	type DownloadProgress
 } from '$lib/tauri';
 
@@ -27,6 +29,7 @@ let models: ModelInfo[] = $state([]);
 let gpuBackend: string = $state('');
 let monitors: MonitorInfo[] = $state([]);
 let inputDevices: InputDeviceInfo[] = $state([]);
+let memoryInfo: MemoryInfo = $state({ total_mb: 0, available_mb: 0 });
 let downloadProgress: DownloadProgress | null = $state(null);
 let lastTranscription: string = $state('');
 let activeTab: string = $state('general');
@@ -77,7 +80,8 @@ function init(): () => void {
 		getGpuBackend().then((b) => (gpuBackend = b)),
 		getMonitors().then((m) => (monitors = m)),
 		getInputDevices().then((d) => (inputDevices = d)),
-		getModels().then((m) => (models = m))
+		getModels().then((m) => (models = m)),
+		getMemoryInfo(false).then((m) => (memoryInfo = m))
 	]).catch((e) => logError(`[init] failed to load state: ${e}`));
 
 	isFirstRun()
@@ -95,7 +99,10 @@ function init(): () => void {
 			logError(`[backend] ${msg}`);
 			toast.error(msg);
 		}),
-		onSettingsChanged((s) => (settings = s)),
+		onSettingsChanged((s) => {
+			settings = s;
+			getMemoryInfo(s.gpu ?? false).then((m) => (memoryInfo = m));
+		}),
 		onDownloadProgress((p) => (downloadProgress = p))
 	];
 
@@ -120,6 +127,9 @@ export const app = {
 	},
 	get inputDevices() {
 		return inputDevices;
+	},
+	get memoryInfo() {
+		return memoryInfo;
 	},
 	get downloadProgress() {
 		return downloadProgress;
