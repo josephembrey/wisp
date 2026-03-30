@@ -2,7 +2,6 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import HotkeyCapture from '$lib/components/hotkey-capture.svelte';
 	import { app } from '$lib/state.svelte';
@@ -11,6 +10,7 @@
 </script>
 
 <div class="flex flex-col gap-3">
+	<!-- Output mode -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Output</span>
 		<div class="flex items-center gap-3">
@@ -31,18 +31,20 @@
 		</div>
 	</div>
 
+	<!-- Hotkey -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Hotkey</span>
 		<HotkeyCapture hotkey={app.settings!.hotkey} onsave={(combo) => app.save({ hotkey: combo })} />
 	</div>
 
+	<!-- Input device -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Input Device</span>
 		<Select.Root
 			type="single"
 			value={app.settings!.input_device || ''}
 			onValueChange={(v) => {
-				app.save({ input_device: v === '' ? '' : v });
+				if (v !== undefined) app.save({ input_device: v });
 			}}
 		>
 			<Select.Trigger class="w-full truncate">
@@ -59,6 +61,7 @@
 		</Select.Root>
 	</div>
 
+	<!-- Output mode hotkey -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Output Mode Hotkey</span>
 		<HotkeyCapture
@@ -67,6 +70,7 @@
 		/>
 	</div>
 
+	<!-- Autostart -->
 	<div class="flex flex-col gap-1.5">
 		<span class="text-xs font-medium text-muted-foreground">Autostart</span>
 		<SettingSwitch
@@ -76,6 +80,7 @@
 		/>
 	</div>
 
+	<!-- Last transcription -->
 	{#if app.lastTranscription}
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center justify-between">
