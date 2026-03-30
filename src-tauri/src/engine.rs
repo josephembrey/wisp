@@ -51,12 +51,12 @@ pub(crate) fn run(
             );
             match load_model(&state.models_dir, &settings.model, settings.gpu) {
                 Ok(e) => {
-                    log::info!("eagerly loaded model: {}", settings.model);
+                    log::info!("model: eagerly loaded {}", settings.model);
                     engine = Some(e);
                     loaded_model = settings.model.clone();
                     loaded_gpu = settings.gpu;
                 }
-                Err(e) => log::warn!("eager load skipped: {}", e),
+                Err(e) => log::warn!("model: eager load skipped: {}", e),
             }
             set_overlay(&app, OverlayState::default());
         }
@@ -108,7 +108,7 @@ pub(crate) fn run(
                 let audio = rec.stop();
                 let duration_ms = (audio.len() as f64 / 16.0) as u64;
                 log::info!(
-                    "recording stopped: {} samples ({}ms)",
+                    "recording: stopped {} samples ({}ms)",
                     audio.len(),
                     duration_ms
                 );
@@ -116,7 +116,7 @@ pub(crate) fn run(
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
                     log::info!(
-                        "recording too short ({} samples, min {}), skipping",
+                        "recording: too short ({} samples, min {}), skipping",
                         audio.len(),
                         min_samples
                     );
@@ -173,7 +173,7 @@ pub(crate) fn run(
                                 loaded_gpu = settings.gpu;
                             }
                             Err(e) => {
-                                log::error!("model load error: {}", e);
+                                log::error!("model: load error: {}", e);
                                 let _ = app.emit("backend-error", &e);
                                 set_overlay(&app, OverlayState::default());
                                 continue;
@@ -293,13 +293,13 @@ pub(crate) fn run(
                 );
                 match load_model(&state.models_dir, &settings.model, settings.gpu) {
                     Ok(e) => {
-                        log::info!("reloaded model: {}", settings.model);
+                        log::info!("model: reloaded {}", settings.model);
                         engine = Some(e);
                         loaded_model = settings.model.clone();
                         loaded_gpu = settings.gpu;
                     }
                     Err(e) => {
-                        log::warn!("model reload error: {}", e);
+                        log::warn!("model: reload error: {}", e);
                         let _ = app.emit("backend-error", &e);
                     }
                 }
@@ -363,7 +363,7 @@ fn load_model(
     if !path.exists() {
         return Err(format!("Model '{}' not downloaded", name));
     }
-    log::info!("loading model '{}' (gpu={})", name, use_gpu);
+    log::info!("model: loading '{}' (gpu={})", name, use_gpu);
     whisper::WhisperEngine::new(&path, use_gpu)
         .map_err(|e| format!("Failed to load model '{}': {}", name, e))
 }

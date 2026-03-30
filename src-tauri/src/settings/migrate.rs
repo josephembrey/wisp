@@ -37,7 +37,7 @@ fn migrate_hotkey(combo: &mut String) -> bool {
 
     if changed {
         *combo = parts.join("+");
-        log::info!("migrated hotkey to '{}'", combo);
+        log::info!("settings: migrated hotkey to '{}'", combo);
     }
     changed
 }

@@ -90,7 +90,7 @@ pub async fn download_model(
     state: tauri::State<'_, WispState>,
     name: String,
 ) -> Result<(), String> {
-    log::info!("download requested: {}", name);
+    log::info!("cmd: download_model {}", name);
     whisper::download_model(app, &state.models_dir, &name).await
 }
 
@@ -101,7 +101,7 @@ pub fn delete_model(
     state: tauri::State<'_, WispState>,
     name: String,
 ) -> Result<(), String> {
-    log::info!("delete requested: {}", name);
+    log::info!("cmd: delete_model {}", name);
     whisper::delete_model(&state.models_dir, &name)?;
     engine::set_overlay(
         &app,
