@@ -67,7 +67,7 @@
 	$effect(() => {
 		if (!innerEl) return;
 		const observer = new ResizeObserver(() => {
-			if (animating) return;
+			if (animating || !innerEl) return;
 			const targetInner = innerEl.scrollHeight;
 			const targetWindow = calcWindowHeight(targetInner);
 			if (targetWindow !== lastWindowHeight) {
