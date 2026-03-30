@@ -6,6 +6,17 @@ pub struct InputDeviceInfo {
     pub label: String,
 }
 
+/// Clean up device names from OS/driver strings.
+fn clean_name(name: &str) -> String {
+    name.replace("(R)", "")
+        .replace("(TM)", "")
+        .replace("®", "")
+        .replace("™", "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[allow(deprecated)]
 pub fn list_input_devices() -> Vec<InputDeviceInfo> {
     let host = cpal::default_host();
@@ -24,13 +35,12 @@ pub fn list_input_devices() -> Vec<InputDeviceInfo> {
                         let rate = c.sample_rate() / 1000;
                         format!("{rate}kHz {ch}")
                     });
-                    let mut label = name.clone();
-                    if is_default {
-                        label.push_str(" (Default)");
-                    }
+                    let mut label = clean_name(&name);
                     if let Some(detail) = detail {
-                        label.push_str(" - ");
-                        label.push_str(&detail);
+                        label = format!("{label} · {detail}");
+                    }
+                    if is_default {
+                        label = format!("{label} (Default)");
                     }
                     Some(InputDeviceInfo { name, label })
                 })

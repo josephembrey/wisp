@@ -15,7 +15,7 @@
 	};
 
 	function monitorLabel(m: MonitorInfo) {
-		return `${m.name || `Monitor ${m.index}`}${m.primary ? ' (Primary)' : ''} — ${m.width}×${m.height}`;
+		return `${m.width}×${m.height}${m.primary ? ' (Primary)' : ''}`;
 	}
 
 	const selectedMonitor = $derived(
