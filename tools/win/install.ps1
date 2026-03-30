@@ -1,6 +1,9 @@
 # Install dev dependencies for Wisp on Windows.
 # Run as Administrator for VS Build Tools and long-path support.
-# Usage: just install
+# Usage: just install        (interactive)
+#        just install ci      (non-interactive, skips optional prompts)
+
+param([switch]$ci)
 
 $ErrorActionPreference = 'Stop'
 
@@ -26,8 +29,11 @@ wg Oven-sh.Bun
 # Skip Just — it's the running process, so winget can't replace the locked exe.
 # Upgrade manually: winget upgrade Casey.Just
 if (-not (Get-Command just -EA SilentlyContinue)) { wg Casey.Just }
-wg direnv.direnv
-wg j178.Prek
+
+if (-not $ci) {
+    wg direnv.direnv
+    wg j178.Prek
+}
 
 # Persistent env vars (if not already set)
 $llvm = "${env:ProgramFiles}\LLVM\bin"
@@ -39,15 +45,17 @@ if ($vulkan -and -not $env:VULKAN_SDK) {
     [Environment]::SetEnvironmentVariable('VULKAN_SDK', $vulkan, 'User')
 }
 
-# Signing tools (optional)
-$answer = Read-Host "`nInstall code signing tools? (y/N)"
-if ($answer -eq 'y') {
-    wg Microsoft.WindowsSDK.10.0.26100
-    wg Microsoft.AzureCLI
-    wg Microsoft.Azure.TrustedSigningClientTools
-}
+# Signing tools (interactive only)
+if (-not $ci) {
+    $answer = Read-Host "`nInstall code signing tools? (y/N)"
+    if ($answer -eq 'y') {
+        wg Microsoft.WindowsSDK.10.0.26100
+        wg Microsoft.AzureCLI
+        wg Microsoft.Azure.TrustedSigningClientTools
+    }
 
-# Git hooks
-prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
+    # Git hooks
+    prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
+}
 
 Write-Host "`nDone." -ForegroundColor Cyan

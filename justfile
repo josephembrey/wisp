@@ -65,8 +65,8 @@ install:
 
 # Install dependencies (system + node)
 [windows]
-install:
-    powershell -NoProfile -File tools/win/install.ps1
+install *args:
+    powershell -NoProfile -File tools/win/install.ps1 {{ if args == "ci" { "-ci" } else { "" } }}
     bun install
 
 # Run pre-commit hooks on all files
