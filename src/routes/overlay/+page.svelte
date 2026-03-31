@@ -22,7 +22,14 @@
 	const justify = $derived(
 		{ left: 'justify-start', right: 'justify-end' }[position.split('-')[1]] ?? 'justify-center'
 	);
-	const overlayScale = $derived({ small: 'scale-75', large: 'scale-150' }[size] ?? '');
+	const sizeClasses = $derived(
+		{
+			small: 'gap-1.5 px-2 py-1 text-[0.625rem]',
+			large: 'gap-3 px-4 py-2.5 text-base'
+		}[size] ?? 'gap-2 px-3 py-1.5 text-xs'
+	);
+	const iconSize = $derived({ small: 10, large: 18 }[size] ?? 14);
+	const dotSize = $derived({ small: 'h-2 w-2', large: 'h-3.5 w-3.5' }[size] ?? 'h-2.5 w-2.5');
 	const visible = $derived(current.status !== 'idle' || alwaysShow);
 
 	// Settings sync
@@ -46,16 +53,16 @@
 <!-- Overlay pill: positioned fullscreen, fades in/out -->
 <div class="flex {align} {justify} h-screen w-screen p-3">
 	<div
-		class="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 shadow-lg backdrop-blur-sm transition-opacity duration-150 {overlayScale}"
+		class="flex items-center rounded-full border border-white/10 shadow-lg backdrop-blur-sm transition-opacity duration-150 {sizeClasses}"
 		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
 		<!-- Status icon + label per state -->
 		<!-- idle: muted gray dot -->
 		{#if current.status === 'idle'}
-			<span class="relative flex h-2.5 w-2.5">
+			<span class="relative flex {dotSize}">
 				<span
-					class="relative inline-flex h-2.5 w-2.5 rounded-full"
+					class="relative inline-flex {dotSize} rounded-full"
 					style:background="var(--overlay-idle)"
 				></span>
 			</span>
@@ -63,13 +70,13 @@
 
 			<!-- recording: pulsing red dot -->
 		{:else if current.status === 'recording'}
-			<span class="relative flex h-2.5 w-2.5">
+			<span class="relative flex {dotSize}">
 				<span
 					class="absolute inline-flex h-full w-full animate-ping rounded-full"
 					style:background="var(--overlay-recording)"
 				></span>
 				<span
-					class="relative inline-flex h-2.5 w-2.5 rounded-full"
+					class="relative inline-flex {dotSize} rounded-full"
 					style:background="var(--overlay-recording)"
 				></span>
 			</span>
@@ -77,29 +84,29 @@
 
 			<!-- processing/loading: amber spinner -->
 		{:else if current.status === 'processing' || current.status === 'loading'}
-			<Loader2Icon size={14} class="animate-spin" color="var(--overlay-processing)" />
+			<Loader2Icon size={iconSize} class="animate-spin" color="var(--overlay-processing)" />
 			<span class="overlay-label" style:color="var(--overlay-text)">
 				{current.status === 'loading' ? 'Loading' : 'Processing'}
 			</span>
 
 			<!-- cancelled: amber x -->
 		{:else if current.status === 'cancelled'}
-			<XIcon size={12} color="var(--overlay-processing)" strokeWidth={2.5} />
+			<XIcon size={iconSize} color="var(--overlay-processing)" strokeWidth={2.5} />
 			<span class="overlay-label" style:color="var(--overlay-processing)">Cancelled</span>
 
 			<!-- mode change: show new output mode -->
 		{:else if current.status === 'output_mode'}
 			{#if outputMode === 'clipboard'}
-				<ClipboardIcon size={12} color="var(--overlay-text)" strokeWidth={2.5} />
+				<ClipboardIcon size={iconSize} color="var(--overlay-text)" strokeWidth={2.5} />
 				<span class="overlay-label" style:color="var(--overlay-text)">Clipboard</span>
 			{:else}
-				<TextCursorIcon size={12} color="var(--overlay-text)" strokeWidth={2.5} />
+				<TextCursorIcon size={iconSize} color="var(--overlay-text)" strokeWidth={2.5} />
 				<span class="overlay-label" style:color="var(--overlay-text)">Cursor</span>
 			{/if}
 
 			<!-- saved/copied/typed/deleted: green check -->
 		{:else}
-			<CheckIcon size={12} color="var(--overlay-success)" strokeWidth={2.5} />
+			<CheckIcon size={iconSize} color="var(--overlay-success)" strokeWidth={2.5} />
 			<span class="overlay-label" style:color="var(--overlay-success)">
 				{current.status === 'copied'
 					? 'Copied'
@@ -126,7 +133,7 @@
 	}
 
 	.overlay-label {
-		font-size: 0.75rem;
+		font-size: inherit;
 		font-weight: 500;
 		white-space: nowrap;
 		transition: color 300ms;
