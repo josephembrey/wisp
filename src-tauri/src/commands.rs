@@ -268,13 +268,13 @@ pub async fn transcribe_file(
     path: String,
 ) -> Result<String, String> {
     log::info!("transcribe_file: {}", path);
-    let file_path = std::path::PathBuf::from(&path);
+    let file_path = std::path::Path::new(&path);
     if !file_path.exists() {
         return Err(format!("file not found: {}", path));
     }
 
     let _ = app.emit("transcribe-file-progress", "decoding");
-    let audio = audio::decode_file(&file_path)?;
+    let audio = audio::decode_file(file_path)?;
 
     let settings = state.settings.lock().clone();
     let model_path = whisper::model_path(&state.models_dir, &settings.model);

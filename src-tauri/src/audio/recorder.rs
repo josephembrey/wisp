@@ -42,8 +42,7 @@ impl AudioRecorder {
             channels,
             config.sample_format()
         );
-        let buffer: Arc<parking_lot::Mutex<Vec<f32>>> =
-            Arc::new(parking_lot::Mutex::new(Vec::new()));
+        let buffer = Arc::new(parking_lot::Mutex::new(Vec::<f32>::new()));
         let buf = buffer.clone();
 
         let stream = match config.sample_format() {
@@ -58,9 +57,8 @@ impl AudioRecorder {
             cpal::SampleFormat::I16 => device.build_input_stream(
                 &config.into(),
                 move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                    let floats: Vec<f32> =
-                        data.iter().map(|&s| s as f32 / i16::MAX as f32).collect();
-                    buf.lock().extend_from_slice(&floats);
+                    buf.lock()
+                        .extend(data.iter().map(|&s| s as f32 / i16::MAX as f32));
                 },
                 |err| log::error!("audio stream error: {}", err),
                 None,

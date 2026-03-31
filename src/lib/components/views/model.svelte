@@ -11,13 +11,10 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 
 	let selectedModel = $derived(app.models.find((m) => m.name === app.settings!.model));
+	const pct = (value: number, total: number) => (total ? (value / total) * 100 : 0);
 	let memUsed = $derived(app.memoryInfo.total_mb - app.memoryInfo.available_mb);
-	let memUsedPct = $derived(
-		app.memoryInfo.total_mb ? (memUsed / app.memoryInfo.total_mb) * 100 : 0
-	);
-	let memModelPct = $derived(
-		app.memoryInfo.total_mb ? ((selectedModel?.size_mb ?? 0) / app.memoryInfo.total_mb) * 100 : 0
-	);
+	let memUsedPct = $derived(pct(memUsed, app.memoryInfo.total_mb));
+	let memModelPct = $derived(pct(selectedModel?.size_mb ?? 0, app.memoryInfo.total_mb));
 
 	const languages = [
 		{ value: 'auto', label: 'Auto-detect' },

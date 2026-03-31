@@ -20,10 +20,10 @@
 		copied: { label: 'Copied', variant: 'outline' },
 		typed: { label: 'Typed', variant: 'outline' },
 		deleted: { label: 'Deleted', variant: 'outline' },
-		cancelled: { label: 'Cancelled', variant: 'outline' }
+		cancelled: { label: 'Cancelled', variant: 'outline' },
+		output_mode: { label: 'Output', variant: 'secondary' }
 	};
-	let badgeLabel = $derived(badge[overlay.current.status].label);
-	let badgeVariant = $derived(badge[overlay.current.status].variant);
+	let currentBadge = $derived(badge[overlay.current.status]);
 
 	// Window controls
 	const btn =
@@ -36,10 +36,10 @@
 	<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
 		<span class="text-sm font-semibold" data-tauri-drag-region>Wisp</span>
 		<Badge
-			variant={badgeVariant as 'default' | 'outline' | 'destructive' | 'secondary'}
+			variant={currentBadge.variant as 'default' | 'outline' | 'destructive' | 'secondary'}
 			class="transition-all duration-300"
 		>
-			{badgeLabel}
+			{currentBadge.label}
 		</Badge>
 	</div>
 

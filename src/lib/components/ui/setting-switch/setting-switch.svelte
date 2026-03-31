@@ -1,14 +1,17 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 
 	let {
 		checked,
 		label,
-		onchange
+		onchange,
+		children
 	}: {
 		checked: boolean;
 		label?: string;
 		onchange: (value: boolean) => void;
+		children?: Snippet;
 	} = $props();
 </script>
 
@@ -26,7 +29,9 @@
 	}}
 >
 	<Switch {checked} class="pointer-events-none" />
-	{#if label}
+	{#if children}
+		{@render children()}
+	{:else if label}
 		<span class="text-xs text-muted-foreground">{label}</span>
 	{/if}
 </div>

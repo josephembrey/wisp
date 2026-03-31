@@ -2,7 +2,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::WebviewWindowBuilder,
-    Manager, WebviewUrl,
+    WebviewUrl,
 };
 
 pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
@@ -18,13 +18,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
                 log::debug!("tray: settings menu clicked");
-                if let Some(window) = app.get_webview_window("main") {
-                    log::debug!("tray: showing main window");
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                } else {
-                    log::warn!("tray: main window not found");
-                }
+                crate::show_main_window(app);
             }
             "quit" => {
                 log::debug!("tray: quit");
@@ -32,7 +26,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
             }
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
+        .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
@@ -40,12 +34,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
             } = event
             {
                 log::debug!("tray: left-clicked, showing main window");
-                if let Some(window) = tray.app_handle().get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                } else {
-                    log::warn!("tray: main window not found on click");
-                }
+                crate::show_main_window(tray.app_handle());
             }
         })
         .build(app)?;
@@ -74,10 +63,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
 
     if first_run {
         log::info!("first run: showing main window");
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
+        crate::show_main_window(app);
     }
 
     Ok(())

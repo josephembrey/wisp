@@ -67,12 +67,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log::info!("single-instance: second instance detected, focusing main window");
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            } else {
-                log::warn!("single-instance: main window not found");
-            }
+            show_main_window(app);
         }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -80,16 +75,15 @@ pub fn run() {
                     let state = app.state::<WispState>();
                     let settings = state.settings.lock().clone();
 
-                    let main_shortcut = if settings.hotkey.is_empty() {
-                        None
-                    } else {
-                        settings.hotkey.parse::<Shortcut>().ok()
-                    };
-                    let output_shortcut = if settings.output_hotkey.is_empty() {
-                        None
-                    } else {
-                        settings.output_hotkey.parse::<Shortcut>().ok()
-                    };
+                    fn parse_shortcut(s: &str) -> Option<Shortcut> {
+                        if s.is_empty() {
+                            None
+                        } else {
+                            s.parse().ok()
+                        }
+                    }
+                    let main_shortcut = parse_shortcut(&settings.hotkey);
+                    let output_shortcut = parse_shortcut(&settings.output_hotkey);
 
                     if main_shortcut.as_ref() == Some(shortcut) {
                         log::info!("hotkey: main {:?}", event.state());
@@ -220,6 +214,15 @@ fn log_builder() -> tauri_plugin_log::Builder {
         .targets(targets)
         .max_file_size(1_000_000)
         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(5))
+}
+
+pub(crate) fn show_main_window(app: &impl Manager<tauri::Wry>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    } else {
+        log::warn!("main window not found");
+    }
 }
 
 pub(crate) fn sync_autostart<M: tauri::Manager<tauri::Wry>>(app: &M, enabled: bool) {

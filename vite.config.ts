@@ -10,16 +10,14 @@ const onwarn = (warning: any, defaultHandler: any) => {
 	defaultHandler(warning);
 };
 
+const rollupOptions = { onwarn };
+
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
-	build: {
-		rollupOptions: { onwarn }
-	},
+	build: { rollupOptions },
 	environments: {
 		ssr: {
-			build: {
-				rollupOptions: { onwarn }
-			}
+			build: { rollupOptions }
 		}
 	}
 });

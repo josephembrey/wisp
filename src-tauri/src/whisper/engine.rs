@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 pub struct WhisperEngine {
@@ -90,16 +90,13 @@ impl WhisperEngine {
                     if attempt > 0 {
                         log::info!("whisper: succeeded on retry");
                     }
-                    let n = state.full_n_segments();
-                    let mut text = String::new();
-                    for i in 0..n {
-                        if let Some(seg) = state.get_segment(i) {
-                            text.push_str(&seg.to_string());
-                        }
-                    }
-                    let filtered = regex_lite::Regex::new(r"\[.*?\]")
-                        .unwrap()
-                        .replace_all(text.trim(), "");
+                    let text: String = (0..state.full_n_segments())
+                        .filter_map(|i| state.get_segment(i))
+                        .map(|seg| seg.to_string())
+                        .collect();
+                    static BRACKET_RE: OnceLock<regex_lite::Regex> = OnceLock::new();
+                    let re = BRACKET_RE.get_or_init(|| regex_lite::Regex::new(r"\[.*?\]").unwrap());
+                    let filtered = re.replace_all(text.trim(), "");
                     return Ok(filtered.trim().to_string());
                 }
                 Err(e) => {
