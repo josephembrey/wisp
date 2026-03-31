@@ -21,7 +21,8 @@ export type {
 	DownloadProgress,
 	OutputMode,
 	ModelLoading,
-	HistoryEntry
+	HistoryEntry,
+	UpdateInfo
 } from './bindings';
 
 // Unwrap specta Result<T, string> — throws on error so callers get plain T
@@ -51,6 +52,8 @@ export const getHistory = commands.getHistory;
 export const clearHistory = commands.clearHistory;
 export const deleteHistoryEntry = commands.deleteHistoryEntry;
 export const showLogDir = async () => unwrap(await commands.showLogDir());
+export const openUrl = async (url: string) => unwrap(await commands.openUrl(url));
+export const checkForUpdate = commands.checkForUpdate;
 
 // Window helpers
 export const hideWindow = () => getCurrentWindow().hide();

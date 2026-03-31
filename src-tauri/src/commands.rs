@@ -330,7 +330,84 @@ pub fn show_log_dir(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
+pub fn open_url(url: String) -> Result<(), String> {
+    open::that(&url).map_err(|e| format!("failed to open {}: {}", url, e))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn quit(app: tauri::AppHandle) {
     log::info!("cmd: quit");
     app.exit(0);
+}
+
+#[derive(serde::Serialize, specta::Type)]
+pub struct UpdateInfo {
+    pub available: bool,
+    pub current: String,
+    pub latest: String,
+    pub url: String,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn check_for_update(app: tauri::AppHandle) -> UpdateInfo {
+    let current = app.package_info().version.to_string();
+    let info = UpdateInfo {
+        available: false,
+        current: current.clone(),
+        latest: current.clone(),
+        url: "https://github.com/josephembrey/wisp/releases".to_string(),
+    };
+
+    let client = match reqwest::Client::builder()
+        .user_agent("wisp-update-checker")
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("update: failed to create client: {}", e);
+            return info;
+        }
+    };
+
+    let resp = match client
+        .get("https://api.github.com/repos/josephembrey/wisp/releases/latest")
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("update: request failed: {}", e);
+            return info;
+        }
+    };
+
+    let json: serde_json::Value = match resp.json().await {
+        Ok(j) => j,
+        Err(e) => {
+            log::warn!("update: parse failed: {}", e);
+            return info;
+        }
+    };
+
+    let tag = json["tag_name"]
+        .as_str()
+        .unwrap_or("")
+        .trim_start_matches('v');
+    let html_url = json["html_url"].as_str().unwrap_or(&info.url).to_string();
+
+    log::info!("update: current={} latest={}", current, tag);
+
+    let latest = if tag.is_empty() {
+        current.clone()
+    } else {
+        tag.to_string()
+    };
+    UpdateInfo {
+        available: !tag.is_empty() && tag != current,
+        current,
+        latest,
+        url: html_url,
+    }
 }

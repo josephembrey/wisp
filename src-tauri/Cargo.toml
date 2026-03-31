@@ -52,7 +52,7 @@ arboard = "3"
 enigo = "0.6"
 
 # Model downloads
-reqwest = { version = "0.13", features = ["stream"] }
+reqwest = { version = "0.13", features = ["stream", "json"] }
 futures-util = "0.3"
 
 # Regex (lightweight, no-std)

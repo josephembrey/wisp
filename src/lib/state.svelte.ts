@@ -20,7 +20,8 @@ import {
 	type InputDeviceInfo,
 	type ModelInfo,
 	type MemoryInfo,
-	type DownloadProgress
+	type DownloadProgress,
+	type UpdateInfo
 } from '$lib/tauri';
 
 // Reactive app state — consumed via the `app` export below
@@ -33,6 +34,7 @@ let memoryInfo: MemoryInfo = $state({ total_mb: 0, available_mb: 0 });
 let downloadProgress: DownloadProgress | null = $state(null);
 let lastTranscription: string = $state('');
 let activeTab: string = $state('general');
+let updateInfo: UpdateInfo | null = $state(null);
 
 // Actions — optimistic updates with rollback on failure
 async function save(updates: Partial<Settings>) {
@@ -139,6 +141,12 @@ export const app = {
 	},
 	get lastTranscription() {
 		return lastTranscription;
+	},
+	get updateInfo() {
+		return updateInfo;
+	},
+	set updateInfo(v: UpdateInfo | null) {
+		updateInfo = v;
 	},
 	get activeTab() {
 		return activeTab;
