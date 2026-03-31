@@ -61,9 +61,8 @@
 			.then(applySettings)
 			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
 
-		// Show and maximize after frontend is ready to prevent white flash
-		const win = getCurrentWebviewWindow();
-		win.maximize().finally(() => win.show());
+		// Show after frontend is ready to prevent white flash
+		getCurrentWebviewWindow().show();
 
 		const unsub = onSettingsChanged(applySettings);
 		return () => unsub.then((fn) => fn());
