@@ -82,9 +82,13 @@ pub fn run() {
                             s.parse().ok()
                         }
                     }
+                    #[cfg(not(target_os = "windows"))]
                     let main_shortcut = parse_shortcut(&settings.hotkey);
                     let output_shortcut = parse_shortcut(&settings.output_hotkey);
 
+                    // On Windows, main PTT is handled by the polling thread
+                    // (see hotkey::windows) to avoid WM_HOTKEY release bugs.
+                    #[cfg(not(target_os = "windows"))]
                     if main_shortcut.as_ref() == Some(shortcut) {
                         log::info!("hotkey: main {:?}", event.state());
                         match event.state() {
@@ -99,19 +103,15 @@ pub fn run() {
                                     .send(engine::AppEvent::Hotkey(hotkey::HotkeyEvent::Released));
                             }
                         }
-                    } else if output_shortcut.as_ref() == Some(shortcut) {
-                        if event.state() == ShortcutState::Pressed {
-                            log::info!("hotkey: output toggle");
-                            let _ = state
-                                .engine_tx
-                                .send(engine::AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle));
-                        }
-                    } else {
-                        log::warn!(
-                            "hotkey: unrecognized shortcut {:?} {:?}",
-                            shortcut,
-                            event.state()
-                        );
+                    }
+
+                    if output_shortcut.as_ref() == Some(shortcut)
+                        && event.state() == ShortcutState::Pressed
+                    {
+                        log::info!("hotkey: output toggle");
+                        let _ = state
+                            .engine_tx
+                            .send(engine::AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle));
                     }
                 })
                 .build(),
@@ -157,6 +157,9 @@ pub fn run() {
             });
 
             hotkey::register(app.handle(), &settings.hotkey, &settings.output_hotkey);
+
+            #[cfg(target_os = "windows")]
+            hotkey::start_ptt_polling(app.handle().clone(), tx.clone());
 
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {

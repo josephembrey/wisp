@@ -1,52 +1,30 @@
-// DORMANT — not compiled. Re-enable by adding to hotkey/mod.rs:
+// Windows PTT polling — replaces the global-shortcut plugin for the main
+// push-to-talk hotkey. The plugin uses WM_HOTKEY whose release detection
+// only checks the main key, ignoring modifiers. When a modifier is released
+// before the main key, the plugin misses the Released event entirely,
+// leaving the UI stuck in "Recording" state.
 //
-//   #[cfg(target_os = "windows")]
-//   mod windows;
-//   #[cfg(target_os = "windows")]
-//   pub use windows::start_ptt_polling;
-//
-// Then call from lib.rs setup:
-//
-//   #[cfg(target_os = "windows")]
-//   hotkey::start_ptt_polling(app.handle().clone(), event_tx.clone());
-//
-// And skip the main PTT shortcut registration on Windows (output-toggle
-// still uses the plugin since it only needs press detection).
-//
-// Requires the `windows-sys` crate (currently in Cargo.toml).
-//
-// WHY THIS EXISTS
-// ---------------
-// On Windows, `tauri-plugin-global-shortcut` (backed by the `global-hotkey`
-// crate) uses `WM_HOTKEY` messages. Its release-detection spin-loop only
-// checks the *main* key, ignoring modifiers. When a modifier is released
-// before the main key, the plugin emits ghost Pressed events or misses the
-// Released entirely. This causes the UI to get stuck in "Recording" state.
-//
-// This module replaces the plugin's PTT handling with a dedicated ~125 Hz
-// polling thread that reads physical key state via `GetAsyncKeyState`,
-// giving deterministic edge detection over the full key combo.
-//
-// The bug was confirmed and this workaround tested successfully. It was
-// later disabled when the plugin appeared to work during testing, but the
-// underlying WM_HOTKEY bug in global-hotkey is unfixed upstream. Re-enable
-// this if ghost presses or stuck recording states reappear on Windows.
+// This module polls physical key state via GetAsyncKeyState at ~125 Hz,
+// giving deterministic edge detection over the full key combo. Releasing
+// any key in the combo immediately triggers the Released event.
 
 use super::HotkeyEvent;
+use crate::engine::AppEvent;
 use crate::settings::WispState;
 use std::sync::mpsc::Sender;
 use tauri::Manager;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
-pub fn start_ptt_polling(app: tauri::AppHandle, tx: Sender<HotkeyEvent>) {
+
+pub fn start_ptt_polling(app: tauri::AppHandle, tx: Sender<AppEvent>) {
     std::thread::spawn(move || {
         let mut was_down = false;
         loop {
             let combo = app.state::<WispState>().settings.lock().hotkey.clone();
             let is_down = combo_is_down(&combo);
             if is_down && !was_down {
-                let _ = tx.send(HotkeyEvent::Pressed);
+                let _ = tx.send(AppEvent::Hotkey(HotkeyEvent::Pressed));
             } else if !is_down && was_down {
-                let _ = tx.send(HotkeyEvent::Released);
+                let _ = tx.send(AppEvent::Hotkey(HotkeyEvent::Released));
             }
             was_down = is_down;
             std::thread::sleep(std::time::Duration::from_millis(8));

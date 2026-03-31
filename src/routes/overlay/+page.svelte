@@ -17,7 +17,10 @@
 	import { overlay } from '$lib/overlay.svelte';
 
 	// Overlay state
-	let current = $derived(overlay.current);
+	let display = $state(overlay.current);
+	$effect(() => {
+		if (overlay.current.status !== 'idle' || alwaysShow) display = overlay.current;
+	});
 
 	// Settings-driven state
 	let alwaysShow = $state(false);
@@ -42,7 +45,7 @@
 	};
 	const iconSize = $derived(iconSizes[size]);
 	const dotSize = $derived(dotSizes[size]);
-	const visible = $derived(current.status !== 'idle' || alwaysShow);
+	const visible = $derived(overlay.current.status !== 'idle' || alwaysShow);
 
 	// Settings sync
 	function applySettings(s: Settings) {
@@ -71,9 +74,8 @@
 		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
-		<!-- Status icon + label per state -->
-		<!-- idle: muted gray dot -->
-		{#if current.status === 'idle'}
+		<!-- Status icon + label -->
+		{#if display.status === 'idle'}
 			<span class="relative flex {dotSize}">
 				<span
 					class="relative inline-flex {dotSize} rounded-full"
@@ -83,7 +85,7 @@
 			<span class="overlay-label" style:color="var(--overlay-text-muted)">Idle</span>
 
 			<!-- recording: pulsing red dot -->
-		{:else if current.status === 'recording'}
+		{:else if display.status === 'recording'}
 			<span class="relative flex {dotSize}">
 				<span
 					class="absolute inline-flex h-full w-full animate-ping rounded-full"
@@ -97,19 +99,19 @@
 			<span class="overlay-label" style:color="var(--overlay-text)">Recording</span>
 
 			<!-- processing/loading: amber spinner -->
-		{:else if current.status === 'processing' || current.status === 'loading'}
+		{:else if display.status === 'processing' || display.status === 'loading'}
 			<Loader2Icon size={iconSize} class="animate-spin" color="var(--overlay-processing)" />
 			<span class="overlay-label" style:color="var(--overlay-text)">
-				{current.status === 'loading' ? 'Loading' : 'Processing'}
+				{display.status === 'loading' ? 'Loading' : 'Processing'}
 			</span>
 
 			<!-- cancelled: amber x -->
-		{:else if current.status === 'cancelled'}
+		{:else if display.status === 'cancelled'}
 			<XIcon size={iconSize} color="var(--overlay-processing)" strokeWidth={2.5} />
 			<span class="overlay-label" style:color="var(--overlay-processing)">Cancelled</span>
 
 			<!-- mode change: show new output mode -->
-		{:else if current.status === 'output_mode'}
+		{:else if display.status === 'output_mode'}
 			{#if outputMode === 'clipboard'}
 				<ClipboardIcon size={iconSize} color="var(--overlay-text)" strokeWidth={2.5} />
 				<span class="overlay-label" style:color="var(--overlay-text)">Clipboard</span>
@@ -122,11 +124,11 @@
 		{:else}
 			<CheckIcon size={iconSize} color="var(--overlay-success)" strokeWidth={2.5} />
 			<span class="overlay-label" style:color="var(--overlay-success)">
-				{current.status === 'copied'
+				{display.status === 'copied'
 					? 'Copied'
-					: current.status === 'typed'
+					: display.status === 'typed'
 						? 'Typed'
-						: current.status === 'deleted'
+						: display.status === 'deleted'
 							? 'Deleted'
 							: 'Saved'}
 			</span>

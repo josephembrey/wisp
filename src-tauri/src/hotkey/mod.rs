@@ -6,13 +6,22 @@ pub enum HotkeyEvent {
 
 /// Register global shortcuts for the main hotkey and output toggle.
 /// Combos are in Tauri accelerator format (e.g. "Alt+Q", "Control+Shift+A").
+/// On Windows, the main PTT hotkey is handled by polling (see windows.rs),
+/// so only the output toggle is registered with the plugin.
 pub fn register(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
 
-    for (label, combo) in [("main", main_combo), ("output", output_combo)] {
+    #[cfg(target_os = "windows")]
+    let combos = [("output", output_combo)];
+    #[cfg(not(target_os = "windows"))]
+    let combos = [("main", main_combo), ("output", output_combo)];
+
+    let _ = main_combo; // used on non-Windows only
+
+    for (label, combo) in combos {
         if combo.is_empty() {
             continue;
         }
@@ -29,7 +38,7 @@ pub fn register(app: &tauri::AppHandle, main_combo: &str, output_combo: &str) {
     }
 }
 
-// DORMANT — Windows-specific PTT polling workaround.
-// See windows.rs for details and re-enablement instructions.
-// Uncomment the line below + add "Win32_UI_Input" feature to windows-sys in Cargo.toml.
-// mod windows;
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "windows")]
+pub use windows::start_ptt_polling;
