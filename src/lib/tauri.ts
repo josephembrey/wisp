@@ -12,6 +12,8 @@ export type {
 	Settings,
 	OverlayState,
 	OverlayStatus,
+	OverlayPosition,
+	OverlaySize,
 	ModelInfo,
 	InputDeviceInfo,
 	MonitorInfo,

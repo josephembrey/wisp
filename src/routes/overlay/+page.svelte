@@ -6,7 +6,14 @@
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { error as logError } from '@tauri-apps/plugin-log';
-	import { getSettings, onSettingsChanged, type Settings } from '$lib/tauri';
+	import {
+		getSettings,
+		onSettingsChanged,
+		type Settings,
+		type OverlayPosition,
+		type OverlaySize,
+		type OutputMode
+	} from '$lib/tauri';
 	import { overlay } from '$lib/overlay.svelte';
 
 	// Overlay state
@@ -14,29 +21,34 @@
 
 	// Settings-driven state
 	let alwaysShow = $state(false);
-	let position = $state('top-right');
-	let size = $state('md');
-	let outputMode = $state('paste');
+	let position: OverlayPosition = $state('top-right');
+	let size: OverlaySize = $state('medium');
+	let outputMode: OutputMode = $state('paste');
 
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
 	const justify = $derived(
 		{ left: 'justify-start', right: 'justify-end' }[position.split('-')[1]] ?? 'justify-center'
 	);
-	const sizeClasses = $derived(
-		{
-			small: 'gap-1.5 px-2 py-1 text-[0.625rem]',
-			large: 'gap-3 px-4 py-2.5 text-base'
-		}[size] ?? 'gap-2 px-3 py-1.5 text-xs'
-	);
-	const iconSize = $derived({ small: 10, large: 18 }[size] ?? 14);
-	const dotSize = $derived({ small: 'h-2 w-2', large: 'h-3.5 w-3.5' }[size] ?? 'h-2.5 w-2.5');
+	const sizeClasses: Record<OverlaySize, string> = {
+		small: 'gap-1.5 px-2 py-1 text-[0.625rem]',
+		medium: 'gap-2 px-3 py-1.5 text-xs',
+		large: 'gap-3 px-4 py-2.5 text-base'
+	};
+	const iconSizes: Record<OverlaySize, number> = { small: 10, medium: 14, large: 18 };
+	const dotSizes: Record<OverlaySize, string> = {
+		small: 'h-2 w-2',
+		medium: 'h-2.5 w-2.5',
+		large: 'h-3.5 w-3.5'
+	};
+	const iconSize = $derived(iconSizes[size]);
+	const dotSize = $derived(dotSizes[size]);
 	const visible = $derived(current.status !== 'idle' || alwaysShow);
 
 	// Settings sync
 	function applySettings(s: Settings) {
 		alwaysShow = s.overlay_always_show ?? false;
 		position = s.overlay_position ?? 'top-right';
-		size = s.overlay_size ?? 'md';
+		size = s.overlay_size ?? 'medium';
 		outputMode = s.output_mode ?? 'paste';
 	}
 
@@ -53,7 +65,9 @@
 <!-- Overlay pill: positioned fullscreen, fades in/out -->
 <div class="flex {align} {justify} h-screen w-screen p-3">
 	<div
-		class="flex items-center rounded-full border border-white/10 shadow-lg backdrop-blur-sm transition-opacity duration-150 {sizeClasses}"
+		class="flex items-center rounded-full border border-white/10 shadow-lg backdrop-blur-sm transition-opacity duration-150 {sizeClasses[
+			size
+		]}"
 		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>

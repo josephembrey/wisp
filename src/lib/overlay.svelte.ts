@@ -2,21 +2,20 @@ import { onOverlayState, type OverlayState, type OverlayStatus } from '$lib/taur
 
 const IDLE: OverlayState = { status: 'idle', ttl_ms: null };
 
-// Overlay notification stack — shared between settings window and overlay window.
-// Two-slot design: persistent base state + optional timed transient.
-let base: OverlayState = $state(IDLE);
-let transient: OverlayState | null = $state(null);
+// Overlay state — always idles unless an active override is set.
+// States with a TTL auto-clear; states without persist until replaced or cleared.
+let override: OverlayState | null = $state(null);
 let timeout: ReturnType<typeof setTimeout> | undefined;
 
 function push(s: OverlayState) {
-	if (s.ttl_ms != null) {
-		clearTimeout(timeout);
-		transient = s;
-		timeout = setTimeout(() => (transient = null), s.ttl_ms);
+	clearTimeout(timeout);
+	if (s.status === 'idle') {
+		override = null;
 	} else {
-		clearTimeout(timeout);
-		base = s;
-		transient = null;
+		override = s;
+		if (s.ttl_ms != null) {
+			timeout = setTimeout(() => (override = null), s.ttl_ms);
+		}
 	}
 }
 
@@ -24,12 +23,12 @@ function notify(status: OverlayStatus, ttl_ms: number) {
 	push({ status, ttl_ms });
 }
 
-// Subscribe to backend overlay events
+// Subscribe to backend overlay events (app-lifetime, never cleaned up)
 onOverlayState((s) => push(s));
 
 export const overlay = {
 	get current(): OverlayState {
-		return transient ?? base;
+		return override ?? IDLE;
 	},
 	push,
 	notify

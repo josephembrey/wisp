@@ -3,7 +3,9 @@ mod state;
 mod types;
 
 pub use state::WispState;
-pub use types::{ModelLoading, OutputMode, OverlayState, OverlayStatus};
+pub use types::{
+    ModelLoading, OutputMode, OverlayPosition, OverlaySize, OverlayState, OverlayStatus,
+};
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -26,10 +28,10 @@ pub struct Settings {
     pub min_duration: f64,
     #[serde(default = "default_overlay_enabled")]
     pub overlay_enabled: bool,
-    #[serde(default = "default_overlay_position")]
-    pub overlay_position: String,
-    #[serde(default = "default_overlay_size")]
-    pub overlay_size: String,
+    #[serde(default)]
+    pub overlay_position: OverlayPosition,
+    #[serde(default)]
+    pub overlay_size: OverlaySize,
     #[serde(default)]
     pub overlay_monitor: usize,
     #[serde(default)]
@@ -62,14 +64,6 @@ fn default_overlay_enabled() -> bool {
     true
 }
 
-fn default_overlay_position() -> String {
-    "top-right".to_string()
-}
-
-fn default_overlay_size() -> String {
-    "medium".to_string()
-}
-
 fn default_history_enabled() -> bool {
     true
 }
@@ -90,8 +84,8 @@ impl Default for Settings {
             output_hotkey: String::new(),
             min_duration: 0.5,
             overlay_enabled: true,
-            overlay_position: "top-right".to_string(),
-            overlay_size: "medium".to_string(),
+            overlay_position: OverlayPosition::default(),
+            overlay_size: OverlaySize::default(),
             overlay_monitor: 0,
             overlay_always_show: false,
             input_device: String::new(),

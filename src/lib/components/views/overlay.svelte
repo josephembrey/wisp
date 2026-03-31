@@ -3,9 +3,9 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import { app } from '$lib/state.svelte';
-	import type { MonitorInfo } from '$lib/tauri';
+	import type { MonitorInfo, OverlayPosition, OverlaySize } from '$lib/tauri';
 
-	const positions: Record<string, string> = {
+	const positions: Record<OverlayPosition, string> = {
 		'top-left': 'Top Left',
 		'top-center': 'Top Center',
 		'top-right': 'Top Right',
@@ -51,11 +51,11 @@
 			type="single"
 			value={app.settings!.overlay_position}
 			onValueChange={(v) => {
-				if (v) app.save({ overlay_position: v });
+				if (v) app.save({ overlay_position: v as OverlayPosition });
 			}}
 		>
 			<Select.Trigger class="w-full">
-				{positions[app.settings!.overlay_position ?? ''] ?? app.settings!.overlay_position}
+				{positions[app.settings!.overlay_position!]}
 			</Select.Trigger>
 			<Select.Content>
 				{#each Object.entries(positions) as [value, label] (value)}
@@ -73,7 +73,7 @@
 			value={app.settings!.overlay_size}
 			variant="outline"
 			onValueChange={(v) => {
-				if (v) app.save({ overlay_size: v });
+				if (v) app.save({ overlay_size: v as OverlaySize });
 			}}
 		>
 			<ToggleGroup.Item value="small">Small</ToggleGroup.Item>

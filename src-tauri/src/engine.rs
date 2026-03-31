@@ -38,17 +38,12 @@ pub(crate) fn run(
     let mut cancelled = false;
     let mut transcription_in_flight = false;
     let mut pending_audio: Option<(Vec<f32>, Settings)> = None;
+    let mut overlay: Option<OverlayScope> = None;
 
     {
         let settings = state.settings.lock().clone();
         if settings.model_loading == ModelLoading::Eager {
-            set_overlay(
-                &app,
-                OverlayState {
-                    status: OverlayStatus::Loading,
-                    ttl_ms: None,
-                },
-            );
+            let _scope = OverlayScope::new(&app, OverlayStatus::Loading);
             match load_model(&state.models_dir, &settings.model, settings.gpu) {
                 Ok(e) => {
                     log::info!("model: eagerly loaded {}", settings.model);
@@ -58,7 +53,6 @@ pub(crate) fn run(
                 }
                 Err(e) => log::warn!("model: eager load skipped: {}", e),
             }
-            set_overlay(&app, OverlayState::default());
         }
     }
 
@@ -84,13 +78,11 @@ pub(crate) fn run(
                 match audio::AudioRecorder::start(&settings.input_device) {
                     Ok(rec) => {
                         recorder = Some(rec);
-                        set_overlay(
+                        overlay = Some(OverlayScope::replace(
+                            &mut overlay,
                             &app,
-                            OverlayState {
-                                status: OverlayStatus::Recording,
-                                ttl_ms: None,
-                            },
-                        );
+                            OverlayStatus::Recording,
+                        ));
                     }
                     Err(e) => {
                         log::error!("failed to start recording: {}", e);
@@ -120,23 +112,15 @@ pub(crate) fn run(
                         audio.len(),
                         min_samples
                     );
-                    set_overlay(
-                        &app,
-                        OverlayState {
-                            status: OverlayStatus::Cancelled,
-                            ttl_ms: Some(1000),
-                        },
-                    );
+                    if let Some(scope) = overlay.take() {
+                        scope.finish(OverlayStatus::Cancelled, 1000);
+                    }
                     continue;
                 }
 
-                set_overlay(
-                    &app,
-                    OverlayState {
-                        status: OverlayStatus::Processing,
-                        ttl_ms: None,
-                    },
-                );
+                if let Some(ref scope) = overlay {
+                    scope.set(OverlayStatus::Processing);
+                }
 
                 if settings.interrupt {
                     if let Some(eng) = engine.take() {
@@ -159,13 +143,9 @@ pub(crate) fn run(
                         || loaded_gpu != settings.gpu
                         || engine.is_none();
                     if needs_reload {
-                        set_overlay(
-                            &app,
-                            OverlayState {
-                                status: OverlayStatus::Loading,
-                                ttl_ms: None,
-                            },
-                        );
+                        if let Some(ref scope) = overlay {
+                            scope.set(OverlayStatus::Loading);
+                        }
                         match load_model(&state.models_dir, &settings.model, settings.gpu) {
                             Ok(e) => {
                                 engine = Some(e);
@@ -175,29 +155,30 @@ pub(crate) fn run(
                             Err(e) => {
                                 log::error!("model: load error: {}", e);
                                 let _ = app.emit("backend-error", &e);
-                                set_overlay(&app, OverlayState::default());
+                                if let Some(scope) = overlay.take() {
+                                    scope.finish(OverlayStatus::Cancelled, 1000);
+                                }
                                 continue;
                             }
                         }
-                        set_overlay(
-                            &app,
-                            OverlayState {
-                                status: OverlayStatus::Processing,
-                                ttl_ms: None,
-                            },
-                        );
+                        if let Some(ref scope) = overlay {
+                            scope.set(OverlayStatus::Processing);
+                        }
                     }
 
+                    let mut done_status = None;
                     if let Some(ref eng) = engine {
                         match eng.transcribe(&audio, &settings.language, None) {
                             Ok(text) if !text.is_empty() => {
                                 handle_transcription(&app, &text, &settings.output_mode, &state);
+                                done_status = Some(OverlayStatus::from(&settings.output_mode));
                             }
                             Ok(_) => {}
                             Err(e) => {
                                 log::error!("transcription error: {}", e);
                                 let _ = app
                                     .emit("backend-error", format!("Transcription error: {}", e));
+                                done_status = Some(OverlayStatus::Cancelled);
                             }
                         }
                     }
@@ -207,8 +188,11 @@ pub(crate) fn run(
                         loaded_model.clear();
                     }
 
-                    // emit_output sent a timed "Copied"/"Typed" state.
-                    // The frontend stack handles the revert to idle when the TTL expires.
+                    if let Some(scope) = overlay.take() {
+                        if let Some(status) = done_status {
+                            scope.finish(status, 1000);
+                        }
+                    }
                 }
             }
             AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
@@ -242,16 +226,19 @@ pub(crate) fn run(
                 transcription_in_flight = false;
                 abort_flag.store(false, Ordering::Relaxed);
 
+                let mut done_status = None;
                 if !cancelled {
                     match result {
                         Ok(ref text) if !text.is_empty() => {
                             handle_transcription(&app, text, &output_mode, &state);
+                            done_status = Some(OverlayStatus::from(&output_mode));
                         }
                         Ok(_) => {}
                         Err(ref e) => {
                             log::error!("transcription error: {}", e);
                             let _ =
                                 app.emit("backend-error", format!("Transcription error: {}", e));
+                            done_status = Some(OverlayStatus::Cancelled);
                         }
                     }
                 }
@@ -272,25 +259,23 @@ pub(crate) fn run(
                         &state.models_dir,
                     );
                     transcription_in_flight = true;
-                } else if per_use {
-                    drop(returned_engine);
-                    loaded_model.clear();
                 } else {
-                    engine = Some(returned_engine);
-                    if recorder.is_none() {
-                        set_overlay(&app, OverlayState::default());
+                    if let Some(scope) = overlay.take() {
+                        if let Some(status) = done_status {
+                            scope.finish(status, 1000);
+                        }
+                    }
+                    if per_use {
+                        drop(returned_engine);
+                        loaded_model.clear();
+                    } else {
+                        engine = Some(returned_engine);
                     }
                 }
             }
             AppEvent::ReloadModel => {
                 let settings = state.settings.lock().clone();
-                set_overlay(
-                    &app,
-                    OverlayState {
-                        status: OverlayStatus::Loading,
-                        ttl_ms: None,
-                    },
-                );
+                let _scope = OverlayScope::new(&app, OverlayStatus::Loading);
                 match load_model(&state.models_dir, &settings.model, settings.gpu) {
                     Ok(e) => {
                         log::info!("model: reloaded {}", settings.model);
@@ -303,7 +288,6 @@ pub(crate) fn run(
                         let _ = app.emit("backend-error", &e);
                     }
                 }
-                set_overlay(&app, OverlayState::default());
             }
         }
     }
@@ -381,20 +365,7 @@ fn handle_transcription(app: &tauri::AppHandle, text: &str, mode: &OutputMode, s
     // 2. Notify frontend of the transcription text
     let _ = app.emit("transcription", text);
 
-    // 3. Show confirmation overlay
-    let status = match mode {
-        OutputMode::Clipboard => OverlayStatus::Copied,
-        OutputMode::Paste => OverlayStatus::Typed,
-    };
-    set_overlay(
-        app,
-        OverlayState {
-            status,
-            ttl_ms: Some(1000),
-        },
-    );
-
-    // 4. Save to history
+    // 3. Save to history
     let settings = state.settings.lock();
     if settings.history_enabled {
         history::append(&state.data_dir, text, "mic", settings.history_retention);
@@ -404,4 +375,71 @@ fn handle_transcription(app: &tauri::AppHandle, text: &str, mode: &OutputMode, s
 
 pub(crate) fn set_overlay(app: &tauri::AppHandle, overlay: OverlayState) {
     let _ = app.emit("overlay-state", &overlay);
+}
+
+/// RAII guard for persistent overlay states. Emits the given status on creation
+/// and automatically emits Idle on drop, guaranteeing cleanup on all exit paths.
+/// Use `finish()` to end with a timed state instead of Idle.
+struct OverlayScope {
+    app: tauri::AppHandle,
+    active: bool,
+}
+
+impl OverlayScope {
+    fn new(app: &tauri::AppHandle, status: OverlayStatus) -> Self {
+        set_overlay(
+            app,
+            OverlayState {
+                status,
+                ttl_ms: None,
+            },
+        );
+        Self {
+            app: app.clone(),
+            active: true,
+        }
+    }
+
+    /// Create a new scope, suppressing the previous scope's idle emission.
+    fn replace(
+        prev: &mut Option<OverlayScope>,
+        app: &tauri::AppHandle,
+        status: OverlayStatus,
+    ) -> Self {
+        if let Some(mut old) = prev.take() {
+            old.active = false;
+        }
+        Self::new(app, status)
+    }
+
+    /// Transition to a different persistent status within this scope.
+    fn set(&self, status: OverlayStatus) {
+        set_overlay(
+            &self.app,
+            OverlayState {
+                status,
+                ttl_ms: None,
+            },
+        );
+    }
+
+    /// End the scope with a timed status instead of reverting to Idle.
+    fn finish(mut self, status: OverlayStatus, ttl_ms: u32) {
+        self.active = false;
+        set_overlay(
+            &self.app,
+            OverlayState {
+                status,
+                ttl_ms: Some(ttl_ms),
+            },
+        );
+    }
+}
+
+impl Drop for OverlayScope {
+    fn drop(&mut self) {
+        if self.active {
+            set_overlay(&self.app, OverlayState::default());
+        }
+    }
 }
