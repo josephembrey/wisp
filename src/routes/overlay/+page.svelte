@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ClipboardIcon from '@lucide/svelte/icons/clipboard';
 	import TextCursorIcon from '@lucide/svelte/icons/text-cursor';
@@ -59,6 +60,10 @@
 		getSettings()
 			.then(applySettings)
 			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
+
+		// Show and maximize after frontend is ready to prevent white flash
+		const win = getCurrentWebviewWindow();
+		win.maximize().finally(() => win.show());
 
 		const unsub = onSettingsChanged(applySettings);
 		return () => unsub.then((fn) => fn());
