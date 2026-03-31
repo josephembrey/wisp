@@ -85,6 +85,7 @@
 		refresh();
 		const unsub = onHistoryChanged(() => refresh());
 		return () => {
+			clearTimeout(copiedTimeout);
 			unsub.then((fn) => fn());
 		};
 	});

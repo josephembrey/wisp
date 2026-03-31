@@ -43,18 +43,12 @@
 
 	<!-- Tips -->
 	<ul class="space-y-1 text-xs text-muted-foreground">
-		<li class="flex items-start gap-2">
-			<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
-			<span>Larger models are slower but more accurate</span>
-		</li>
-		<li class="flex items-start gap-2">
-			<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
-			<span>Enable GPU in Model for faster transcription</span>
-		</li>
-		<li class="flex items-start gap-2">
-			<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
-			<span>Wisp keeps running in the tray when minimized</span>
-		</li>
+		{#each ['Larger models are slower but more accurate', 'Enable GPU in Model for faster transcription', 'Wisp keeps running in the tray when minimized'] as tip (tip)}
+			<li class="flex items-start gap-2">
+				<span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40"></span>
+				<span>{tip}</span>
+			</li>
+		{/each}
 	</ul>
 
 	<!-- Reset -->

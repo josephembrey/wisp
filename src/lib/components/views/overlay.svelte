@@ -58,12 +58,9 @@
 				{positions[app.settings!.overlay_position ?? ''] ?? app.settings!.overlay_position}
 			</Select.Trigger>
 			<Select.Content>
-				<Select.Item value="top-left">Top Left</Select.Item>
-				<Select.Item value="top-center">Top Center</Select.Item>
-				<Select.Item value="top-right">Top Right</Select.Item>
-				<Select.Item value="bottom-left">Bottom Left</Select.Item>
-				<Select.Item value="bottom-center">Bottom Center</Select.Item>
-				<Select.Item value="bottom-right">Bottom Right</Select.Item>
+				{#each Object.entries(positions) as [value, label] (value)}
+					<Select.Item {value}>{label}</Select.Item>
+				{/each}
 			</Select.Content>
 		</Select.Root>
 	</div>

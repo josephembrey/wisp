@@ -85,7 +85,10 @@
 				}
 			})
 		];
-		return () => listeners.forEach((p) => p.then((fn) => fn()));
+		return () => {
+			clearTimeout(copiedTimeout);
+			listeners.forEach((p) => p.then((fn) => fn()));
+		};
 	});
 </script>
 

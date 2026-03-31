@@ -5,6 +5,7 @@
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import HotkeyCapture from '$lib/components/hotkey-capture.svelte';
 	import { app } from '$lib/state.svelte';
+	import type { OutputMode } from '$lib/tauri';
 	import { overlay } from '$lib/overlay.svelte';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 </script>
@@ -19,7 +20,7 @@
 				value={app.settings!.output_mode}
 				variant="outline"
 				onValueChange={(v) => {
-					if (v) app.save({ output_mode: v as 'clipboard' | 'paste' });
+					if (v) app.save({ output_mode: v as OutputMode });
 				}}
 			>
 				<ToggleGroup.Item value="clipboard">Clipboard</ToggleGroup.Item>

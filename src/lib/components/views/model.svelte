@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { SettingSwitch } from '$lib/components/ui/setting-switch/index.js';
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 
 	import { app } from '$lib/state.svelte';
+	import type { ModelLoading } from '$lib/tauri';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 
 	let selectedModel = $derived(app.models.find((m) => m.name === app.settings!.model));
@@ -128,26 +128,13 @@
 				— Use GPU for faster transcription</span
 			></span
 		>
-		<div
-			class="flex cursor-pointer items-center gap-3"
-			role="switch"
-			tabindex="0"
-			aria-checked={app.settings!.gpu}
-			onclick={() => app.save({ gpu: !app.settings!.gpu })}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					app.save({ gpu: !app.settings!.gpu });
-				}
-			}}
-		>
-			<Switch checked={app.settings!.gpu} class="pointer-events-none" />
+		<SettingSwitch checked={app.settings!.gpu ?? false} onchange={(v) => app.save({ gpu: v })}>
 			{#if app.settings!.gpu && app.gpuBackend}
 				<Badge variant="secondary">{app.gpuBackend}</Badge>
 			{:else}
 				<span class="text-xs text-muted-foreground">Using CPU only</span>
 			{/if}
-		</div>
+		</SettingSwitch>
 	</div>
 
 	<!-- Model loading strategy -->
@@ -158,7 +145,7 @@
 				type="single"
 				value={app.settings!.model_loading}
 				onValueChange={(v) => {
-					if (v) app.save({ model_loading: v as 'eager' | 'lazy' | 'per_use' });
+					if (v) app.save({ model_loading: v as ModelLoading });
 				}}
 			>
 				<Select.Trigger class="w-full">
