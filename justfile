@@ -37,8 +37,16 @@ clean:
     @('.svelte-kit', 'build', 'src-tauri\gen\schemas', 'node_modules') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
 
 # Regenerate app icons from src-tauri/icons/icon.png
+[unix]
 icons:
     bunx tauri icon src-tauri/icons/icon.png
+    rm -rf src-tauri/icons/ios src-tauri/icons/android
+
+# Regenerate app icons from src-tauri/icons/icon.png
+[windows]
+icons:
+    bunx tauri icon src-tauri/icons/icon.png
+    @('src-tauri/icons/ios', 'src-tauri/icons/android') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
 
 # Run in development mode
 dev:
