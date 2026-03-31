@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Badge, type BadgeVariant } from '$lib/components/ui/badge/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { quit, hideWindow, minimizeWindow, type OverlayStatus } from '$lib/tauri';
 	import { overlay } from '$lib/overlay.svelte';
@@ -11,7 +11,7 @@
 	import PowerIcon from '@lucide/svelte/icons/power';
 
 	// Status badge
-	const badge: Record<OverlayStatus, { label: string; variant: string }> = {
+	const badge: Record<OverlayStatus, { label: string; variant: BadgeVariant }> = {
 		idle: { label: 'Idle', variant: 'default' },
 		recording: { label: 'Recording', variant: 'destructive' },
 		processing: { label: 'Processing', variant: 'secondary' },
@@ -35,10 +35,7 @@
 	<!-- App name + status badge -->
 	<div class="pointer-events-none flex items-center gap-2 select-none" data-tauri-drag-region>
 		<span class="text-sm font-semibold" data-tauri-drag-region>Wisp</span>
-		<Badge
-			variant={currentBadge.variant as 'default' | 'outline' | 'destructive' | 'secondary'}
-			class="transition-all duration-300"
-		>
+		<Badge variant={currentBadge.variant} class="transition-all duration-300">
 			{currentBadge.label}
 		</Badge>
 	</div>

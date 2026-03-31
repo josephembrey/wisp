@@ -66,7 +66,10 @@
 	// Resize window when content height changes (initial sizing + within-tab changes)
 	$effect(() => {
 		if (!innerEl) return;
-		const observer = new ResizeObserver(() => {
+
+		let pending: number | null = null;
+
+		function syncWindowHeight() {
 			if (animating || !innerEl) return;
 			const targetInner = innerEl.scrollHeight;
 			const targetWindow = calcWindowHeight(targetInner);
@@ -75,9 +78,22 @@
 				tabHeight = targetInner;
 				resizeWindowCmd(targetWindow);
 			}
+		}
+
+		// Coalesce rapid ResizeObserver fires into one measurement per frame
+		const observer = new ResizeObserver(() => {
+			if (animating || pending) return;
+			pending = requestAnimationFrame(() => {
+				pending = null;
+				syncWindowHeight();
+			});
 		});
+
 		observer.observe(innerEl);
-		return () => observer.disconnect();
+		return () => {
+			if (pending) cancelAnimationFrame(pending);
+			observer.disconnect();
+		};
 	});
 
 	onMount(() => app.init());
