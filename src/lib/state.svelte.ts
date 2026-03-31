@@ -23,7 +23,7 @@ import {
 	type DownloadProgress
 } from '$lib/tauri';
 
-// App state (reactive via Svelte 5 runes)
+// Reactive app state — consumed via the `app` export below
 let settings: Settings | null = $state(null);
 let models: ModelInfo[] = $state([]);
 let gpuBackend: string = $state('');
@@ -34,17 +34,19 @@ let downloadProgress: DownloadProgress | null = $state(null);
 let lastTranscription: string = $state('');
 let activeTab: string = $state('general');
 
-// Actions
+// Actions — optimistic updates with rollback on failure
 async function save(updates: Partial<Settings>) {
 	if (!settings) return;
-	const dominated = Object.entries(updates).every(
+	const unchanged = Object.entries(updates).every(
 		([k, v]) => (settings as Record<string, unknown>)[k] === v
 	);
-	if (dominated) return;
+	if (unchanged) return;
+	const prev = settings;
 	settings = { ...settings, ...updates };
 	try {
 		await updateSettings(settings);
 	} catch (e) {
+		settings = prev;
 		logError(`[settings] save failed: ${e}`);
 		toast.error(`Failed to save settings: ${e}`);
 	}
@@ -73,7 +75,7 @@ async function deleteModel(name: string) {
 	}
 }
 
-// Init: fetch all state + subscribe to events. Returns cleanup function.
+// Fetch all state + subscribe to backend events. Returns cleanup function.
 function init(): () => void {
 	Promise.all([
 		getSettings().then((s) => (settings = s)),
@@ -100,8 +102,9 @@ function init(): () => void {
 			toast.error(msg);
 		}),
 		onSettingsChanged((s) => {
+			const gpuChanged = s.gpu !== settings?.gpu;
 			settings = s;
-			getMemoryInfo(s.gpu ?? false).then((m) => (memoryInfo = m));
+			if (gpuChanged) getMemoryInfo(s.gpu ?? false).then((m) => (memoryInfo = m));
 		}),
 		onDownloadProgress((p) => (downloadProgress = p))
 	];
@@ -111,7 +114,7 @@ function init(): () => void {
 	};
 }
 
-// Export reactive getters + actions
+// Public API — reactive getters + actions
 export const app = {
 	get settings() {
 		return settings;

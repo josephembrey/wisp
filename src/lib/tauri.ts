@@ -1,6 +1,12 @@
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { commands, type Result } from './bindings';
+import {
+	commands,
+	type Result,
+	type Settings,
+	type OverlayState,
+	type DownloadProgress
+} from './bindings';
 
 export type {
 	Settings,
@@ -16,13 +22,13 @@ export type {
 	HistoryEntry
 } from './bindings';
 
-// Result-unwrapping helpers for commands that return Result<T, string>
+// Unwrap specta Result<T, string> — throws on error so callers get plain T
 function unwrap<T>(result: Result<T, string>): T {
 	if (result.status === 'error') throw new Error(result.error);
 	return result.data;
 }
 
-// Commands (pass-through for simple getters, unwrap for fallible actions)
+// Commands — pass-through for infallible, unwrap for fallible
 export const isFirstRun = commands.isFirstRun;
 export const getSettings = commands.getSettings;
 export const getModels = commands.getModels;
@@ -33,7 +39,7 @@ export const getInputDevices = commands.getInputDevices;
 export const resizeWindow = commands.resizeWindow;
 export const quit = commands.quit;
 
-export const updateSettings = async (settings: import('./bindings').Settings) =>
+export const updateSettings = async (settings: Settings) =>
 	unwrap(await commands.updateSettings(settings));
 export const downloadModel = async (name: string) => unwrap(await commands.downloadModel(name));
 export const deleteModel = async (name: string) => unwrap(await commands.deleteModel(name));
@@ -48,16 +54,12 @@ export const showLogDir = async () => unwrap(await commands.showLogDir());
 export const hideWindow = () => getCurrentWindow().hide();
 export const minimizeWindow = () => getCurrentWindow().minimize();
 
-// Event listeners
-export const onOverlayState = (
-	cb: (state: import('./bindings').OverlayState) => void
-): Promise<UnlistenFn> =>
-	listen<import('./bindings').OverlayState>('overlay-state', (e) => cb(e.payload));
+// Event listeners — each returns Promise<UnlistenFn> for cleanup
+export const onOverlayState = (cb: (state: OverlayState) => void): Promise<UnlistenFn> =>
+	listen<OverlayState>('overlay-state', (e) => cb(e.payload));
 
-export const onDownloadProgress = (
-	cb: (progress: import('./bindings').DownloadProgress) => void
-): Promise<UnlistenFn> =>
-	listen<import('./bindings').DownloadProgress>('download-progress', (e) => cb(e.payload));
+export const onDownloadProgress = (cb: (progress: DownloadProgress) => void): Promise<UnlistenFn> =>
+	listen<DownloadProgress>('download-progress', (e) => cb(e.payload));
 
 export const onTranscription = (cb: (text: string) => void): Promise<UnlistenFn> =>
 	listen<string>('transcription', (e) => cb(e.payload));
@@ -65,10 +67,8 @@ export const onTranscription = (cb: (text: string) => void): Promise<UnlistenFn>
 export const onError = (cb: (message: string) => void): Promise<UnlistenFn> =>
 	listen<string>('backend-error', (e) => cb(e.payload));
 
-export const onSettingsChanged = (
-	cb: (settings: import('./bindings').Settings) => void
-): Promise<UnlistenFn> =>
-	listen<import('./bindings').Settings>('settings-changed', (e) => cb(e.payload));
+export const onSettingsChanged = (cb: (settings: Settings) => void): Promise<UnlistenFn> =>
+	listen<Settings>('settings-changed', (e) => cb(e.payload));
 
 export const onTranscribeFileProgress = (cb: (status: string) => void): Promise<UnlistenFn> =>
 	listen<string>('transcribe-file-progress', (e) => cb(e.payload));
