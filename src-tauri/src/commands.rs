@@ -32,39 +32,9 @@ pub fn update_settings(
     );
     let old = state.settings.lock().clone();
     settings.save(&state.data_dir)?;
-
-    let hotkey_changed =
-        old.hotkey != settings.hotkey || old.output_hotkey != settings.output_hotkey;
-    let model_changed = old.model != settings.model || old.gpu != settings.gpu;
-
-    if model_changed {
-        log::info!(
-            "settings: model changed {}(gpu={}) -> {}(gpu={})",
-            old.model,
-            old.gpu,
-            settings.model,
-            settings.gpu
-        );
-        *state.settings.lock() = settings.clone();
-        let _ = state.engine_tx.send(crate::engine::AppEvent::ReloadModel);
-    } else {
-        *state.settings.lock() = settings.clone();
-    }
-
-    if hotkey_changed {
-        log::info!(
-            "settings: hotkeys changed main='{}' output='{}'",
-            settings.hotkey,
-            settings.output_hotkey
-        );
-        crate::hotkey::register(&app, &settings.hotkey, &settings.output_hotkey);
-    }
-
-    if old.autostart != settings.autostart {
-        crate::sync_autostart(&app, settings.autostart);
-    }
-
+    crate::settings::apply_settings_diff(&old, &settings, &state.worker_tx, &app);
     let _ = app.emit("settings-changed", &settings);
+    *state.settings.lock() = settings;
 
     engine::set_overlay(
         &app,
@@ -277,17 +247,25 @@ pub async fn transcribe_file(
     let audio = audio::decode_file(file_path)?;
 
     let settings = state.settings.lock().clone();
-    let model_path = whisper::model_path(&state.models_dir, &settings.model);
-    if !model_path.exists() {
-        return Err(format!("model '{}' not downloaded", settings.model));
-    }
-
-    let _ = app.emit("transcribe-file-progress", "loading");
-    let engine = whisper::WhisperEngine::new(&model_path, settings.gpu)
-        .map_err(|e| format!("failed to load model: {}", e))?;
 
     let _ = app.emit("transcribe-file-progress", "transcribing");
-    let text = engine.transcribe(&audio, &settings.language, None)?;
+
+    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+    state
+        .worker_tx
+        .send(whisper::worker::WorkerMessage::Transcribe {
+            job_id: 0, // File transcription doesn't use job IDs
+            audio,
+            language: settings.language.clone(),
+            model: settings.model.clone(),
+            gpu: settings.gpu,
+            model_loading: settings.model_loading,
+            abort_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            reply: whisper::worker::ReplyTo::Caller(reply_tx),
+        })
+        .map_err(|_| "Worker unavailable".to_string())?;
+
+    let text = reply_rx.recv().map_err(|_| "Worker died".to_string())??;
 
     let _ = app.emit("transcribe-file-progress", "done");
     log::info!("transcribe_file: {} chars", text.len());

@@ -149,12 +149,15 @@ pub fn run() {
             sync_autostart(app, settings.autostart);
 
             let (tx, rx) = std::sync::mpsc::channel::<engine::AppEvent>();
+            let (worker_tx, worker_rx) =
+                std::sync::mpsc::channel::<whisper::worker::WorkerMessage>();
 
             app.manage(WispState {
                 settings: parking_lot::Mutex::new(settings.clone()),
                 data_dir,
-                models_dir,
+                models_dir: models_dir.clone(),
                 engine_tx: tx.clone(),
+                worker_tx: worker_tx.clone(),
                 first_run,
             });
 
@@ -163,9 +166,17 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             hotkey::start_ptt_polling(app.handle().clone(), tx.clone());
 
+            // Worker thread: owns WhisperEngine, processes transcription requests
+            let worker_engine_tx = tx.clone();
+            let worker_models_dir = models_dir;
+            std::thread::spawn(move || {
+                whisper::worker::run(worker_rx, worker_engine_tx, worker_models_dir);
+            });
+
+            // Engine thread: state machine, handles hotkeys and results
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
-                engine::run(app_handle, tx, rx);
+                engine::run(app_handle, tx, rx, worker_tx);
             });
 
             tray::setup(app, first_run)?;

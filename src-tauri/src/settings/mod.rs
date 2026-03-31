@@ -12,64 +12,26 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(default)]
 pub struct Settings {
     pub model: String,
     pub output_mode: OutputMode,
     pub hotkey: String,
-    #[serde(default = "default_language")]
     pub language: String,
-    #[serde(default = "default_gpu")]
     pub gpu: bool,
-    #[serde(default)]
     pub interrupt: bool,
-    #[serde(default)]
     pub output_hotkey: String,
-    #[serde(default = "default_min_duration")]
     pub min_duration: f64,
-    #[serde(default = "default_overlay_enabled")]
     pub overlay_enabled: bool,
-    #[serde(default)]
     pub overlay_position: OverlayPosition,
-    #[serde(default)]
     pub overlay_size: OverlaySize,
-    #[serde(default)]
     pub overlay_monitor: usize,
-    #[serde(default)]
     pub overlay_always_show: bool,
-    #[serde(default)]
     pub input_device: String,
-    #[serde(default)]
     pub model_loading: ModelLoading,
-    #[serde(default)]
     pub autostart: bool,
-    #[serde(default = "default_history_enabled")]
     pub history_enabled: bool,
-    #[serde(default = "default_history_retention")]
     pub history_retention: usize,
-}
-
-fn default_language() -> String {
-    "en".to_string()
-}
-
-fn default_gpu() -> bool {
-    true
-}
-
-fn default_min_duration() -> f64 {
-    0.5
-}
-
-fn default_overlay_enabled() -> bool {
-    true
-}
-
-fn default_history_enabled() -> bool {
-    true
-}
-
-fn default_history_retention() -> usize {
-    100
 }
 
 impl Default for Settings {
@@ -121,5 +83,40 @@ impl Settings {
         let path = data_dir.join("settings.json");
         let content = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
         fs::write(&path, content).map_err(|e| e.to_string())
+    }
+}
+
+/// Apply side-effects when settings change: reload model, re-register hotkeys, sync autostart.
+pub fn apply_settings_diff(
+    old: &Settings,
+    new: &Settings,
+    worker_tx: &std::sync::mpsc::Sender<crate::whisper::worker::WorkerMessage>,
+    app: &tauri::AppHandle,
+) {
+    if old.model != new.model || old.gpu != new.gpu {
+        log::info!(
+            "settings: model changed {}(gpu={}) -> {}(gpu={})",
+            old.model,
+            old.gpu,
+            new.model,
+            new.gpu
+        );
+        let _ = worker_tx.send(crate::whisper::worker::WorkerMessage::Reload {
+            model: new.model.clone(),
+            gpu: new.gpu,
+        });
+    }
+
+    if old.hotkey != new.hotkey || old.output_hotkey != new.output_hotkey {
+        log::info!(
+            "settings: hotkeys changed main='{}' output='{}'",
+            new.hotkey,
+            new.output_hotkey
+        );
+        crate::hotkey::register(app, &new.hotkey, &new.output_hotkey);
+    }
+
+    if old.autostart != new.autostart {
+        crate::sync_autostart(app, new.autostart);
     }
 }

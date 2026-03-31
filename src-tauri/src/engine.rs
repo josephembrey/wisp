@@ -2,214 +2,240 @@ use crate::audio;
 use crate::history;
 use crate::hotkey;
 use crate::output;
-use crate::settings::{ModelLoading, OutputMode, OverlayState, OverlayStatus, Settings, WispState};
+use crate::settings::{OutputMode, OverlayState, OverlayStatus, WispState};
 use crate::whisper;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
+// --- Events ---
+
 pub(crate) enum AppEvent {
     Hotkey(hotkey::HotkeyEvent),
     TranscriptionDone {
-        engine: whisper::WhisperEngine,
+        job_id: u64,
         result: Result<String, String>,
         output_mode: OutputMode,
     },
-    ReloadModel,
+    WorkerLoading,
+    WorkerError(String),
 }
 
-// WhisperEngine contains a WhisperContext which is Send but not marked as such by whisper-rs.
-unsafe impl Send for AppEvent {}
+// --- State machine ---
+
+enum EngineState {
+    Idle,
+    Recording {
+        recorder: audio::AudioRecorder,
+        overlay: OverlayScope,
+    },
+    Transcribing {
+        job_id: u64,
+        overlay: OverlayScope,
+    },
+}
+
+// --- Main loop ---
 
 pub(crate) fn run(
     app: tauri::AppHandle,
     tx: std::sync::mpsc::Sender<AppEvent>,
     rx: std::sync::mpsc::Receiver<AppEvent>,
+    worker_tx: std::sync::mpsc::Sender<whisper::worker::WorkerMessage>,
 ) {
     let state = app.state::<WispState>();
-    let mut engine: Option<whisper::WhisperEngine> = None;
-    let mut loaded_model = String::new();
-    let mut loaded_gpu = false;
-    let mut recorder: Option<audio::AudioRecorder> = None;
-    let mut hotkey_latched = false;
-
+    let mut engine_state = EngineState::Idle;
+    let mut current_job: u64 = 0;
     let abort_flag = Arc::new(AtomicBool::new(false));
-    let mut cancelled = false;
-    let mut transcription_in_flight = false;
-    let mut pending_audio: Option<(Vec<f32>, Settings)> = None;
-    let mut overlay: Option<OverlayScope> = None;
 
+    // Eager preload
     {
         let settings = state.settings.lock().clone();
-        if settings.model_loading == ModelLoading::Eager {
-            let _scope = OverlayScope::new(&app, OverlayStatus::Loading);
-            match load_model(&state.models_dir, &settings.model, settings.gpu) {
-                Ok(e) => {
-                    log::info!("model: eagerly loaded {}", settings.model);
-                    engine = Some(e);
-                    loaded_model = settings.model.clone();
-                    loaded_gpu = settings.gpu;
-                }
-                Err(e) => log::warn!("model: eager load skipped: {}", e),
-            }
+        if settings.model_loading == crate::settings::ModelLoading::Eager {
+            let _ = worker_tx.send(whisper::worker::WorkerMessage::Reload {
+                model: settings.model.clone(),
+                gpu: settings.gpu,
+            });
         }
     }
 
     for event in rx {
-        match event {
-            AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed) => {
-                if hotkey_latched {
-                    log::debug!("ignored duplicate Pressed while latched");
-                    continue;
-                }
-                if recorder.is_some() {
-                    continue;
-                }
-
-                hotkey_latched = true;
+        match (&mut engine_state, event) {
+            // --- Idle ---
+            (EngineState::Idle, AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed)) => {
                 let settings = state.settings.lock().clone();
-
-                if settings.interrupt && transcription_in_flight {
-                    abort_flag.store(true, Ordering::Relaxed);
-                    cancelled = true;
-                }
-
                 match audio::AudioRecorder::start(&settings.input_device) {
-                    Ok(rec) => {
-                        recorder = Some(rec);
-                        overlay = Some(OverlayScope::replace(
-                            &mut overlay,
-                            &app,
-                            OverlayStatus::Recording,
-                        ));
+                    Ok(recorder) => {
+                        let overlay = OverlayScope::new(&app, OverlayStatus::Recording);
+                        engine_state = EngineState::Recording { recorder, overlay };
                     }
                     Err(e) => {
-                        log::error!("failed to start recording: {}", e);
+                        log::error!("recording: failed to start: {}", e);
                         let _ = app.emit("backend-error", format!("Mic error: {}", e));
-                        hotkey_latched = false;
                     }
                 }
             }
-            AppEvent::Hotkey(hotkey::HotkeyEvent::Released) => {
-                hotkey_latched = false;
-                let Some(rec) = recorder.take() else {
-                    continue;
+
+            // --- Recording ---
+            (EngineState::Recording { .. }, AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed)) => {
+                // Duplicate press, ignore
+            }
+
+            (EngineState::Recording { .. }, AppEvent::Hotkey(hotkey::HotkeyEvent::Released)) => {
+                // Take ownership of recorder and overlay by swapping to Idle temporarily
+                let prev = std::mem::replace(&mut engine_state, EngineState::Idle);
+                let EngineState::Recording { recorder, overlay } = prev else {
+                    unreachable!()
                 };
 
-                let audio = rec.stop();
+                let audio = recorder.stop();
                 let duration_ms = (audio.len() as f64 / 16.0) as u64;
                 log::info!(
                     "recording: stopped {} samples ({}ms)",
                     audio.len(),
                     duration_ms
                 );
+
                 let settings = state.settings.lock().clone();
                 let min_samples = (settings.min_duration * 16_000.0) as usize;
                 if audio.len() < min_samples {
                     log::info!(
-                        "recording: too short ({} samples, min {}), skipping",
+                        "recording: too short ({} < {}), skipping",
                         audio.len(),
                         min_samples
                     );
-                    if let Some(scope) = overlay.take() {
-                        scope.finish(OverlayStatus::Cancelled, 1000);
-                    }
+                    overlay.finish(OverlayStatus::Cancelled, 1000);
+                    // engine_state is already Idle from the swap
                     continue;
                 }
 
-                if let Some(ref scope) = overlay {
-                    scope.set(OverlayStatus::Processing);
+                overlay.set(OverlayStatus::Processing);
+                current_job += 1;
+                abort_flag.store(false, Ordering::Relaxed);
+
+                let _ = worker_tx.send(whisper::worker::WorkerMessage::Transcribe {
+                    job_id: current_job,
+                    audio,
+                    language: settings.language.clone(),
+                    model: settings.model.clone(),
+                    gpu: settings.gpu,
+                    model_loading: settings.model_loading,
+                    abort_flag: abort_flag.clone(),
+                    reply: whisper::worker::ReplyTo::Engine {
+                        tx: tx.clone(),
+                        output_mode: settings.output_mode,
+                    },
+                });
+
+                engine_state = EngineState::Transcribing {
+                    job_id: current_job,
+                    overlay,
+                };
+            }
+
+            // --- Transcribing ---
+            (EngineState::Transcribing { .. }, AppEvent::Hotkey(hotkey::HotkeyEvent::Pressed)) => {
+                let guard = state.settings.lock();
+                if !guard.interrupt {
+                    continue;
                 }
+                let input_device = guard.input_device.clone();
+                drop(guard);
 
-                if settings.interrupt {
-                    if let Some(eng) = engine.take() {
-                        start_transcription(
-                            eng,
-                            audio,
-                            &settings,
-                            &abort_flag,
-                            &tx,
-                            &mut loaded_model,
-                            &mut loaded_gpu,
-                            &state.models_dir,
-                        );
-                        transcription_in_flight = true;
-                    } else {
-                        pending_audio = Some((audio, settings));
-                    }
-                } else {
-                    let needs_reload = loaded_model != settings.model
-                        || loaded_gpu != settings.gpu
-                        || engine.is_none();
-                    if needs_reload {
-                        if let Some(ref scope) = overlay {
-                            scope.set(OverlayStatus::Loading);
-                        }
-                        match load_model(&state.models_dir, &settings.model, settings.gpu) {
-                            Ok(e) => {
-                                engine = Some(e);
-                                loaded_model = settings.model.clone();
-                                loaded_gpu = settings.gpu;
-                            }
-                            Err(e) => {
-                                log::error!("model: load error: {}", e);
-                                let _ = app.emit("backend-error", &e);
-                                if let Some(scope) = overlay.take() {
-                                    scope.finish(OverlayStatus::Cancelled, 1000);
-                                }
-                                continue;
-                            }
-                        }
-                        if let Some(ref scope) = overlay {
-                            scope.set(OverlayStatus::Processing);
-                        }
-                    }
+                // Abort the in-flight transcription
+                abort_flag.store(true, Ordering::Relaxed);
 
-                    let mut done_status = None;
-                    if let Some(ref eng) = engine {
-                        match eng.transcribe(&audio, &settings.language, None) {
-                            Ok(text) if !text.is_empty() => {
-                                handle_transcription(&app, &text, &settings.output_mode, &state);
-                                done_status = Some(OverlayStatus::from(&settings.output_mode));
-                            }
-                            Ok(_) => {}
-                            Err(e) => {
-                                log::error!("transcription error: {}", e);
-                                let _ = app
-                                    .emit("backend-error", format!("Transcription error: {}", e));
-                                done_status = Some(OverlayStatus::Cancelled);
-                            }
-                        }
-                    }
+                // Take ownership of overlay, start new recording
+                let prev = std::mem::replace(&mut engine_state, EngineState::Idle);
+                let EngineState::Transcribing { overlay, .. } = prev else {
+                    unreachable!()
+                };
 
-                    if settings.model_loading == ModelLoading::PerUse {
-                        engine = None;
-                        loaded_model.clear();
+                match audio::AudioRecorder::start(&input_device) {
+                    Ok(recorder) => {
+                        // Suppress old overlay's idle emission, create new Recording overlay
+                        let new_overlay =
+                            OverlayScope::replace_from(overlay, &app, OverlayStatus::Recording);
+                        engine_state = EngineState::Recording {
+                            recorder,
+                            overlay: new_overlay,
+                        };
                     }
-
-                    if let Some(scope) = overlay.take() {
-                        if let Some(status) = done_status {
-                            scope.finish(status, 1000);
-                        }
+                    Err(e) => {
+                        log::error!("recording: failed to start: {}", e);
+                        let _ = app.emit("backend-error", format!("Mic error: {}", e));
+                        overlay.finish(OverlayStatus::Cancelled, 1000);
+                        // engine_state is already Idle
                     }
                 }
             }
-            AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle) => {
-                let mut settings = state.settings.lock().clone();
-                let old_mode = settings.output_mode.clone();
-                settings.output_mode = match settings.output_mode {
-                    OutputMode::Clipboard => OutputMode::Paste,
-                    OutputMode::Paste => OutputMode::Clipboard,
+
+            (
+                EngineState::Transcribing { job_id, .. },
+                AppEvent::TranscriptionDone {
+                    job_id: result_job_id,
+                    result,
+                    output_mode,
+                },
+            ) => {
+                if result_job_id != *job_id {
+                    log::debug!(
+                        "engine: stale result (got job {}, expected {}), discarding",
+                        result_job_id,
+                        job_id
+                    );
+                    continue;
+                }
+
+                let prev = std::mem::replace(&mut engine_state, EngineState::Idle);
+                let EngineState::Transcribing { overlay, .. } = prev else {
+                    unreachable!()
+                };
+
+                match result {
+                    Ok(ref text) if !text.is_empty() => {
+                        handle_transcription(&app, text, &output_mode, &state);
+                        overlay.finish(OverlayStatus::from(&output_mode), 1000);
+                    }
+                    Ok(_) => {
+                        // Empty transcription, just go idle
+                        drop(overlay);
+                    }
+                    Err(ref e) => {
+                        log::error!("transcription error: {}", e);
+                        let _ = app.emit("backend-error", format!("Transcription error: {}", e));
+                        overlay.finish(OverlayStatus::Cancelled, 1000);
+                    }
+                }
+            }
+
+            // Stale result arriving in non-Transcribing state — discard
+            (_, AppEvent::TranscriptionDone { job_id, .. }) => {
+                log::debug!(
+                    "engine: TranscriptionDone in non-Transcribing state (job {}), discarding",
+                    job_id
+                );
+            }
+
+            // --- Any state ---
+            (_, AppEvent::Hotkey(hotkey::HotkeyEvent::OutputToggle)) => {
+                let (old_mode, new_settings) = {
+                    let mut guard = state.settings.lock();
+                    let old_mode = guard.output_mode;
+                    guard.output_mode = match old_mode {
+                        OutputMode::Clipboard => OutputMode::Paste,
+                        OutputMode::Paste => OutputMode::Clipboard,
+                    };
+                    (old_mode, guard.clone())
                 };
                 log::info!(
                     "output mode toggled: {:?} -> {:?}",
                     old_mode,
-                    settings.output_mode
+                    new_settings.output_mode
                 );
-                let _ = settings.save(&state.data_dir);
-                *state.settings.lock() = settings.clone();
-                let _ = app.emit("settings-changed", &settings);
+                new_settings.save(&state.data_dir).ok();
+                let _ = app.emit("settings-changed", &new_settings);
                 set_overlay(
                     &app,
                     OverlayState {
@@ -218,154 +244,41 @@ pub(crate) fn run(
                     },
                 );
             }
-            AppEvent::TranscriptionDone {
-                engine: returned_engine,
-                result,
-                output_mode,
-            } => {
-                transcription_in_flight = false;
-                abort_flag.store(false, Ordering::Relaxed);
 
-                let mut done_status = None;
-                if !cancelled {
-                    match result {
-                        Ok(ref text) if !text.is_empty() => {
-                            handle_transcription(&app, text, &output_mode, &state);
-                            done_status = Some(OverlayStatus::from(&output_mode));
-                        }
-                        Ok(_) => {}
-                        Err(ref e) => {
-                            log::error!("transcription error: {}", e);
-                            let _ =
-                                app.emit("backend-error", format!("Transcription error: {}", e));
-                            done_status = Some(OverlayStatus::Cancelled);
-                        }
-                    }
-                }
-                cancelled = false;
-
-                let per_use = state.settings.lock().model_loading == ModelLoading::PerUse;
-
-                if let Some((audio, settings)) = pending_audio.take() {
-                    engine = Some(returned_engine);
-                    start_transcription(
-                        engine.take().unwrap(),
-                        audio,
-                        &settings,
-                        &abort_flag,
-                        &tx,
-                        &mut loaded_model,
-                        &mut loaded_gpu,
-                        &state.models_dir,
-                    );
-                    transcription_in_flight = true;
-                } else {
-                    if let Some(scope) = overlay.take() {
-                        if let Some(status) = done_status {
-                            scope.finish(status, 1000);
-                        }
-                    }
-                    if per_use {
-                        drop(returned_engine);
-                        loaded_model.clear();
-                    } else {
-                        engine = Some(returned_engine);
-                    }
-                }
+            (_, AppEvent::Hotkey(hotkey::HotkeyEvent::Released)) => {
+                // Released in non-Recording state, ignore
             }
-            AppEvent::ReloadModel => {
-                let settings = state.settings.lock().clone();
-                let _scope = OverlayScope::new(&app, OverlayStatus::Loading);
-                match load_model(&state.models_dir, &settings.model, settings.gpu) {
-                    Ok(e) => {
-                        log::info!("model: reloaded {}", settings.model);
-                        engine = Some(e);
-                        loaded_model = settings.model.clone();
-                        loaded_gpu = settings.gpu;
-                    }
-                    Err(e) => {
-                        log::warn!("model: reload error: {}", e);
-                        let _ = app.emit("backend-error", &e);
-                    }
-                }
+
+            (_, AppEvent::WorkerLoading) => {
+                set_overlay(
+                    &app,
+                    OverlayState {
+                        status: OverlayStatus::Loading,
+                        ttl_ms: None,
+                    },
+                );
+            }
+
+            (_, AppEvent::WorkerError(e)) => {
+                let _ = app.emit("backend-error", &e);
+                set_overlay(&app, OverlayState::default());
             }
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn start_transcription(
-    mut eng: whisper::WhisperEngine,
-    audio: Vec<f32>,
-    settings: &Settings,
-    abort_flag: &Arc<AtomicBool>,
-    tx: &std::sync::mpsc::Sender<AppEvent>,
-    loaded_model: &mut String,
-    loaded_gpu: &mut bool,
-    models_dir: &std::path::Path,
-) {
-    if *loaded_model != settings.model || *loaded_gpu != settings.gpu {
-        match load_model(models_dir, &settings.model, settings.gpu) {
-            Ok(e) => {
-                eng = e;
-                *loaded_model = settings.model.clone();
-                *loaded_gpu = settings.gpu;
-            }
-            Err(e) => {
-                let _ = tx.send(AppEvent::TranscriptionDone {
-                    engine: eng,
-                    result: Err(e),
-                    output_mode: settings.output_mode.clone(),
-                });
-                return;
-            }
-        }
-    }
+// --- Helpers ---
 
-    let language = settings.language.clone();
-    let output_mode = settings.output_mode.clone();
-    let flag = abort_flag.clone();
-    let tx = tx.clone();
-    flag.store(false, Ordering::Relaxed);
-
-    std::thread::spawn(move || {
-        let result = eng.transcribe(&audio, &language, Some(flag));
-        let _ = tx.send(AppEvent::TranscriptionDone {
-            engine: eng,
-            result,
-            output_mode,
-        });
-    });
-}
-
-fn load_model(
-    models_dir: &std::path::Path,
-    name: &str,
-    use_gpu: bool,
-) -> Result<whisper::WhisperEngine, String> {
-    let path = whisper::model_path(models_dir, name);
-    if !path.exists() {
-        return Err(format!("Model '{}' not downloaded", name));
-    }
-    log::info!("model: loading '{}' (gpu={})", name, use_gpu);
-    whisper::WhisperEngine::new(&path, use_gpu)
-        .map_err(|e| format!("Failed to load model '{}': {}", name, e))
-}
-
-/// Handle a successful transcription: output text, notify frontend, update overlay, save history.
 fn handle_transcription(app: &tauri::AppHandle, text: &str, mode: &OutputMode, state: &WispState) {
     log::info!("transcription: {} chars", text.len());
 
-    // 1. Send to clipboard or type at cursor
     if let Err(e) = output::send(text, mode) {
         log::error!("output error: {}", e);
         let _ = app.emit("backend-error", format!("Output error: {}", e));
     }
 
-    // 2. Notify frontend of the transcription text
     let _ = app.emit("transcription", text);
 
-    // 3. Save to history
     let settings = state.settings.lock();
     if settings.history_enabled {
         history::append(&state.data_dir, text, "mic", settings.history_retention);
@@ -377,9 +290,8 @@ pub(crate) fn set_overlay(app: &tauri::AppHandle, overlay: OverlayState) {
     let _ = app.emit("overlay-state", &overlay);
 }
 
-/// RAII guard for persistent overlay states. Emits the given status on creation
-/// and automatically emits Idle on drop, guaranteeing cleanup on all exit paths.
-/// Use `finish()` to end with a timed state instead of Idle.
+// --- Overlay RAII guard ---
+
 struct OverlayScope {
     app: tauri::AppHandle,
     active: bool,
@@ -400,19 +312,12 @@ impl OverlayScope {
         }
     }
 
-    /// Create a new scope, suppressing the previous scope's idle emission.
-    fn replace(
-        prev: &mut Option<OverlayScope>,
-        app: &tauri::AppHandle,
-        status: OverlayStatus,
-    ) -> Self {
-        if let Some(mut old) = prev.take() {
-            old.active = false;
-        }
+    /// Suppress the old scope's idle emission and create a new one.
+    fn replace_from(mut old: OverlayScope, app: &tauri::AppHandle, status: OverlayStatus) -> Self {
+        old.active = false;
         Self::new(app, status)
     }
 
-    /// Transition to a different persistent status within this scope.
     fn set(&self, status: OverlayStatus) {
         set_overlay(
             &self.app,
@@ -423,7 +328,6 @@ impl OverlayScope {
         );
     }
 
-    /// End the scope with a timed status instead of reverting to Idle.
     fn finish(mut self, status: OverlayStatus, ttl_ms: u32) {
         self.active = false;
         set_overlay(

@@ -8,5 +8,6 @@ pub struct WispState {
     pub data_dir: PathBuf,
     pub models_dir: PathBuf,
     pub engine_tx: std::sync::mpsc::Sender<crate::engine::AppEvent>,
+    pub worker_tx: std::sync::mpsc::Sender<crate::whisper::worker::WorkerMessage>,
     pub first_run: bool,
 }
