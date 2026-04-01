@@ -2,6 +2,10 @@
   inherit (pkgs) lib stdenv;
   isLinux = stdenv.isLinux;
   isDarwin = stdenv.isDarwin;
+
+  # Tauri's macOS bundler calls `base64 --decode` (BSD flag), but Nix's GNU
+  # coreutils base64 uses `-d`. This shim forwards to the system binary.
+  macosBase64 = pkgs.writeShellScriptBin "base64" ''exec /usr/bin/base64 "$@"'';
 in
   pkgs.mkShell {
     packages = with pkgs;
@@ -20,6 +24,9 @@ in
         prek
         rustc
       ]
+      ++ lib.optionals isDarwin [
+        macosBase64
+      ]
       ++ lib.optionals isLinux [
         alsa-lib
         gtk3
@@ -33,16 +40,19 @@ in
         webkitgtk_4_1
         xdotool
         xorg.libXtst
-      ]
-      ;
+      ];
 
     buildInputs = lib.optionals isDarwin [
       (pkgs.darwinMinVersionHook "10.15")
     ];
 
-    shellHook = ''
-      prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
-    '';
+    shellHook =
+      ''
+        prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
+      ''
+      + lib.optionalString isDarwin ''
+        export PATH="${macosBase64}/bin:$PATH"
+      '';
 
     env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
     env.MACOSX_DEPLOYMENT_TARGET = lib.optionalString isDarwin "10.15";

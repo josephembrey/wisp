@@ -29,6 +29,12 @@ jobs:
     runs-on: macos-latest
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_KEY_PATH: /tmp/AuthKey.p8
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
@@ -36,28 +42,14 @@ jobs:
       - name: Write Apple API key to disk
         run: echo "${{ secrets.APPLE_API_KEY }}" > /tmp/AuthKey.p8
       - run: nix develop --command just install
-      - name: Build and sign
-        run: >-
-          nix develop --command env
-          APPLE_CERTIFICATE="$APPLE_CERTIFICATE"
-          APPLE_CERTIFICATE_PASSWORD="$APPLE_CERTIFICATE_PASSWORD"
-          APPLE_SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
-          APPLE_API_ISSUER="$APPLE_API_ISSUER"
-          APPLE_API_KEY="$APPLE_API_KEY"
-          APPLE_API_KEY_PATH="$APPLE_API_KEY_PATH"
-          just build
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_KEY_PATH: /tmp/AuthKey.p8
-      - run: cp src-tauri/target/release/wisp wisp-macos-arm64
+      - run: nix develop --command just build
+
+      - name: Package for download
+        run: ditto -c -k --keepParent src-tauri/target/release/bundle/macos/wisp.app wisp-macos-arm64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: wisp-macos-arm64
-          path: wisp-macos-arm64
+          path: wisp-macos-arm64.zip
 
   build-windows:
     runs-on: windows-latest
