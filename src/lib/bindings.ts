@@ -124,7 +124,7 @@ export type OverlayPosition = "top-left" | "top-center" | "top-right" | "bottom-
 export type OverlaySize = "small" | "medium" | "large"
 export type OverlayState = { status: OverlayStatus; ttl_ms: number | null }
 export type OverlayStatus = "idle" | "recording" | "processing" | "loading" | "saved" | "copied" | "typed" | "deleted" | "cancelled" | "output_mode"
-export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language?: string; gpu?: boolean; interrupt?: boolean; output_hotkey?: string; min_duration?: number; overlay_enabled?: boolean; overlay_position?: OverlayPosition; overlay_size?: OverlaySize; overlay_monitor?: number; overlay_always_show?: boolean; input_device?: string; model_loading?: ModelLoading; autostart?: boolean; history_enabled?: boolean; history_retention?: number }
+export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language: string; gpu: boolean; interrupt: boolean; output_hotkey: string; min_duration: number; overlay_enabled: boolean; overlay_position: OverlayPosition; overlay_size: OverlaySize; overlay_monitor: number; overlay_always_show: boolean; input_device: string; model_loading: ModelLoading; autostart: boolean; history_enabled: boolean; history_retention: number }
 export type UpdateInfo = { available: boolean; current: string; latest: string; url: string }
 
 /** tauri-specta globals **/
