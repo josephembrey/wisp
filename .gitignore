@@ -7,4 +7,5 @@ build/
 node_modules/
 src-tauri/gen/schemas
 target/
+result
 *.bin

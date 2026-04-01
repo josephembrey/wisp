@@ -52,9 +52,13 @@ icons:
 dev:
     bun tauri dev
 
-# Build the marketing site to build/web
+# Build the marketing site
 web:
     bunx vite build --config web/vite.config.ts
+
+# Build the marketing site via Nix (pure, for deploy)
+web-nix:
+    nix build .#web -o build/web
 
 # Dev server for the marketing site
 web-dev:
