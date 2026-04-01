@@ -19,9 +19,6 @@ async updateSettings(settings: Settings) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getStatus() : Promise<Status> {
-    return await TAURI_INVOKE("get_status");
-},
 async getModels() : Promise<ModelInfo[]> {
     return await TAURI_INVOKE("get_models");
 },
@@ -58,6 +55,9 @@ async resetApp() : Promise<Result<null, string>> {
 async getMonitors() : Promise<MonitorInfo[]> {
     return await TAURI_INVOKE("get_monitors");
 },
+async getMemoryInfo(gpu: boolean) : Promise<MemoryInfo> {
+    return await TAURI_INVOKE("get_memory_info", { gpu });
+},
 async getInputDevices() : Promise<InputDeviceInfo[]> {
     return await TAURI_INVOKE("get_input_devices");
 },
@@ -86,8 +86,19 @@ async showLogDir() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async openUrl(url: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_url", { url }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
+},
+async checkForUpdate() : Promise<UpdateInfo> {
+    return await TAURI_INVOKE("check_for_update");
 }
 }
 
@@ -104,12 +115,17 @@ async quit() : Promise<void> {
 export type DownloadProgress = { model: string; downloaded: number; total: number }
 export type HistoryEntry = { id: number; timestamp: number; text: string; source: string }
 export type InputDeviceInfo = { name: string; label: string }
+export type MemoryInfo = { total_mb: number; available_mb: number }
 export type ModelInfo = { name: string; size_mb: number; downloaded: boolean }
 export type ModelLoading = "eager" | "lazy" | "per_use"
 export type MonitorInfo = { index: number; name: string; width: number; height: number; primary: boolean }
 export type OutputMode = "clipboard" | "paste"
-export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language?: string; gpu?: boolean; interrupt?: boolean; output_hotkey?: string; min_duration?: number; overlay_enabled?: boolean; overlay_position?: string; overlay_size?: string; overlay_monitor?: number; overlay_always_show?: boolean; input_device?: string; model_loading?: ModelLoading; autostart?: boolean; history_enabled?: boolean; history_retention?: number }
-export type Status = "idle" | "loading" | "recording" | "processing"
+export type OverlayPosition = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"
+export type OverlaySize = "small" | "medium" | "large"
+export type OverlayState = { status: OverlayStatus; ttl_ms: number | null }
+export type OverlayStatus = "idle" | "recording" | "processing" | "loading" | "saved" | "copied" | "typed" | "deleted" | "cancelled" | "output_mode"
+export type Settings = { model: string; output_mode: OutputMode; hotkey: string; language: string; gpu: boolean; interrupt: boolean; output_hotkey: string; min_duration: number; overlay_enabled: boolean; overlay_position: OverlayPosition; overlay_size: OverlaySize; overlay_monitor: number; overlay_always_show: boolean; input_device: string; model_loading: ModelLoading; autostart: boolean; history_enabled: boolean; history_retention: number }
+export type UpdateInfo = { available: boolean; current: string; latest: string; url: string }
 
 /** tauri-specta globals **/
 

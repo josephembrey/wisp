@@ -2,7 +2,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::WebviewWindowBuilder,
-    Manager, WebviewUrl,
+    WebviewUrl,
 };
 
 pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
@@ -17,55 +17,43 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
-                log::info!("tray: settings menu clicked");
-                if let Some(window) = app.get_webview_window("main") {
-                    log::info!("tray: showing main window");
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                } else {
-                    log::warn!("tray: main window not found");
-                }
+                log::debug!("tray: settings menu clicked");
+                crate::show_main_window(app);
             }
             "quit" => {
-                log::info!("tray: quit");
+                log::debug!("tray: quit");
                 app.exit(0);
             }
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
+        .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
             } = event
             {
-                log::info!("tray: left-clicked, showing main window");
-                if let Some(window) = tray.app_handle().get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                } else {
-                    log::warn!("tray: main window not found on click");
-                }
+                log::debug!("tray: left-clicked, showing main window");
+                crate::show_main_window(tray.app_handle());
             }
         })
         .build(app)?;
     log::info!("tray: tray icon built");
 
     log::info!("overlay: creating overlay window");
-    let overlay =
-        WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
-            .title("Wisp Status")
-            .maximized(true)
-            .decorations(false)
-            .transparent(true)
-            .background_color(tauri::window::Color(0, 0, 0, 0))
-            .shadow(false)
-            .always_on_top(true)
-            .focused(false)
-            .skip_taskbar(true)
-            .visible(true)
-            .resizable(false)
-            .build()?;
+    let overlay = WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay".into()))
+        .title("Wisp Status")
+        .maximized(true)
+        .decorations(false)
+        .transparent(true)
+        .background_color(tauri::window::Color(0, 0, 0, 0))
+        .shadow(false)
+        .always_on_top(true)
+        .focused(false)
+        .skip_taskbar(true)
+        .visible(true)
+        .resizable(false)
+        .build()?;
     log::info!("overlay: window created");
 
     match overlay.set_ignore_cursor_events(true) {
@@ -75,10 +63,7 @@ pub fn setup(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
 
     if first_run {
         log::info!("first run: showing main window");
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
+        crate::show_main_window(app);
     }
 
     Ok(())

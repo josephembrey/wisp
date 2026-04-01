@@ -47,9 +47,9 @@ pass_filenames = false
 id = "prettier"
 name = "prettier"
 language = "system"
-entry = "bunx prettier --write --ignore-unknown --ignore-path tools/.prettierignore"
+entry = "bunx prettier --write --ignore-unknown"
 types_or = ["javascript", "ts", "svelte", "css", "html", "json", "markdown"]
-exclude = '\.claude/skills/'
+exclude = '\.claude/skills/|bindings\.ts$|bun\.lock$'
 
 [[repos.hooks]]
 id = "eslint"

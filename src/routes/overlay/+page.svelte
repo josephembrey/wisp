@@ -1,112 +1,161 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { log } from '$lib/log';
 	import CheckIcon from '@lucide/svelte/icons/check';
+	import ClipboardIcon from '@lucide/svelte/icons/clipboard';
+	import TextCursorIcon from '@lucide/svelte/icons/text-cursor';
 	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 	import XIcon from '@lucide/svelte/icons/x';
+	import { error as logError } from '@tauri-apps/plugin-log';
 	import {
 		getSettings,
-		getStatus,
-		onStatusChanged,
-		onOverlayFlash,
 		onSettingsChanged,
 		type Settings,
-		type Status
+		type OverlayPosition,
+		type OverlaySize,
+		type OutputMode
 	} from '$lib/tauri';
+	import { overlay } from '$lib/overlay.svelte';
 
-	// View config — the truth table
-	type View = Status | 'cancelled' | 'success';
-	const views: Record<View, { label: string; color: string; icon: string; iconColor: string }> = {
-		idle: { label: 'Idle', color: 'rgba(255,255,255,0.6)', icon: 'dot', iconColor: '#a3a3a3' },
-		loading: { label: 'Loading', color: '#fff', icon: 'spinner', iconColor: '#60a5fa' },
-		recording: { label: 'Recording', color: '#fff', icon: 'pulse', iconColor: '#ef4444' },
-		processing: { label: 'Processing', color: '#fff', icon: 'spinner', iconColor: '#fbbf24' },
-		cancelled: { label: 'Cancelled', color: '#fbbf24', icon: 'x', iconColor: '#fbbf24' },
-		success: { label: '', color: '#4ade80', icon: 'check', iconColor: '#4ade80' }
-	};
+	// Overlay state
+	let display = $state(overlay.current);
+	$effect(() => {
+		if (overlay.current.status !== 'idle' || alwaysShow) display = overlay.current;
+	});
 
-	// Settings (overwritten on load)
+	// Settings-driven state
 	let alwaysShow = $state(false);
-	let position = $state('top-right');
-	let size = $state('md');
+	let position: OverlayPosition = $state('top-right');
+	let size: OverlaySize = $state('medium');
+	let outputMode: OutputMode = $state('paste');
 
-	// Runtime
-	let flash = $state('');
-	let flashTimeout: ReturnType<typeof setTimeout> | undefined;
-	let status = $state<Status>('idle');
-
-	// Derived
-	const view: View = $derived(flash === 'Cancelled' ? 'cancelled' : flash ? 'success' : status);
-	const cfg = $derived(views[view]);
-	const label = $derived(cfg.label || flash);
 	const align = $derived(position.startsWith('bottom') ? 'items-end' : 'items-start');
 	const justify = $derived(
 		{ left: 'justify-start', right: 'justify-end' }[position.split('-')[1]] ?? 'justify-center'
 	);
-	const scale = $derived({ small: 'scale-75', large: 'scale-150' }[size] ?? '');
-	const visible = $derived(flash !== '' || status !== 'idle' || alwaysShow);
+	const sizeClasses: Record<OverlaySize, string> = {
+		small: 'gap-1.5 px-2 py-1 text-[0.625rem]',
+		medium: 'gap-2 px-3 py-1.5 text-xs',
+		large: 'gap-3 px-4 py-2.5 text-base'
+	};
+	const iconSizes: Record<OverlaySize, number> = { small: 10, medium: 14, large: 18 };
+	const dotSizes: Record<OverlaySize, string> = {
+		small: 'h-2 w-2',
+		medium: 'h-2.5 w-2.5',
+		large: 'h-3.5 w-3.5'
+	};
+	const iconSize = $derived(iconSizes[size]);
+	const dotSize = $derived(dotSizes[size]);
+	const visible = $derived(overlay.current.status !== 'idle' || alwaysShow);
 
+	// Settings sync
 	function applySettings(s: Settings) {
 		alwaysShow = s.overlay_always_show ?? false;
 		position = s.overlay_position ?? 'top-right';
-		size = s.overlay_size ?? 'md';
+		size = s.overlay_size ?? 'medium';
+		outputMode = s.output_mode ?? 'paste';
 	}
 
 	onMount(() => {
-		log.info('[overlay] mounted');
-		getSettings().then((s) => {
-			log.info(`[overlay] loaded, position=${s.overlay_position}`);
-			applySettings(s);
-		});
-		getStatus().then((s) => (status = s));
+		getSettings()
+			.then(applySettings)
+			.catch((e) => logError(`[overlay] settings load failed: ${e}`));
 
-		const unsubs = [
-			onStatusChanged((s) => (status = s)),
-			onSettingsChanged(applySettings),
-			onOverlayFlash((msg) => {
-				clearTimeout(flashTimeout);
-				flash = msg;
-				flashTimeout = setTimeout(() => (flash = ''), 1000);
-			})
-		];
-		return () => unsubs.forEach((p) => p.then((fn) => fn()));
+		const unsub = onSettingsChanged(applySettings);
+		return () => unsub.then((fn) => fn());
 	});
 </script>
 
+<!-- Overlay pill: positioned fullscreen, fades in/out -->
 <div class="flex {align} {justify} h-screen w-screen p-3">
 	<div
-		class="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-sm transition-opacity duration-150 {scale}"
+		class="flex items-center rounded-full border border-white/10 shadow-lg backdrop-blur-sm transition-opacity duration-150 {sizeClasses[
+			size
+		]}"
+		style:background="var(--overlay-bg)"
 		class:opacity-0={!visible}
 	>
-		{#if cfg.icon === 'dot' || cfg.icon === 'pulse'}
-			<span class="relative flex h-2.5 w-2.5">
-				{#if cfg.icon === 'pulse'}
-					<span
-						class="absolute inline-flex h-full w-full animate-ping rounded-full"
-						style:background={cfg.iconColor}
-					></span>
-				{/if}
-				<span class="relative inline-flex h-2.5 w-2.5 rounded-full" style:background={cfg.iconColor}
+		<!-- Status icon + label -->
+		{#if display.status === 'idle'}
+			<span class="relative flex {dotSize}">
+				<span
+					class="relative inline-flex {dotSize} rounded-full"
+					style:background="var(--overlay-idle)"
 				></span>
 			</span>
-		{:else if cfg.icon === 'spinner'}
-			<Loader2Icon size={14} class="animate-spin" color={cfg.iconColor} />
-		{:else if cfg.icon === 'x'}
-			<XIcon size={12} color={cfg.iconColor} strokeWidth={2.5} />
-		{:else}
-			<CheckIcon size={12} color={cfg.iconColor} strokeWidth={2.5} />
-		{/if}
+			<span class="overlay-label" style:color="var(--overlay-text-muted)">Idle</span>
 
-		<span
-			class="text-xs font-medium whitespace-nowrap transition-colors duration-300"
-			style:color={cfg.color}
-		>
-			{label}
-		</span>
+			<!-- recording: pulsing red dot -->
+		{:else if display.status === 'recording'}
+			<span class="relative flex {dotSize}">
+				<span
+					class="absolute inline-flex h-full w-full animate-ping rounded-full"
+					style:background="var(--overlay-recording)"
+				></span>
+				<span
+					class="relative inline-flex {dotSize} rounded-full"
+					style:background="var(--overlay-recording)"
+				></span>
+			</span>
+			<span class="overlay-label" style:color="var(--overlay-text)">Recording</span>
+
+			<!-- processing/loading: amber spinner -->
+		{:else if display.status === 'processing' || display.status === 'loading'}
+			<Loader2Icon size={iconSize} class="animate-spin" color="var(--overlay-processing)" />
+			<span class="overlay-label" style:color="var(--overlay-text)">
+				{display.status === 'loading' ? 'Loading' : 'Processing'}
+			</span>
+
+			<!-- cancelled: amber x -->
+		{:else if display.status === 'cancelled'}
+			<XIcon size={iconSize} color="var(--overlay-processing)" strokeWidth={2.5} />
+			<span class="overlay-label" style:color="var(--overlay-processing)">Cancelled</span>
+
+			<!-- mode change: show new output mode -->
+		{:else if display.status === 'output_mode'}
+			{#if outputMode === 'clipboard'}
+				<ClipboardIcon size={iconSize} color="var(--overlay-text)" strokeWidth={2.5} />
+				<span class="overlay-label" style:color="var(--overlay-text)">Clipboard</span>
+			{:else}
+				<TextCursorIcon size={iconSize} color="var(--overlay-text)" strokeWidth={2.5} />
+				<span class="overlay-label" style:color="var(--overlay-text)">Cursor</span>
+			{/if}
+
+			<!-- saved/copied/typed/deleted: green check -->
+		{:else}
+			<CheckIcon size={iconSize} color="var(--overlay-success)" strokeWidth={2.5} />
+			<span class="overlay-label" style:color="var(--overlay-success)">
+				{display.status === 'copied'
+					? 'Copied'
+					: display.status === 'typed'
+						? 'Typed'
+						: display.status === 'deleted'
+							? 'Deleted'
+							: 'Saved'}
+			</span>
+		{/if}
 	</div>
 </div>
 
 <style>
+	/* Overlay color tokens (separate window, can't use app theme) */
+	:root {
+		--overlay-bg: rgba(0, 0, 0, 0.6);
+		--overlay-text: #fff;
+		--overlay-text-muted: rgba(255, 255, 255, 0.6);
+		--overlay-idle: #a3a3a3;
+		--overlay-recording: #ef4444;
+		--overlay-processing: #fbbf24;
+		--overlay-success: #4ade80;
+	}
+
+	.overlay-label {
+		font-size: inherit;
+		font-weight: 500;
+		white-space: nowrap;
+		transition: color 300ms;
+	}
+
+	/* Transparent window setup */
 	:global(html),
 	:global(body) {
 		background: transparent !important;

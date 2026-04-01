@@ -24,7 +24,7 @@ impl AudioRecorder {
                 .find(|d| d.name().map(|n| n == device_name).unwrap_or(false))
                 .ok_or_else(|| format!("input device '{}' not found, using default", device_name))
                 .or_else(|e| {
-                    log::warn!("{}", e);
+                    log::warn!("input device error: {}", e);
                     host.default_input_device()
                         .ok_or("no input device found".to_string())
                 })?
@@ -37,10 +37,12 @@ impl AudioRecorder {
         let sample_rate = config.sample_rate();
         log::info!(
             "recording: device='{}' {}Hz {}ch {:?}",
-            device_label, sample_rate, channels, config.sample_format()
+            device_label,
+            sample_rate,
+            channels,
+            config.sample_format()
         );
-        let buffer: Arc<parking_lot::Mutex<Vec<f32>>> =
-            Arc::new(parking_lot::Mutex::new(Vec::new()));
+        let buffer = Arc::new(parking_lot::Mutex::new(Vec::<f32>::new()));
         let buf = buffer.clone();
 
         let stream = match config.sample_format() {
@@ -55,9 +57,8 @@ impl AudioRecorder {
             cpal::SampleFormat::I16 => device.build_input_stream(
                 &config.into(),
                 move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                    let floats: Vec<f32> =
-                        data.iter().map(|&s| s as f32 / i16::MAX as f32).collect();
-                    buf.lock().extend_from_slice(&floats);
+                    buf.lock()
+                        .extend(data.iter().map(|&s| s as f32 / i16::MAX as f32));
                 },
                 |err| log::error!("audio stream error: {}", err),
                 None,

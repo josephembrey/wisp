@@ -1,53 +1,66 @@
 # Wisp
 
-Push-to-talk whisper dictation desktop app.
+Local, private speech-to-text. Push a key, speak, get text.
 
-Hold a global hotkey to record from your mic. On release, audio is transcribed
-locally with [whisper.cpp](https://github.com/ggerganov/whisper.cpp) and the
-text is sent to your clipboard or pasted at your cursor.
-
-Runs as a system tray icon with no main window. Settings accessible from the
-tray menu.
+Wisp runs [Whisper](https://github.com/ggerganov/whisper.cpp) entirely on your machine — no cloud, no API keys, no data leaves your device.
 
 ## Features
 
-- **Local transcription** — all processing happens on-device, nothing leaves your machine
-- **Push-to-talk** — hold a configurable hotkey to record, release to transcribe
-- **File transcription** — drag-and-drop audio files to transcribe
-- **Multiple models** — tiny through large, downloaded on demand
-- **GPU acceleration** — Vulkan on Windows/Linux, Metal on macOS
-- **Output modes** — copy to clipboard or type at cursor
-- **Status overlay** — unobtrusive pill indicator shows recording/processing state
-- **Transcription history** — searchable log of past transcriptions
-- **Autostart** — optional launch on system startup
-- **Configurable** — hotkeys, model, language, overlay position/size, input device
+- **Push-to-talk** — Hold a hotkey to record, release to transcribe
+- **GPU accelerated** — Vulkan (Windows/Linux) and Metal (macOS)
+- **Two output modes** — Paste at cursor or copy to clipboard, toggle with a hotkey
+- **Multiple models** — Tiny (75 MB) to Large (3 GB), download and swap on the fly
+- **Status overlay** — Floating pill shows recording/processing/done state
+- **Transcription history** — Searchable log of past transcriptions
+- **File transcription** — Transcribe audio files (MP3, FLAC, WAV, OGG, etc.)
+- **System tray** — Runs in the background, always ready
+- **Cross-platform** — Windows, macOS, Linux
+
+## Download
+
+Grab the latest binary from [Releases](https://github.com/josephembrey/wisp/releases). Windows, macOS (ARM + Intel), and Linux.
 
 ## Development
 
-**Prerequisites:** Rust, Bun, LLVM/Clang, Vulkan SDK (Windows/Linux) or Xcode (macOS)
+**Linux/macOS** — install [Nix](https://nixos.org/) + [direnv](https://direnv.net/), then:
 
-```sh
-# Windows — install all dependencies
-.\win.ps1 install
-
-# Linux/macOS — enter the Nix dev environment
-devenv shell
-
-# Run in development
-bun tauri dev
-
-# Production build
-bun tauri build
+```bash
+direnv allow # Run once to allow direnv to load the devshell automatically
+just install # Install remaining non-nix dependencies
+just dev     # Run in development mode
 ```
 
-See `.\win.ps1` for the full list of Windows commands (build, check, format, sign, etc.).
+**Windows** — install [Just](https://github.com/casey/just), then:
 
-## Tech stack
+```powershell
+just install # Install dependencies
+just dev     # Run in development mode
+```
 
-- **Frontend:** SvelteKit 2 (Svelte 5), Tailwind CSS v4, TypeScript
-- **Backend:** Tauri v2 (Rust)
-- **Audio:** cpal (mic capture), symphonia (audio file decoding)
-- **Transcription:** whisper-rs (whisper.cpp bindings)
-- **Hotkeys:** tauri-plugin-global-shortcut
-- **Output:** arboard (clipboard), enigo (paste-at-cursor)
-- **IPC:** tauri-specta (auto-generated TypeScript bindings)
+| Command             | Description                                                      |
+| ------------------- | ---------------------------------------------------------------- |
+| `just bindings`     | Regenerate TypeScript bindings from Rust                         |
+| `just build`        | Production build                                                 |
+| `just build-debug`  | Production build with verbose logging                            |
+| `just check`        | Type-check Rust and Svelte                                       |
+| `just clean`        | Remove all build artifacts                                       |
+| `just dev`          | Development mode with hot-reload                                 |
+| `just icons`        | Regenerate app icons from `src-tauri/icons/icon.png`             |
+| `just install [ci]` | Install dependencies (`ci` skips interactive prompts on Windows) |
+| `just pre`          | Run linters and formatters                                       |
+| `just reload`       | Reload direnv environment                                        |
+| `just sign`         | Sign built executable (Windows: Azure, macOS: TODO)              |
+| `just web`          | Build marketing site to `build/web`                              |
+| `just web-dev`      | Dev server for marketing site                                    |
+
+## Tech Stack
+
+- [Tauri 2](https://v2.tauri.app/) — Desktop framework
+- [SvelteKit](https://svelte.dev/) + [Svelte 5](https://svelte.dev/docs/svelte/overview) — Frontend
+- [whisper-rs](https://github.com/tazz4843/whisper-rs) — Speech-to-text
+- [Tailwind CSS 4](https://tailwindcss.com/) — Styling
+- [shadcn-svelte](https://www.shadcn-svelte.com/) — UI components
+
+## License
+
+[GPL-3.0-or-later](LICENSE)

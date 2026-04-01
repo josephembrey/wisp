@@ -3,8 +3,8 @@ name = "wisp"
 version = "0.1.0"
 description = "Push-to-talk whisper dictation"
 authors = ["Joseph Embrey"]
-license = ""
-repository = ""
+license = "GPL-3.0-or-later"
+repository = "https://github.com/josephembrey/wisp"
 edition = "2021"
 rust-version = "1.77.2"
 default-run = "wisp"
@@ -40,7 +40,7 @@ cpal = "0.17"
 symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "ogg", "wav", "pcm", "isomp4", "mkv", "vorbis"] }
 
 # Speech-to-text
-whisper-rs = "0.15"
+whisper-rs = "0.16"
 
 # Global hotkey (press + release)
 tauri-plugin-global-shortcut = "2"
@@ -52,7 +52,7 @@ arboard = "3"
 enigo = "0.6"
 
 # Model downloads
-reqwest = { version = "0.13", features = ["stream"] }
+reqwest = { version = "0.13", features = ["stream", "json"] }
 futures-util = "0.3"
 
 # Regex (lightweight, no-std)
@@ -73,16 +73,20 @@ tauri-plugin-window-state = "2"
 # Open files/dirs in native explorer
 open = "5"
 
+# System info
+sysinfo = "0.38.4"
+
 # Concurrency
 parking_lot = "0.12"
 tauri-plugin-single-instance = "2.4.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-whisper-rs = { version = "0.15", features = ["metal"] }
+whisper-rs = { version = "0.16", features = ["metal"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-whisper-rs = { version = "0.15", features = ["vulkan"] }
+whisper-rs = { version = "0.16", features = ["vulkan"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-whisper-rs = { version = "0.15", features = ["vulkan"] }
-windows-sys = "0.59"
+whisper-rs = { version = "0.16", features = ["vulkan"] }
+windows-sys = { version = "0.61.2", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+windows = { version = "0.62.2", features = ["Win32_Graphics_Dxgi"] }

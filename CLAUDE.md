@@ -1,88 +1,81 @@
-# Wisp
+# CLAUDE.md
 
-Push-to-talk whisper dictation desktop app.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What it does
+## Build & Dev Commands
 
-Hold a global hotkey to record from your mic. On release, audio is transcribed locally with
-whisper and the text is sent to your clipboard or pasted at your cursor. Also supports
-drag-and-drop file transcription for audio files.
-
-Runs as a system tray icon — no main window. A configurable overlay pill shows recording/processing
-state. Settings accessible from the tray menu.
-
-## Settings
-
-- **Model:** which whisper model to use (tiny/base/small/medium/large)
-- **Output mode:** clipboard or paste-at-cursor
-- **Hotkey:** configurable, default Alt+Q
-- **Output hotkey:** optional hotkey to toggle output mode
-- **Language:** auto-detect or specific language
-- **GPU:** enable/disable GPU acceleration
-- **Interrupt:** interrupt previous transcription when starting new one
-- **Min duration:** minimum recording duration threshold (seconds)
-- **Input device:** select microphone device
-- **Model loading:** when to load model (eager/lazy/per-use)
-- **Autostart:** start with system
-- **Overlay:** enable/disable, position, size, monitor, always show
-- **History:** enable transcription history and retention count
-
-## Tech stack
-
-- **Frontend:** SvelteKit 2 (Svelte 5 runes syntax), Tailwind CSS v4, TypeScript
-- **Backend:** Tauri v2 (Rust)
-- **Audio:** cpal (mic capture), symphonia (audio file decoding)
-- **Transcription:** whisper-rs (whisper.cpp bindings)
-- **Hotkey:** tauri-plugin-global-shortcut (+ Windows polling workaround via GetAsyncKeyState)
-- **Output:** arboard (clipboard), enigo (type text at cursor without touching clipboard)
-- **IPC types:** tauri-specta (auto-generated TypeScript bindings from Rust types)
-- **Plugins:** dialog, autostart, window-state, single-instance, log
-- **Package manager:** bun
-
-## Project structure
-
-```
-src/                                — SvelteKit frontend
-  lib/bindings.ts                   — auto-generated TypeScript types (tauri-specta)
-  lib/tauri.ts                      — IPC wrappers and event listeners
-  lib/components/settings/          — settings window tab components
-  lib/components/overlay/           — overlay pill component
-  lib/components/ui/                — bits-ui components (button, switch, select, etc.)
-  routes/+page.svelte               — settings UI (main window)
-  routes/overlay/+page.svelte       — overlay window
-
-src-tauri/src/                      — Rust backend
-  lib.rs                            — Tauri setup, plugin registration, shortcuts
-  engine.rs                         — event loop: hotkey → record → transcribe → output
-  commands.rs                       — Tauri IPC command handlers
-  tray.rs                           — system tray icon, menu, overlay window
-  output.rs                         — clipboard + paste simulation
-  history.rs                        — transcription history persistence
-  audio/                            — mic capture, file decoding, resample to 16kHz
-  whisper/                          — model download/management + transcription
-  hotkey/                           — key conversion + Windows polling workaround
-  settings/                         — settings struct, persistence, app state
+```bash
+just dev              # Run in development mode (hot-reload)
+just build            # Production build (generates bindings first)
+just check            # Type-check Rust + Svelte
+just pre              # Run all pre-commit hooks (lint, format, clippy)
+just bindings         # Regenerate TypeScript bindings from Rust
+just web              # Build marketing site to build/web
+just icons            # Regenerate app icons from src-tauri/icons/icon.png
+just install          # Install deps (Nix devshell on Linux/macOS, install.ps1 on Windows)
+just install ci       # Non-interactive install (Windows CI)
 ```
 
-## Key commands
+On Windows, `CARGO_TARGET_DIR=C:/wisp` is set by the justfile to avoid MAX_PATH failures with whisper-rs cmake builds. The git commit hook doesn't inherit this, so pass `CARGO_TARGET_DIR=C:/wisp` when committing, or use `SKIP=alejandra` on Windows (alejandra is a Nix formatter not available there).
 
-- `bun tauri dev` — run in development
-- `bun tauri build` — production build
-- `cargo check --manifest-path src-tauri/Cargo.toml` — check Rust compilation
-- `cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings --features gen-bindings` — regenerate TypeScript bindings
+## Architecture
 
-## Patterns
+**Tauri 2 desktop app**: Rust backend (`src-tauri/`) + SvelteKit frontend (`src/`).
 
-### Switch components (bits-ui)
+### Backend (Rust)
 
-The bits-ui `Switch` fires `onCheckedChange` on programmatic prop updates, not just user clicks.
-This causes feedback loops when settings are echoed back from the backend via `settings-changed` events.
+- **`engine.rs`** — Core event loop. Single-threaded state machine on a dedicated thread, processes `AppEvent` via mpsc channel. Handles hotkey press/release → record → transcribe → output flow. Uses `OverlayScope` RAII guard for overlay state — emits Idle on drop, guaranteeing cleanup on all exit paths.
+- **`commands.rs`** — Tauri IPC commands. All `#[tauri::command]` endpoints the frontend calls. Includes `check_for_update` (GitHub releases API) and `open_url`.
+- **`lib.rs`** — Tauri app setup: plugins, hotkey handler, window events, engine thread spawn. On Windows, main PTT hotkey uses polling thread instead of the global-shortcut plugin.
+- **`hotkey/`** — Hotkey registration and Windows-specific PTT polling via `GetAsyncKeyState` (avoids WM_HOTKEY release detection bugs).
+- **`settings/mod.rs`** — `Settings` struct with serde defaults and persistence. `Default` impl and `#[serde(default = "...")]` functions must stay in sync.
+- **`settings/types.rs`** — Enums for typed settings: `OutputMode`, `ModelLoading`, `OverlayPosition`, `OverlaySize`, `OverlayStatus`, `OverlayState`.
+- **`settings/migrate.rs`** — Forward-compatible settings migrations (runs on every load).
+- **`whisper/engine.rs`** — whisper-rs wrapper with retry logic and warmup.
+- **`whisper/models.rs`** — Model download/delete/list. Model URLs are hardcoded.
+- **`audio/`** — Recording (cpal), file decoding (symphonia), resampling to 16kHz mono.
+- **`output.rs`** — Text output via clipboard (arboard) or keyboard paste (enigo).
 
-**Fix:** Make the Switch visual-only (`pointer-events-none`) and handle clicks on a parent `<div>`
-(not `<button>`, which retains focus and captures hotkey release events):
+### Frontend (Svelte 5 + TypeScript)
 
-```svelte
-<div class="cursor-pointer" onclick={() => onsave({ enabled: !settings.enabled })}>
-  <Switch checked={settings.enabled} class="pointer-events-none" />
-</div>
-```
+- **`src/lib/state.svelte.ts`** — Reactive app state using Svelte 5 runes. Single `app` export with getters + actions. Subscribes to backend events on init. Optimistic settings save with rollback on failure.
+- **`src/lib/overlay.svelte.ts`** — Overlay state singleton. Single `active` override that falls back to idle — no base/transient split. TTL states auto-clear; persistent states rely on backend `OverlayScope` for cleanup.
+- **`src/lib/tauri.ts`** — Thin wrapper around auto-generated bindings. Unwraps `Result<T, string>` from fallible commands. Re-exports all types.
+- **`src/lib/bindings.ts`** — **Auto-generated by tauri-specta.** Do not edit. Regenerates on `just dev` or `just bindings`.
+- **`src/routes/+page.svelte`** — Settings window with tab-based layout and coordinated resize animation. ResizeObserver uses rAF coalescing.
+- **`src/routes/overlay/+page.svelte`** — Separate transparent window for the status pill overlay. Has its own CSS color tokens (can't use app theme). Uses `display` latch to hold last non-idle state during fade-out.
+- **`src/lib/components/views/`** — One component per settings tab (general, model, overlay, transcribe, history, about).
+
+### IPC Pattern
+
+Rust commands use `#[tauri::command]` + `#[specta::specta]` for type-safe IPC. Adding a new command:
+
+1. Add function in `commands.rs`
+2. Register in `specta_builder()` in `lib.rs`
+3. `just bindings` (or `just dev` auto-regenerates)
+4. Export from `src/lib/tauri.ts`
+
+Backend-to-frontend events use `app.emit("event-name", &data)` with `listen()` on the frontend.
+
+### Two Windows
+
+The app has two Tauri windows: `main` (settings panel, 540px fixed width) and `overlay` (transparent fullscreen pill). They share no state directly — the overlay listens to the `overlay-state` event and settings changes independently.
+
+## Key Conventions
+
+- **Logging**: All backend logs use `log::` macros with `"prefix: message"` format (e.g., `"model: loading..."`, `"cmd: update_settings"`, `"recording: stopped..."`). Frontend uses `logError` from `@tauri-apps/plugin-log` with `[context]` tags. No `println!` or `console.log`.
+- **Error handling**: Backend errors emit `"backend-error"` event. Frontend catches display `toast.error()` via svelte-sonner. No silent failures.
+- **Components**: shadcn-svelte customized in place. See `DESIGN.md` for the design system.
+- **Styling**: Tailwind CSS v4 with CSS-based config in `src/routes/layout.css`. Achromatic theme — color is semantic only.
+- **Font**: JetBrains Mono Variable everywhere.
+- **No Co-Authored-By** attributions in git commits.
+
+## Platform Specifics
+
+- **Windows**: Vulkan GPU, `windows-sys` + `windows` crates for native APIs (DXGI memory queries, PTT key polling). Azure Trusted Signing for releases.
+- **macOS**: Metal GPU. Nix devshell provides all deps.
+- **Linux**: Vulkan GPU. Needs GTK3, WebKitGTK 4.1, ALSA, xdotool, Vulkan SDK. Nix devshell provides all.
+
+## Pre-commit Hooks (prek)
+
+Configured in `tools/prek.toml`: rustfmt, clippy (`-D warnings`), prettier, eslint, alejandra (Nix). `web/` is excluded from eslint. `src/lib/bindings.ts` is excluded from prettier and eslint (auto-generated).

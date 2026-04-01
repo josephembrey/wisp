@@ -1,5 +1,5 @@
 # Short target dir on Windows to avoid MAX_PATH failures
-export CARGO_TARGET_DIR := if os() == "windows" { "C:/wisp" } else { "src-tauri/target" }
+export CARGO_TARGET_DIR := if os() == "windows" { "C:/wisp" } else { justfile_directory() / "src-tauri" / "target" }
 
 set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 
@@ -36,19 +36,45 @@ clean:
     cargo clean --manifest-path src-tauri/Cargo.toml
     @('.svelte-kit', 'build', 'src-tauri\gen\schemas', 'node_modules') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
 
+# Regenerate app icons from src-tauri/icons/icon.png
+[unix]
+icons:
+    bunx tauri icon src-tauri/icons/icon.png
+    rm -rf src-tauri/icons/ios src-tauri/icons/android
+
+# Regenerate app icons from src-tauri/icons/icon.png
+[windows]
+icons:
+    bunx tauri icon src-tauri/icons/icon.png
+    @('src-tauri/icons/ios', 'src-tauri/icons/android') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
+
 # Run in development mode
 dev:
     bun tauri dev
 
+# Build the marketing site to build/web
+web:
+    bunx vite build --config web/vite.config.ts
+
+# Dev server for the marketing site
+web-dev:
+    bunx vite dev --config web/vite.config.ts
+
 # Install dependencies
-[unix]
+[linux]
 install:
+    bun install
+
+# Install dependencies (+ Xcode CLT if missing)
+[macos]
+install:
+    @if ! xcode-select -p &> /dev/null 2>&1; then echo "Installing Xcode CLT..."; xcode-select --install; fi
     bun install
 
 # Install dependencies (system + node)
 [windows]
-install:
-    powershell -NoProfile -File tools/win/install.ps1
+install *args:
+    powershell -NoProfile -File tools/win/install.ps1 {{ if args == "ci" { "-ci" } else { "" } }}
     bun install
 
 # Run pre-commit hooks on all files
@@ -60,6 +86,10 @@ pre:
 [windows]
 pre:
     prek run --config tools/prek.toml --all-files --skip alejandra
+
+# Reloads the direnv environment
+reload:
+    direnv reload
 
 # Sign the built executable
 [windows]

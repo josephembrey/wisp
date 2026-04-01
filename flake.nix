@@ -7,6 +7,9 @@
       nixpkgs.lib.genAttrs systems (system: f (import nixpkgs {inherit system;}));
   in {
     devShells = eachSystem (pkgs: {default = import ./tools/shell.nix {inherit pkgs;};});
-    packages = eachSystem (pkgs: {default = pkgs.callPackage ./tools/package.nix {};});
+    packages = eachSystem (pkgs: {
+      default = pkgs.callPackage ./tools/package.nix {};
+      web = pkgs.callPackage ./tools/web.nix {};
+    });
   };
 }

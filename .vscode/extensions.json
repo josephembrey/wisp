@@ -1,0 +1,16 @@
+{
+	"recommendations": [
+		"skellock.just",
+		"jnoortheen.nix-ide",
+		"svelte.svelte-vscode",
+		"bradlc.vscode-tailwindcss",
+		"dbaeumer.vscode-eslint",
+		"mkhl.direnv",
+		"rust-lang.rust-analyzer",
+		"serayuzgur.crates",
+		"tamasfe.even-better-toml",
+		"esbenp.prettier-vscode",
+		"mikestead.dotenv",
+		"anthropic.claude-code"
+	]
+}

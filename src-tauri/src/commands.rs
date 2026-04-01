@@ -1,6 +1,7 @@
 use crate::audio;
+use crate::engine;
 use crate::history;
-use crate::settings::{Settings, Status, WispState};
+use crate::settings::{OverlayState, OverlayStatus, Settings, WispState};
 use crate::whisper;
 use tauri::{Emitter, Manager};
 
@@ -23,46 +24,27 @@ pub fn update_settings(
     state: tauri::State<'_, WispState>,
     settings: Settings,
 ) -> Result<(), String> {
-    log::info!("cmd: update_settings (model={} hotkey={} gpu={})", settings.model, settings.hotkey, settings.gpu);
+    log::info!(
+        "cmd: update_settings (model={} hotkey={} gpu={})",
+        settings.model,
+        settings.hotkey,
+        settings.gpu
+    );
     let old = state.settings.lock().clone();
     settings.save(&state.data_dir)?;
-
-    let hotkey_changed =
-        old.hotkey != settings.hotkey || old.output_hotkey != settings.output_hotkey;
-    let model_changed = old.model != settings.model || old.gpu != settings.gpu;
-
-    if model_changed {
-        log::info!(
-            "settings: model changed {}(gpu={}) -> {}(gpu={})",
-            old.model, old.gpu, settings.model, settings.gpu
-        );
-        *state.settings.lock() = settings.clone();
-        let _ = app.emit("reload-model", ());
-    } else {
-        *state.settings.lock() = settings.clone();
-    }
-
-    if hotkey_changed {
-        log::info!(
-            "settings: hotkeys changed main='{}' output='{}'",
-            settings.hotkey, settings.output_hotkey
-        );
-        crate::register_shortcuts(&app, &settings.hotkey, &settings.output_hotkey);
-    }
-
-    if old.autostart != settings.autostart {
-        crate::sync_autostart(&app, settings.autostart);
-    }
-
+    crate::settings::apply_settings_diff(&old, &settings, &state.worker_tx, &app);
     let _ = app.emit("settings-changed", &settings);
+    *state.settings.lock() = settings;
+
+    engine::set_overlay(
+        &app,
+        OverlayState {
+            status: OverlayStatus::Saved,
+            ttl_ms: Some(750),
+        },
+    );
 
     Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn get_status(state: tauri::State<'_, WispState>) -> Status {
-    state.status.lock().clone()
 }
 
 #[tauri::command]
@@ -78,15 +60,27 @@ pub async fn download_model(
     state: tauri::State<'_, WispState>,
     name: String,
 ) -> Result<(), String> {
-    log::info!("download requested: {}", name);
+    log::info!("cmd: download_model {}", name);
     whisper::download_model(app, &state.models_dir, &name).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn delete_model(state: tauri::State<'_, WispState>, name: String) -> Result<(), String> {
-    log::info!("delete requested: {}", name);
-    whisper::delete_model(&state.models_dir, &name)
+pub fn delete_model(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, WispState>,
+    name: String,
+) -> Result<(), String> {
+    log::info!("cmd: delete_model {}", name);
+    whisper::delete_model(&state.models_dir, &name)?;
+    engine::set_overlay(
+        &app,
+        OverlayState {
+            status: OverlayStatus::Deleted,
+            ttl_ms: Some(750),
+        },
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -162,6 +156,74 @@ pub struct MonitorInfo {
     pub primary: bool,
 }
 
+#[derive(serde::Serialize, specta::Type)]
+pub struct MemoryInfo {
+    pub total_mb: u64,
+    pub available_mb: u64,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_memory_info(gpu: bool) -> MemoryInfo {
+    if gpu {
+        if let Some(info) = get_gpu_memory() {
+            return info;
+        }
+    }
+    get_system_memory()
+}
+
+fn get_system_memory() -> MemoryInfo {
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    MemoryInfo {
+        total_mb: sys.total_memory() / (1024 * 1024),
+        available_mb: sys.available_memory() / (1024 * 1024),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_gpu_memory() -> Option<MemoryInfo> {
+    use windows::core::Interface;
+    use windows::Win32::Graphics::Dxgi::*;
+
+    unsafe {
+        let factory: IDXGIFactory1 = CreateDXGIFactory1().ok()?;
+        let adapter = factory.EnumAdapters1(0).ok()?;
+        let desc = adapter.GetDesc1().ok()?;
+
+        if desc.DedicatedVideoMemory == 0 {
+            return None;
+        }
+
+        let total_mb = (desc.DedicatedVideoMemory / (1024 * 1024)) as u64;
+
+        if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
+            let mut info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+            if adapter3
+                .QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mut info)
+                .is_ok()
+            {
+                let available_mb = info.Budget.saturating_sub(info.CurrentUsage) / (1024 * 1024);
+                return Some(MemoryInfo {
+                    total_mb,
+                    available_mb,
+                });
+            }
+        }
+
+        Some(MemoryInfo {
+            total_mb,
+            available_mb: total_mb,
+        })
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_gpu_memory() -> Option<MemoryInfo> {
+    None
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_input_devices() -> Vec<audio::InputDeviceInfo> {
@@ -176,26 +238,34 @@ pub async fn transcribe_file(
     path: String,
 ) -> Result<String, String> {
     log::info!("transcribe_file: {}", path);
-    let file_path = std::path::PathBuf::from(&path);
+    let file_path = std::path::Path::new(&path);
     if !file_path.exists() {
         return Err(format!("file not found: {}", path));
     }
 
     let _ = app.emit("transcribe-file-progress", "decoding");
-    let audio = audio::decode_file(&file_path)?;
+    let audio = audio::decode_file(file_path)?;
 
     let settings = state.settings.lock().clone();
-    let model_path = whisper::model_path(&state.models_dir, &settings.model);
-    if !model_path.exists() {
-        return Err(format!("model '{}' not downloaded", settings.model));
-    }
-
-    let _ = app.emit("transcribe-file-progress", "loading");
-    let engine = whisper::WhisperEngine::new(&model_path, settings.gpu)
-        .map_err(|e| format!("failed to load model: {}", e))?;
 
     let _ = app.emit("transcribe-file-progress", "transcribing");
-    let text = engine.transcribe(&audio, &settings.language, None)?;
+
+    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+    state
+        .worker_tx
+        .send(whisper::worker::WorkerMessage::Transcribe {
+            job_id: 0, // File transcription doesn't use job IDs
+            audio,
+            language: settings.language.clone(),
+            model: settings.model.clone(),
+            gpu: settings.gpu,
+            model_loading: settings.model_loading,
+            abort_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            reply: whisper::worker::ReplyTo::Caller(reply_tx),
+        })
+        .map_err(|_| "Worker unavailable".to_string())?;
+
+    let text = reply_rx.recv().map_err(|_| "Worker died".to_string())??;
 
     let _ = app.emit("transcribe-file-progress", "done");
     log::info!("transcribe_file: {} chars", text.len());
@@ -238,7 +308,84 @@ pub fn show_log_dir(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
+pub fn open_url(url: String) -> Result<(), String> {
+    open::that(&url).map_err(|e| format!("failed to open {}: {}", url, e))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn quit(app: tauri::AppHandle) {
     log::info!("cmd: quit");
     app.exit(0);
+}
+
+#[derive(serde::Serialize, specta::Type)]
+pub struct UpdateInfo {
+    pub available: bool,
+    pub current: String,
+    pub latest: String,
+    pub url: String,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn check_for_update(app: tauri::AppHandle) -> UpdateInfo {
+    let current = app.package_info().version.to_string();
+    let info = UpdateInfo {
+        available: false,
+        current: current.clone(),
+        latest: current.clone(),
+        url: "https://github.com/josephembrey/wisp/releases".to_string(),
+    };
+
+    let client = match reqwest::Client::builder()
+        .user_agent("wisp-update-checker")
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("update: failed to create client: {}", e);
+            return info;
+        }
+    };
+
+    let resp = match client
+        .get("https://api.github.com/repos/josephembrey/wisp/releases/latest")
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("update: request failed: {}", e);
+            return info;
+        }
+    };
+
+    let json: serde_json::Value = match resp.json().await {
+        Ok(j) => j,
+        Err(e) => {
+            log::warn!("update: parse failed: {}", e);
+            return info;
+        }
+    };
+
+    let tag = json["tag_name"]
+        .as_str()
+        .unwrap_or("")
+        .trim_start_matches('v');
+    let html_url = json["html_url"].as_str().unwrap_or(&info.url).to_string();
+
+    log::info!("update: current={} latest={}", current, tag);
+
+    let latest = if tag.is_empty() {
+        current.clone()
+    } else {
+        tag.to_string()
+    };
+    UpdateInfo {
+        available: !tag.is_empty() && tag != current,
+        current,
+        latest,
+        url: html_url,
+    }
 }

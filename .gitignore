@@ -1,6 +1,7 @@
 .claude
 .DS_Store
 .direnv/
+.envrc.local
 .svelte-kit
 build/
 node_modules/
