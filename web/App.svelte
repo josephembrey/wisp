@@ -3,14 +3,14 @@
 	const download = `${github}/releases/latest`;
 
 	// Interactive demo — track physical key state directly
-	type DemoState = 'idle' | 'recording' | 'processing' | 'copied' | 'cancelled' | 'mode';
+	type DemoState = 'idle' | 'recording' | 'processing' | 'copied' | 'cancelled';
 	type OutputMode = 'clipboard' | 'type';
 	let status: DemoState = $state('idle');
 	let display: DemoState = $state('idle');
-	let outputMode: OutputMode = $state('clipboard');
+	let outputMode: OutputMode = $state('type');
 	let inputText = $state('');
 	let fakeClipboard = '';
-	let ctrlHeld = $state(false);
+	let ctrlHeld = false;
 	let altHeld = $state(false);
 	let qHeld = $state(false);
 	let recording = false;
@@ -58,15 +58,6 @@
 		}
 
 		if (!comboDown()) return;
-
-		// Ctrl+Alt+Q = toggle output mode
-		if (ctrlHeld) {
-			clearTimeout(timeout);
-			outputMode = outputMode === 'clipboard' ? 'type' : 'clipboard';
-			status = 'mode';
-			timeout = setTimeout(() => (status = 'idle'), 1200);
-			return;
-		}
 
 		// Alt+Q = start recording
 		if (!recording) {
@@ -122,108 +113,133 @@
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} onblur={handleBlur} />
 
 <div class="flex min-h-screen flex-col items-center justify-center px-6">
-	<!-- Overlay pill — fixed top-right -->
-	<div
-		class="fixed top-4 right-4 flex flex-col items-end gap-1 transition-opacity duration-150"
-		class:opacity-0={status === 'idle'}
-	>
-		<div class="overlay-pill flex w-fit items-center gap-2 rounded-full px-3 py-1.5 shadow-lg">
-			{#if display === 'recording'}
-				<span class="relative flex h-2.5 w-2.5 shrink-0">
-					<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500"
-					></span>
-					<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500"></span>
-				</span>
-				<span class="overlay-label text-white">Recording</span>
-			{:else if display === 'processing'}
-				<svg
-					class="h-3.5 w-3.5 shrink-0 animate-spin text-amber-400"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-				>
-					<path d="M21 12a9 9 0 1 1-6.219-8.56" />
-				</svg>
-				<span class="overlay-label text-white">Processing</span>
-			{:else if display === 'cancelled'}
-				<svg
-					class="h-3 w-3 shrink-0 text-amber-400"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="18" y1="6" x2="6" y2="18" />
-					<line x1="6" y1="6" x2="18" y2="18" />
-				</svg>
-				<span class="overlay-label text-amber-400">Cancelled</span>
-			{:else if display === 'copied'}
-				<svg
-					class="h-3 w-3 shrink-0 text-green-400"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-					<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-					<path d="m9 14 2 2 4-4" />
-				</svg>
-				<span class="overlay-label text-green-400">Copied</span>
-			{:else if display === 'mode'}
-				{#if outputMode === 'clipboard'}
-					<svg
-						class="h-3 w-3 shrink-0 text-white"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-						<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-					</svg>
-					<span class="overlay-label text-white">Clipboard</span>
-				{:else}
-					<svg
-						class="h-3 w-3 shrink-0 text-white"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1" />
-						<path d="M7 22h1a4 4 0 0 0 4-4v-1" />
-						<path d="M7 2h1a4 4 0 0 1 4 4v1" />
-					</svg>
-					<span class="overlay-label text-white">Cursor</span>
-				{/if}
-			{/if}
-		</div>
-	</div>
-
 	<main class="flex max-w-lg flex-col items-center gap-8 text-center">
 		<div class="flex flex-col items-center gap-5">
-			<div class="flex items-center gap-4">
-				<h1 class="text-4xl font-bold tracking-tight">wisp</h1>
-				<div class="flex items-center gap-1">
-					<kbd class="kbd kbd-sm kbd-dim {ctrlHeld ? 'kbd-active' : ''}">Ctrl</kbd>
-					<span class="text-[10px] text-muted-foreground/20">+</span>
-					<kbd class="kbd kbd-sm {altHeld ? 'kbd-active' : ''}">Alt</kbd>
-					<span class="text-[10px] text-muted-foreground/40">+</span>
-					<kbd class="kbd kbd-sm {qHeld ? 'kbd-active' : ''}">Q</kbd>
+			<div class="flex flex-col items-center gap-3">
+				<span
+					class="text-[10px] text-muted-foreground/40 transition-opacity duration-150"
+					class:opacity-0={status === 'idle'}>(not really)</span
+				>
+				<div
+					class="overlay-pill flex w-fit items-center gap-2 rounded-full px-3 py-1.5 shadow-lg transition-opacity duration-150"
+					class:opacity-0={status === 'idle'}
+				>
+					{#if display === 'recording'}
+						<span class="relative flex h-2.5 w-2.5 shrink-0">
+							<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500"
+							></span>
+							<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500"></span>
+						</span>
+						<span class="overlay-label text-white">Recording</span>
+					{:else if display === 'processing'}
+						<svg
+							class="h-3.5 w-3.5 shrink-0 animate-spin text-amber-400"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+						>
+							<path d="M21 12a9 9 0 1 1-6.219-8.56" />
+						</svg>
+						<span class="overlay-label text-white">Processing</span>
+					{:else if display === 'cancelled'}
+						<svg
+							class="h-3 w-3 shrink-0 text-amber-400"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<line x1="18" y1="6" x2="6" y2="18" />
+							<line x1="6" y1="6" x2="18" y2="18" />
+						</svg>
+						<span class="overlay-label text-amber-400">Cancelled</span>
+					{:else if display === 'copied'}
+						{#if outputMode === 'type'}
+							<svg
+								class="h-3 w-3 shrink-0 text-green-400"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1" />
+								<path d="M7 22h1a4 4 0 0 0 4-4v-1" />
+								<path d="M7 2h1a4 4 0 0 1 4 4v1" />
+							</svg>
+							<span class="overlay-label text-green-400">Typed</span>
+						{:else}
+							<svg
+								class="h-3 w-3 shrink-0 text-green-400"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+								<path
+									d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+								/>
+								<path d="m9 14 2 2 4-4" />
+							</svg>
+							<span class="overlay-label text-green-400">Copied</span>
+						{/if}
+					{:else}
+						<span class="h-2.5 w-2.5 shrink-0"></span>
+						<span class="overlay-label invisible">Recording</span>
+					{/if}
+				</div>
+				<div class="flex items-center gap-4">
+					<h1 class="text-4xl font-bold tracking-tight">wisp</h1>
+					<div class="flex items-center gap-1">
+						<kbd class="kbd kbd-sm {altHeld ? 'kbd-active' : ''}">Alt</kbd>
+						<span class="text-[10px] text-muted-foreground/40">+</span>
+						<kbd class="kbd kbd-sm {qHeld ? 'kbd-active' : ''}">Q</kbd>
+					</div>
 				</div>
 			</div>
-			<input type="text" bind:value={inputText} placeholder="..." class="demo-input" />
+			<div class="flex items-center gap-2">
+				<input type="text" bind:value={inputText} placeholder="..." class="demo-input" />
+				<button
+					class="mode-toggle"
+					title={outputMode === 'type' ? 'Cursor mode' : 'Clipboard mode'}
+					onclick={() => (outputMode = outputMode === 'clipboard' ? 'type' : 'clipboard')}
+				>
+					{#if outputMode === 'type'}
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1" />
+							<path d="M7 22h1a4 4 0 0 0 4-4v-1" />
+							<path d="M7 2h1a4 4 0 0 1 4 4v1" />
+						</svg>
+					{:else}
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+							<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+						</svg>
+					{/if}
+				</button>
+			</div>
 		</div>
 
 		<p class="text-lg text-muted-foreground">
@@ -315,12 +331,28 @@
 		opacity: 0.4;
 	}
 
-	.kbd-dim {
-		opacity: 0.4;
+	.mode-toggle {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 0.375rem;
+		border: 1px solid var(--border);
+		background: var(--muted);
+		color: var(--muted-foreground);
+		cursor: pointer;
+		transition: all 150ms;
 	}
 
-	.kbd-dim.kbd-active {
-		opacity: 1;
+	.mode-toggle:hover {
+		color: var(--foreground);
+		border-color: var(--foreground);
+	}
+
+	.mode-toggle svg {
+		width: 0.875rem;
+		height: 0.875rem;
 	}
 
 	.kbd-active {

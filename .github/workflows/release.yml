@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [release]
 
 permissions:
   contents: write
@@ -26,35 +26,51 @@ jobs:
           path: wisp-linux-x64
 
   build-macos:
-    strategy:
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-          - runner: macos-13
-            arch: x64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-
+      - name: Write Apple API key to disk
+        run: echo "${{ secrets.APPLE_API_KEY }}" > /tmp/AuthKey.p8
       - run: nix develop --command just install
-      - run: nix develop --command just build
-
-      - run: cp src-tauri/target/release/wisp wisp-macos-${{ matrix.arch }}
+      - name: Build and sign
+        run: >-
+          nix develop --command env
+          APPLE_CERTIFICATE="$APPLE_CERTIFICATE"
+          APPLE_CERTIFICATE_PASSWORD="$APPLE_CERTIFICATE_PASSWORD"
+          APPLE_SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
+          APPLE_API_ISSUER="$APPLE_API_ISSUER"
+          APPLE_API_KEY="$APPLE_API_KEY"
+          APPLE_API_KEY_PATH="$APPLE_API_KEY_PATH"
+          just build
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_KEY_PATH: /tmp/AuthKey.p8
+      - run: cp src-tauri/target/release/wisp wisp-macos-arm64
       - uses: actions/upload-artifact@v4
         with:
-          name: wisp-macos-${{ matrix.arch }}
-          path: wisp-macos-${{ matrix.arch }}
+          name: wisp-macos-arm64
+          path: wisp-macos-arm64
 
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: extractions/setup-just@v2
-
+      - uses: oven-sh/setup-bun@v2
       - run: just install ci
+      - name: Set VULKAN_SDK
+        shell: pwsh
+        run: |
+          $vulkan = Get-ChildItem C:\VulkanSDK -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+          echo "VULKAN_SDK=$vulkan" >> $env:GITHUB_ENV
       - run: just build
 
       - run: Copy-Item "C:\wisp\release\wisp.exe" "wisp-windows-x64.exe"
@@ -79,14 +95,19 @@ jobs:
           name: wisp-windows-x64
           path: wisp-windows-x64.exe
 
-  # TODO: sign-macos
-  #   - import .p12 cert, codesign, notarize
 
   release:
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          version=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
@@ -97,16 +118,15 @@ jobs:
 
       - name: Extract release notes
         run: |
-          version="${{ github.ref_name }}"
-          version="${version#v}"
-          awk "/^## ${version}/{found=1; next} /^## /{if(found) exit} found" CHANGELOG.md > notes.md
+          awk "/^## ${{ steps.version.outputs.version }}/{found=1; next} /^## /{if(found) exit} found" CHANGELOG.md > notes.md
           cat notes.md
 
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create ${{ github.ref_name }} \
-            --title "${{ github.ref_name }}" \
+          gh release create ${{ steps.version.outputs.tag }} \
+            --title "${{ steps.version.outputs.tag }}" \
             --notes-file notes.md \
+            --target release \
             artifacts/*
