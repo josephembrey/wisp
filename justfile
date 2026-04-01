@@ -7,16 +7,12 @@ set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 default:
     @just --list
 
-# Generate TypeScript bindings
-bindings:
-    cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings --features gen-bindings
-
 # Production build
-build: bindings
+build:
     bun tauri build
 
 # Production build with verbose logging
-build-debug: bindings
+build-debug:
     bun tauri build -- --features verbose-log
 
 # Type-check rust and svelte
@@ -48,7 +44,7 @@ icons:
     bunx tauri icon src-tauri/icons/icon.png
     @('src-tauri/icons/ios', 'src-tauri/icons/android') | Where-Object { Test-Path $_ } | Remove-Item -Recurse -Force
 
-# Run in development mode
+# Run in development mode (also regenerates TypeScript bindings)
 dev:
     bun tauri dev
 
