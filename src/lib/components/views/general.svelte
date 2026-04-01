@@ -99,7 +99,7 @@
 			</div>
 			<Textarea
 				value={app.lastTranscription}
-				disabled
+				readonly
 				class="h-16 resize-none text-xs"
 				placeholder="No transcription yet"
 			/>
