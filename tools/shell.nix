@@ -34,18 +34,19 @@ in
         xdotool
         xorg.libXtst
       ]
-      ++ lib.optionals isDarwin (with darwin.apple_sdk.frameworks; [
-        AppKit
-        AudioToolbox
-        CoreAudio
-        WebKit
-      ]);
+      ;
+
+    buildInputs = lib.optionals isDarwin [
+      (pkgs.darwinMinVersionHook "10.15")
+    ];
 
     shellHook = ''
       prek install -q --config tools/prek.toml --hook-type pre-commit --hook-type commit-msg
     '';
 
     env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+    env.MACOSX_DEPLOYMENT_TARGET = lib.optionalString isDarwin "10.15";
+    env.CMAKE_OSX_DEPLOYMENT_TARGET = lib.optionalString isDarwin "10.15";
     env.LD_LIBRARY_PATH = lib.optionalString isLinux (lib.makeLibraryPath [
       pkgs.alsa-lib
       pkgs.gtk3

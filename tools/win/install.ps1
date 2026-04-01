@@ -35,6 +35,12 @@ if (-not $ci) {
     wg j178.Prek
 }
 
+# Refresh PATH so newly installed tools are available in this session
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+# Bun installs to ~/.bun/bin which may not be in the refreshed PATH yet
+$bunDir = "$env:USERPROFILE\.bun\bin"
+if ((Test-Path $bunDir) -and ($env:Path -notlike "*$bunDir*")) { $env:Path += ";$bunDir" }
+
 # Persistent env vars (if not already set)
 $llvm = "${env:ProgramFiles}\LLVM\bin"
 if (-not $env:LIBCLANG_PATH -and (Test-Path "$llvm\libclang.dll")) {

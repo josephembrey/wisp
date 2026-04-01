@@ -11,30 +11,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Linux & macOS: build inside Nix devshell
-  build-nix:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-
       - run: nix develop --command just install
       - run: nix develop --command just build
 
-  # Windows: native toolchain via tools/win/install.ps1
+  build-macos:
+    runs-on: macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop --command just install
+      - run: nix develop --command just build
+
   build-windows:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
       - uses: extractions/setup-just@v2
-
+      - uses: oven-sh/setup-bun@v2
       - run: just install ci
+      - name: Set VULKAN_SDK
+        shell: pwsh
+        run: |
+          $vulkan = Get-ChildItem C:\VulkanSDK -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+          echo "VULKAN_SDK=$vulkan" >> $env:GITHUB_ENV
       - run: just build
